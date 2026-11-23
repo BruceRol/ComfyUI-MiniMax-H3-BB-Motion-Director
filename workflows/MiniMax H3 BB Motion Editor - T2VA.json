@@ -1,0 +1,929 @@
+{
+  "id": "f6f16231-3c49-4ce5-b7e6-e75cc7c185de",
+  "revision": 0,
+  "last_node_id": 16,
+  "last_link_id": 20,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "VAELoader",
+      "pos": [
+        2607.6011371320014,
+        -199.94495227520355
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.46.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "min_max\\minimax_h3_video_vae_fp16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "min_max\\minimax_h3_video_vae_fp16.safetensors"
+      }
+    },
+    {
+      "id": 2,
+      "type": "VAELoader",
+      "pos": [
+        2614.344312945435,
+        -79.20187551379136
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.46.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "min_max\\minimax_h3_audio_vae_fp32.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "min_max\\minimax_h3_audio_vae_fp32.safetensors"
+      }
+    },
+    {
+      "id": 3,
+      "type": "UNETLoader",
+      "pos": [
+        1844.8931266575119,
+        -575.9101246410821
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.46.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "min_max\\minimaxH3INT8INT4_ref2vaINT8Pruned.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "min_max\\minimaxH3INT8INT4_ref2vaINT8Pruned.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 5,
+      "type": "CLIPLoader",
+      "pos": [
+        2610.217249092923,
+        59.12906843839861
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.46.0",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "min_max\\qwen3vl_32b_heretic_minimax_h3_nvfp4.safetensors",
+        "minimax",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "min_max\\qwen3vl_32b_heretic_minimax_h3_nvfp4.safetensors",
+        "type": "minimax",
+        "device": "default"
+      }
+    },
+    {
+      "id": 7,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1850.5039399250923,
+        -407.77690863461635
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.46.0",
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "min_max\\pika_h3_flex_ref2va_v1_bf16.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "min_max\\pika_h3_flex_ref2va_v1_bf16.safetensors",
+        "strength_model": 1
+      }
+    },
+    {
+      "id": 8,
+      "type": "KSamplerSelect",
+      "pos": [
+        2609.257526006353,
+        213.110127864241
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.46.0",
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "lcm"
+      ],
+      "widgets_values_named": {
+        "sampler_name": "lcm"
+      }
+    },
+    {
+      "id": 9,
+      "type": "MiniMaxLowVRAMAttention",
+      "pos": [
+        2186.061334680229,
+        -571.1332649388299
+      ],
+      "size": [
+        318.51666870117185,
+        58
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "aa2b5ea5e7f61b51f5d26d726f23c1d74e951016",
+        "Node name for S&R": "MiniMaxLowVRAMAttention"
+      },
+      "widgets_values": [
+        4
+      ],
+      "widgets_values_named": {
+        "head_chunks": 4
+      }
+    },
+    {
+      "id": 10,
+      "type": "MiniMaxChunkFeedForward",
+      "pos": [
+        2191.2667404430294,
+        -404.82468532791376
+      ],
+      "size": [
+        316.3833374023437,
+        82
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "aa2b5ea5e7f61b51f5d26d726f23c1d74e951016",
+        "Node name for S&R": "MiniMaxChunkFeedForward"
+      },
+      "widgets_values": [
+        2,
+        4096
+      ],
+      "widgets_values_named": {
+        "chunks": 2,
+        "seq_threshold": 4096
+      }
+    },
+    {
+      "id": 11,
+      "type": "CustomSigmas",
+      "pos": [
+        2475.8957584982354,
+        325.6611408892769
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "aa2b5ea5e7f61b51f5d26d726f23c1d74e951016",
+        "Node name for S&R": "CustomSigmas"
+      },
+      "widgets_values": [
+        "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0\n",
+        6
+      ],
+      "widgets_values_named": {
+        "sigmas_string": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0\n",
+        "interpolate_to_steps": 6
+      }
+    },
+    {
+      "id": 12,
+      "type": "MiniMaxH3SigmaShift",
+      "pos": [
+        2555.494132760293,
+        -500.27990557796625
+      ],
+      "size": [
+        277.26666870117185,
+        82
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.46.0",
+        "Node name for S&R": "MiniMaxH3SigmaShift"
+      },
+      "widgets_values": [
+        12,
+        3
+      ],
+      "widgets_values_named": {
+        "shift_video": 12,
+        "shift_audio": 3
+      }
+    },
+    {
+      "id": 13,
+      "type": "VedaSparseAttention",
+      "pos": [
+        2872.545286749083,
+        -550.5956314685349
+      ],
+      "size": [
+        340.15,
+        228
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "title": "⚡ Veda Sparse Attention (MiniMax H3)",
+      "properties": {
+        "cnr_id": "veda-sparse-attention",
+        "ver": "0.3.1",
+        "Node name for S&R": "VedaSparseAttention"
+      },
+      "widgets_values": [
+        "minimax_h3_r2va_veda_preview_fp8.safetensors",
+        "32",
+        "0%",
+        "",
+        "0",
+        true
+      ],
+      "widgets_values_named": {
+        "predictor": "minimax_h3_r2va_veda_preview_fp8.safetensors",
+        "generated_sparsity": "32",
+        "reference_sparsity": "0%",
+        "full_attention_layers": "",
+        "full_attention_steps": "0",
+        "verbose": true
+      }
+    },
+    {
+      "id": 15,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        3991.740356159548,
+        -548.9870167921558
+      ],
+      "size": [
+        220.75,
+        459.52777777777777
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 20
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 11
+        },
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "frame_rate",
+          "type": "FLOAT",
+          "widget": {
+            "name": "frame_rate"
+          },
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": []
+        }
+      ],
+      "title": "OUPUT",
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "4d907bee61e92c2e65af3bd6383a4e4d356126d1",
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "MiniMaxH3",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": false,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "MiniMaxH3_00002-audio.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 24,
+            "workflow": "MiniMaxH3_00002.png",
+            "fullpath": "V:\\python\\ComfyUI\\ComfyUI\\output\\MiniMaxH3_00002-audio.mp4",
+            "metadata": {
+              "kind": "video",
+              "width": 864,
+              "height": 480,
+              "duration": 8,
+              "fps": 24,
+              "frame_count": 192
+            }
+          }
+        }
+      },
+      "widgets_values_named": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "MiniMaxH3",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": false,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "MiniMaxH3_00002-audio.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 24,
+            "workflow": "MiniMaxH3_00002.png",
+            "fullpath": "V:\\python\\ComfyUI\\ComfyUI\\output\\MiniMaxH3_00002-audio.mp4",
+            "metadata": {
+              "kind": "video",
+              "width": 864,
+              "height": 480,
+              "duration": 8,
+              "fps": 24,
+              "frame_count": 192
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "BB_MiniMaxH3MotionDirector",
+      "pos": [
+        3462.3418699853714,
+        -548.4973778375779
+      ],
+      "size": [
+        400.7393496886307,
+        647
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 9
+        },
+        {
+          "name": "video_vae",
+          "type": "VAE",
+          "link": 15
+        },
+        {
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 16
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 17
+        },
+        {
+          "name": "sampler",
+          "shape": 7,
+          "type": "SAMPLER",
+          "link": 18
+        },
+        {
+          "name": "sigmas",
+          "shape": 7,
+          "type": "SIGMAS",
+          "link": 19
+        },
+        {
+          "name": "director_inputs",
+          "shape": 7,
+          "type": "MMX_MOTION_DIR_INPUTS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": [
+            20
+          ]
+        },
+        {
+          "name": "audio",
+          "shape": 6,
+          "type": "AUDIO",
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "minimax-h3-motion-director",
+        "ver": "f99390645533c0993a8914f2585d7199ebc3e8e2",
+        "Node name for S&R": "BB_MiniMaxH3MotionDirector",
+        "mmx_director_widget_state": {
+          "task_type": "t2v — 文生视频(Text to Video)",
+          "global_prompt": "",
+          "bd_grp_sample": "Sampling Settings  [External]",
+          "cfg": 1,
+          "seed": 1061345740354214,
+          "control_after_generate": "randomize",
+          "frame_rate": 24,
+          "width": 864,
+          "height": 480,
+          "ref_max_size": 864,
+          "total_frames": 508,
+          "timeline_data": "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":508,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[],\"sourceFrameCount\":124,\"deletedSourceRanges\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{\"videoFile\":\"\",\"fileName\":\"\",\"type\":\"input\",\"subfolder\":\"\"},\"continuousReference\":false,\"genImage\":{\"imageFile\":\"\"}},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"segments\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwt9dqb5do2ta\",\"start\":0,\"length\":192,\"frameCount\":192,\"durationSec\":8,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwt9jwdk7qh1b\",\"start\":192,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwt9kmr3ok1kw\",\"start\":316,\"length\":192,\"frameCount\":192,\"durationSec\":8,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"timelineMode\":\"prompt_batch\",\"width\":864,\"height\":480,\"refMaxSize\":864,\"seedMode\":\"randomize\",\"gen\":{\"defaultFrameCount\":124}}",
+          "bd_grp_motion": "Cross-Segment Continuity",
+          "motion_context_enabled": true,
+          "context_length": 22,
+          "source_overlap_frames": 5,
+          "audio_context_enabled": true,
+          "color_reanchor_enabled": false,
+          "bd_grp_advanced": "Advanced sampling · Sampling: external",
+          "steps": 25,
+          "sampler_name": "res_multistep",
+          "scheduler": "simple",
+          "shift_video": 12,
+          "shift_audio": 3,
+          "bd_grp_perf": "Performance",
+          "clear_vram_between_segments": true,
+          "export_source_images": false,
+          "bd_grp_experimental": "Experimental",
+          "pin_renorm_enabled": false,
+          "postprocess_config": "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":\"0.25\",\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"face_refine\":{\"enabled\":false,\"detector\":\"ultralytics\",\"detector_model\":\"\",\"confidence\":0.35,\"select\":\"largest\",\"crop_factor\":2.5,\"canvas_mode\":\"auto_capped_768\",\"canvas_size\":768,\"smooth_method\":\"gaussian\",\"smooth_window\":21,\"size_smooth_window\":51,\"size_mode\":\"adaptive\",\"adaptive\":true,\"base_denoise\":0.45,\"strength_small_face\":0.8,\"strength_large_face\":0.35,\"face_px_small\":30,\"face_px_large\":120,\"mask_mode\":\"rect\",\"paste_region\":\"face_rect\",\"feather\":24,\"colour_match\":true,\"blend\":1,\"undetected_frames\":\"fade\",\"identity_reference\":\"\",\"identity_track\":false,\"identity_threshold\":0.28,\"fallback_detector\":\"none\",\"fallback_head_frac\":0.5,\"gamma\":1,\"denoise_smooth\":9,\"mask_dilation\":24,\"feather_scales_with_crop\":false,\"sam_model\":\"\",\"sam_threshold\":0.93,\"sam_dilation\":0,\"sam_temporal_smooth\":5},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+          "minimax_motion_director_ui": ""
+        }
+      },
+      "widgets_values": [
+        "t2v — 文生视频(Text to Video)",
+        "",
+        "Sampling Settings  [External]",
+        1,
+        1061345740354214,
+        "randomize",
+        24,
+        864,
+        480,
+        864,
+        508,
+        "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":508,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[],\"sourceFrameCount\":124,\"deletedSourceRanges\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{\"videoFile\":\"\",\"fileName\":\"\",\"type\":\"input\",\"subfolder\":\"\"},\"continuousReference\":false,\"genImage\":{\"imageFile\":\"\"}},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"segments\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwt9dqb5do2ta\",\"start\":0,\"length\":192,\"frameCount\":192,\"durationSec\":8,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwt9jwdk7qh1b\",\"start\":192,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwt9kmr3ok1kw\",\"start\":316,\"length\":192,\"frameCount\":192,\"durationSec\":8,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"timelineMode\":\"prompt_batch\",\"width\":864,\"height\":480,\"refMaxSize\":864,\"seedMode\":\"randomize\",\"gen\":{\"defaultFrameCount\":124}}",
+        "Cross-Segment Continuity",
+        true,
+        22,
+        5,
+        true,
+        false,
+        "Advanced sampling · Sampling: external",
+        25,
+        "res_multistep",
+        "simple",
+        12,
+        3,
+        "Performance",
+        true,
+        false,
+        "Experimental",
+        false,
+        "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":\"0.25\",\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"face_refine\":{\"enabled\":false,\"detector\":\"ultralytics\",\"detector_model\":\"\",\"confidence\":0.35,\"select\":\"largest\",\"crop_factor\":2.5,\"canvas_mode\":\"auto_capped_768\",\"canvas_size\":768,\"smooth_method\":\"gaussian\",\"smooth_window\":21,\"size_smooth_window\":51,\"size_mode\":\"adaptive\",\"adaptive\":true,\"base_denoise\":0.45,\"strength_small_face\":0.8,\"strength_large_face\":0.35,\"face_px_small\":30,\"face_px_large\":120,\"mask_mode\":\"rect\",\"paste_region\":\"face_rect\",\"feather\":24,\"colour_match\":true,\"blend\":1,\"undetected_frames\":\"fade\",\"identity_reference\":\"\",\"identity_track\":false,\"identity_threshold\":0.28,\"fallback_detector\":\"none\",\"fallback_head_frac\":0.5,\"gamma\":1,\"denoise_smooth\":9,\"mask_dilation\":24,\"feather_scales_with_crop\":false,\"sam_model\":\"\",\"sam_threshold\":0.93,\"sam_dilation\":0,\"sam_temporal_smooth\":5},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+        ""
+      ],
+      "widgets_values_named": {
+        "task_type": "t2v — 文生视频(Text to Video)",
+        "global_prompt": "",
+        "bd_grp_sample": "Sampling Settings  [External]",
+        "cfg": 1,
+        "seed": 1061345740354214,
+        "control_after_generate": "randomize",
+        "frame_rate": 24,
+        "width": 864,
+        "height": 480,
+        "ref_max_size": 864,
+        "total_frames": 508,
+        "timeline_data": "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":508,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[],\"sourceFrameCount\":124,\"deletedSourceRanges\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{\"videoFile\":\"\",\"fileName\":\"\",\"type\":\"input\",\"subfolder\":\"\"},\"continuousReference\":false,\"genImage\":{\"imageFile\":\"\"}},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"segments\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwt9dqb5do2ta\",\"start\":0,\"length\":192,\"frameCount\":192,\"durationSec\":8,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwt9jwdk7qh1b\",\"start\":192,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwt9kmr3ok1kw\",\"start\":316,\"length\":192,\"frameCount\":192,\"durationSec\":8,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"timelineMode\":\"prompt_batch\",\"width\":864,\"height\":480,\"refMaxSize\":864,\"seedMode\":\"randomize\",\"gen\":{\"defaultFrameCount\":124}}",
+        "bd_grp_motion": "Cross-Segment Continuity",
+        "motion_context_enabled": true,
+        "context_length": 22,
+        "source_overlap_frames": 5,
+        "audio_context_enabled": true,
+        "color_reanchor_enabled": false,
+        "bd_grp_advanced": "Advanced sampling · Sampling: external",
+        "steps": 25,
+        "sampler_name": "res_multistep",
+        "scheduler": "simple",
+        "shift_video": 12,
+        "shift_audio": 3,
+        "bd_grp_perf": "Performance",
+        "clear_vram_between_segments": true,
+        "export_source_images": false,
+        "bd_grp_experimental": "Experimental",
+        "pin_renorm_enabled": false,
+        "postprocess_config": "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":\"0.25\",\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"face_refine\":{\"enabled\":false,\"detector\":\"ultralytics\",\"detector_model\":\"\",\"confidence\":0.35,\"select\":\"largest\",\"crop_factor\":2.5,\"canvas_mode\":\"auto_capped_768\",\"canvas_size\":768,\"smooth_method\":\"gaussian\",\"smooth_window\":21,\"size_smooth_window\":51,\"size_mode\":\"adaptive\",\"adaptive\":true,\"base_denoise\":0.45,\"strength_small_face\":0.8,\"strength_large_face\":0.35,\"face_px_small\":30,\"face_px_large\":120,\"mask_mode\":\"rect\",\"paste_region\":\"face_rect\",\"feather\":24,\"colour_match\":true,\"blend\":1,\"undetected_frames\":\"fade\",\"identity_reference\":\"\",\"identity_track\":false,\"identity_threshold\":0.28,\"fallback_detector\":\"none\",\"fallback_head_frac\":0.5,\"gamma\":1,\"denoise_smooth\":9,\"mask_dilation\":24,\"feather_scales_with_crop\":false,\"sam_model\":\"\",\"sam_threshold\":0.93,\"sam_dilation\":0,\"sam_temporal_smooth\":5},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+        "minimax_motion_director_ui": ""
+      }
+    }
+  ],
+  "links": [
+    [
+      4,
+      7,
+      0,
+      9,
+      0,
+      "MODEL"
+    ],
+    [
+      5,
+      9,
+      0,
+      10,
+      0,
+      "MODEL"
+    ],
+    [
+      6,
+      10,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      12,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      13,
+      0,
+      16,
+      0,
+      "MODEL"
+    ],
+    [
+      11,
+      16,
+      1,
+      15,
+      1,
+      "AUDIO"
+    ],
+    [
+      12,
+      16,
+      2,
+      15,
+      4,
+      "FLOAT"
+    ],
+    [
+      14,
+      3,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      15,
+      1,
+      0,
+      16,
+      1,
+      "VAE"
+    ],
+    [
+      16,
+      2,
+      0,
+      16,
+      2,
+      "VAE"
+    ],
+    [
+      17,
+      5,
+      0,
+      16,
+      3,
+      "CLIP"
+    ],
+    [
+      18,
+      8,
+      0,
+      16,
+      4,
+      "SAMPLER"
+    ],
+    [
+      19,
+      11,
+      0,
+      16,
+      5,
+      "SIGMAS"
+    ],
+    [
+      20,
+      16,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Model",
+      "bounding": [
+        1818.2638166963281,
+        -652.7884948495989,
+        1439.0668216483716,
+        367.4087796518598
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "VAEs",
+      "bounding": [
+        2583.5125235687797,
+        -270.5508227901029,
+        327.30183954487893,
+        266.94462052476797
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.1178016217498752,
+      "offset": [
+        -3269.253031784833,
+        682.9854122169621
+      ]
+    },
+    "frontendVersion": "1.59.10",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4,
+  "seed_widgets": {
+    "16": 4
+  }
+}
