@@ -7,7 +7,7 @@
 
 /** MiniMax H3 Motion Director UI i18n (zh / en) with localStorage persistence. */
 
-export const LOCALE_STORAGE_KEY = "mmx_motion_director_ui_locale";
+export const LOCALE_STORAGE_KEY = "mmx_bb_motion_director_ui_locale";
 
 const ZH = {
     "toolbar.addRefGroup": "添加素材组",

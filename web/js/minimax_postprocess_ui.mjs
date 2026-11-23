@@ -542,7 +542,7 @@ export function mountPostprocessUI(container, store, { fetchApi, directorSize = 
     render(store.get());
     updateLocale(locale());
 
-    if (fetchApi) fetchApi("/minimax/motion-director/postprocess_capabilities").then((response) => response.json()).then((caps) => {
+    if (fetchApi) fetchApi("/minimax/bb/motion-director/postprocess_capabilities").then((response) => response.json()).then((caps) => {
         const fill = (path, rows) => {
             const select = root.querySelector(`[data-path="${path}"]`);
             const current = select.value;

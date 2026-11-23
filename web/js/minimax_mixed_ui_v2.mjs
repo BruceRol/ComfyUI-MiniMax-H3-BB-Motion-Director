@@ -14,7 +14,7 @@ import { pickMixedMaterial } from "./minimax_mixed_material_picker.mjs";
 import { mt, onMixedLocaleChange } from "./minimax_mixed_i18n.mjs";
 import { renderMixedNativeModeCard } from "./minimax_mixed_native_inputs.mjs?boot=mixed_native_v6";
 
-const STYLE_ID = "mmx-mixed-mode-integrated-styles";
+const STYLE_ID = "mmx-bb-mixed-mode-integrated-styles";
 const CHUNK_BYTES = 8 * 1024 * 1024;
 const CHUNK_THRESHOLD = 80 * 1024 * 1024;
 
@@ -110,7 +110,7 @@ async function uploadChunked(file, onProgress) {
         body.append("chunk_index", String(i));
         body.append("total_chunks", String(total));
         body.append("chunk", file.slice(start, end), `${file.name}.${i}.part`);
-        const resp = await api.fetchApi("/minimax/motion-director/upload_chunk", { method: "POST", body });
+        const resp = await api.fetchApi("/minimax/bb/motion-director/upload_chunk", { method: "POST", body });
         if (!resp.ok) throw new Error((await responseText(resp)) || `Chunk upload failed (${resp.status})`);
         result = await resp.json();
         onProgress?.((i + 1) / total);
@@ -150,7 +150,7 @@ function chooseFile(accept) {
 }
 
 async function probeVideo(videoFile) {
-    const resp = await api.fetchApi("/minimax/motion-director/probe_video", {
+    const resp = await api.fetchApi("/minimax/bb/motion-director/probe_video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoFile }),

@@ -244,11 +244,11 @@ async def director_unload_ollama(request):
 
 
 def register_prompt_enhance_routes(routes, register_route) -> None:
-    register_route(routes, "POST", "/minimax/motion-director/enhance_models", director_enhance_models)
-    register_route(routes, "POST", "/minimax/motion-director/get_template", director_get_template)
-    register_route(routes, "POST", "/minimax/motion-director/enhance", director_enhance_prompt)
-    register_route(routes, "POST", "/minimax/motion-director/extract_frames", director_extract_frames)
-    register_route(routes, "POST", "/minimax/motion-director/image_b64", director_image_b64)
-    register_route(routes, "POST", "/minimax/motion-director/unload_model", director_unload_model)
-    register_route(routes, "POST", "/minimax/motion-director/unload_ollama", director_unload_ollama)
+    register_route(routes, "POST", "/minimax/bb/motion-director/enhance_models", director_enhance_models)
+    register_route(routes, "POST", "/minimax/bb/motion-director/get_template", director_get_template)
+    register_route(routes, "POST", "/minimax/bb/motion-director/enhance", director_enhance_prompt)
+    register_route(routes, "POST", "/minimax/bb/motion-director/extract_frames", director_extract_frames)
+    register_route(routes, "POST", "/minimax/bb/motion-director/image_b64", director_image_b64)
+    register_route(routes, "POST", "/minimax/bb/motion-director/unload_model", director_unload_model)
+    register_route(routes, "POST", "/minimax/bb/motion-director/unload_ollama", director_unload_ollama)
     log.info("MiniMax H3 Motion Director prompt-enhance HTTP routes registered")

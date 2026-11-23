@@ -318,13 +318,13 @@ def register_routes() -> bool:
         return False
 
     routes = server.routes
-    _register_route(routes, "POST", "/minimax/motion-director/upload_chunk", minimax_upload_video_chunk)
-    _register_route(routes, "POST", "/minimax/motion-director/probe_video", minimax_probe_video)
-    _register_route(routes, "GET", "/minimax/motion-director/probe_video", minimax_probe_video)
-    _register_route(routes, "POST", "/minimax/motion-director/detect_shots", minimax_detect_shots)
-    _register_route(routes, "GET", "/minimax/motion-director/postprocess_capabilities", minimax_postprocess_capabilities)
-    _register_route(routes, "POST", "/minimax/motion-director/save_video", minimax_save_final_video)
-    _register_route(routes, "POST", "/minimax/motion-director/release_video", minimax_release_final_video)
+    _register_route(routes, "POST", "/minimax/bb/motion-director/upload_chunk", minimax_upload_video_chunk)
+    _register_route(routes, "POST", "/minimax/bb/motion-director/probe_video", minimax_probe_video)
+    _register_route(routes, "GET", "/minimax/bb/motion-director/probe_video", minimax_probe_video)
+    _register_route(routes, "POST", "/minimax/bb/motion-director/detect_shots", minimax_detect_shots)
+    _register_route(routes, "GET", "/minimax/bb/motion-director/postprocess_capabilities", minimax_postprocess_capabilities)
+    _register_route(routes, "POST", "/minimax/bb/motion-director/save_video", minimax_save_final_video)
+    _register_route(routes, "POST", "/minimax/bb/motion-director/release_video", minimax_release_final_video)
     register_material_library_routes(routes)
     _ROUTES_REGISTERED = True
     log.info("MiniMax H3 Motion Director HTTP routes registered")

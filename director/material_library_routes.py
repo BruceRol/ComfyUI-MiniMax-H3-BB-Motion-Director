@@ -241,7 +241,7 @@ async def material_library_category_rename(request):
 
 
 def register_material_library_routes(routes) -> None:
-    base = "/minimax/motion-director/material-library"
+    base = "/minimax/bb/motion-director/material-library"
     _route(routes, "GET", base, material_library_list)
     _route(routes, "POST", base, material_library_create)
     _route(routes, "PATCH", base + "/{item_id}", material_library_update)

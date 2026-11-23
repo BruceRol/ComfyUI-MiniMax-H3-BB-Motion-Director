@@ -26,7 +26,7 @@ import {
     orderDriveRows,
 } from "./minimax_audio_editor_core.mjs";
 
-const DIRECTOR_CLASS = "MiniMaxH3MotionDirector";
+const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
 const STYLE_ID = "mmx-audio-roles-style";
 const PANEL_CLASS = "mmx-audio-role-panel";
 const CARD_BOUND = "mmxAudioRoleBound";
@@ -796,7 +796,7 @@ function wrap(nodeType) {
 }
 
 app.registerExtension({
-    name: "MiniMaxH3.MotionDirector.AudioRoles",
+    name: "BB_MiniMaxH3.MotionDirector.AudioRoles",
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData?.name === DIRECTOR_CLASS) wrap(nodeType);
     },

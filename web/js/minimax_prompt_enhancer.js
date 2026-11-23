@@ -77,9 +77,9 @@ function normalizeOpenAiCompatMode(mode) {
 }
 
 function ensurePeStyles() {
-    if (document.getElementById("minimax-pe-styles")) return;
+    if (document.getElementById("minimax-bb-pe-styles")) return;
     const style = document.createElement("style");
-    style.id = "minimax-pe-styles";
+    style.id = "minimax-bb-pe-styles";
     style.textContent = `
 @keyframes minimax-pe-pulse { 0%,100%{opacity:1} 50%{opacity:.65} }
 .minimax-pe-loading { animation: minimax-pe-pulse 1.2s ease-in-out infinite !important; }
@@ -118,7 +118,7 @@ function swallowKeys(input) {
 }
 
 async function fetchImageB64(imageFile) {
-    const resp = await api.fetchApi("/minimax/motion-director/image_b64", {
+    const resp = await api.fetchApi("/minimax/bb/motion-director/image_b64", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageFile }),
@@ -520,7 +520,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
             pe.apiSelect.value = inferApiFormat(llmUrl, pe.apiSelect.value);
             pe.updateApiFormatUI();
             if (!silent) pe.setStatus("正在获取模型列表…", "loading");
-            const resp = await api.fetchApi("/minimax/motion-director/enhance_models", {
+            const resp = await api.fetchApi("/minimax/bb/motion-director/enhance_models", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -552,7 +552,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         const task = resolveTaskKey(editor.getTaskKey?.() || "rv2v");
         const outputLanguage = resolveOutputLanguage(pe);
         try {
-            const resp = await api.fetchApi("/minimax/motion-director/get_template", {
+            const resp = await api.fetchApi("/minimax/bb/motion-director/get_template", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ task_type: task, output_language: outputLanguage }),
@@ -645,7 +645,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         const isOllama = pe.apiSelect?.value === API_OLLAMA;
         const sourceFrameCount = isOllama ? 2 : 3;
         if (videoFile && editor.getDirectorMode?.() === "video") {
-            const resp = await api.fetchApi("/minimax/motion-director/extract_frames", {
+            const resp = await api.fetchApi("/minimax/bb/motion-director/extract_frames", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -680,7 +680,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
             const rv = refsBlock?.referenceVideo || global.referenceVideo || {};
             const refVid = rv.videoFile || rv.fileName;
             if (refVid) {
-                const resp = await api.fetchApi("/minimax/motion-director/extract_frames", {
+                const resp = await api.fetchApi("/minimax/bb/motion-director/extract_frames", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -708,7 +708,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         } catch (e) {
             console.warn("[MiniMax H3 PE] vision collect failed:", e);
         }
-        const resp = await api.fetchApi("/minimax/motion-director/enhance", {
+        const resp = await api.fetchApi("/minimax/bb/motion-director/enhance", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -859,7 +859,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         }
         pe.setStatus("正在卸载模型…", "loading");
         try {
-            const resp = await api.fetchApi("/minimax/motion-director/unload_model", {
+            const resp = await api.fetchApi("/minimax/bb/motion-director/unload_model", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -916,10 +916,10 @@ export function registerDirectorPromptEnhancerEvents(findDirectorNode) {
 // Recover through a versioned URL so the Director cannot silently remain as
 // raw backend widgets after one stale/failed entry import.
 setTimeout(async () => {
-    if (globalThis.__MMX_MOTION_DIRECTOR_EXTENSION_REGISTERED__) return;
+    if (globalThis.__MMX_BB_MOTION_DIRECTOR_EXTENSION_REGISTERED__) return;
     try {
         await import("./minimax_timeline.js?boot=director_ui_recovery_v8");
-        if (!globalThis.__MMX_MOTION_DIRECTOR_EXTENSION_REGISTERED__) {
+        if (!globalThis.__MMX_BB_MOTION_DIRECTOR_EXTENSION_REGISTERED__) {
             throw new Error("Director extension did not register after recovery import.");
         }
     } catch (error) {

@@ -80,7 +80,7 @@ def _append_mixed_dependency_report(plan, report: str) -> str:
     return (report or "") + "\n" + "\n".join(lines)
 
 
-class MiniMaxH3MotionDirector:
+class BB_MiniMaxH3MotionDirector:
     """In-node timeline Director using ComfyUI official MiniMax H3 pipeline."""
 
     @classmethod

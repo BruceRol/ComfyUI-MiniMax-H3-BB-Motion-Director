@@ -1787,7 +1787,7 @@ async function uploadVideoChunked(file, onProgress) {
         body.append("total_chunks", String(totalChunks));
         body.append("filename", file.name);
         body.append("chunk", file.slice(start, end), `${file.name}.part`);
-        const resp = await api.fetchApi("/minimax/motion-director/upload_chunk", { method: "POST", body });
+        const resp = await api.fetchApi("/minimax/bb/motion-director/upload_chunk", { method: "POST", body });
         if (!resp.ok) {
             const text = await resp.text();
             throw new Error(text || t("upload.chunkFailed", { status: resp.status }));
@@ -7335,7 +7335,7 @@ class MiniMaxH3MotionDirectorEditor {
     }
 
     async probeVideoFile(relPath, subfolder = "", type = "input") {
-        const resp = await api.fetchApi("/minimax/motion-director/probe_video", {
+        const resp = await api.fetchApi("/minimax/bb/motion-director/probe_video", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ videoFile: relPath, subfolder, type: type || "input" }),
@@ -8322,7 +8322,7 @@ class MiniMaxH3MotionDirectorEditor {
                 logicalEnd: r.end,
                 nativeFps: r.clip.nativeFps || r.clip.native_fps || null,
             }));
-            const resp = await api.fetchApi("/minimax/motion-director/detect_shots", {
+            const resp = await api.fetchApi("/minimax/bb/motion-director/detect_shots", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -10351,10 +10351,10 @@ function findDirectorNode(nodeId) {
 }
 
 const EXTERNAL_GROUP_NODE_TYPES = new Set([
-    "MiniMaxH3MotionDirectorGroupImageToVideo",
-    "MiniMaxH3MotionDirectorGroupReferenceToVideo",
+    "BB_MiniMaxH3MotionDirectorGroupImageToVideo",
+    "BB_MiniMaxH3MotionDirectorGroupReferenceToVideo",
 ]);
-const EXTERNAL_COMBINE_NODE_TYPE = "MiniMaxH3MotionDirectorGroupsCombine";
+const EXTERNAL_COMBINE_NODE_TYPE = "BB_MiniMaxH3MotionDirectorGroupsCombine";
 
 function graphLinkRecord(graph, linkId) {
     if (linkId == null || !graph) return null;
@@ -10677,7 +10677,7 @@ function readExternalGroupSpec(node, graph = null) {
     let refImages = [];
     let refVideos = [];
     let refAudios = [];
-    if (cls === "MiniMaxH3MotionDirectorGroupReferenceToVideo") {
+    if (cls === "BB_MiniMaxH3MotionDirectorGroupReferenceToVideo") {
         // Autogrow: ref_images.ref_image_0 / ref_videos.ref_video_0 / …
         refImages = collectAutogrowSlotRefs(
             g, node, "ref_image", resolveLinkedImageFile,
@@ -10805,12 +10805,12 @@ function clearAllDirectorRunStatus() {
 /** Old workflows may still list removed output slots (e.g. segment_images). */
 function isMiniMaxH3MotionDirectorNode(node) {
     const cls = node?.comfyClass || node?.type || "";
-    return cls === "MiniMaxH3MotionDirector" || cls === "ComfyMiniMaxH3MotionDirector";
+    return cls === "BB_MiniMaxH3MotionDirector";
 }
 
 function isDirectorNodeDef(nodeType, nodeData) {
     const cls = nodeType?.comfyClass || nodeData?.name || "";
-    return cls === "MiniMaxH3MotionDirector" || cls === "ComfyMiniMaxH3MotionDirector";
+    return cls === "BB_MiniMaxH3MotionDirector";
 }
 
 function stripDeprecatedDirectorOutputs(node) {
@@ -10862,9 +10862,9 @@ function normalizeDirectorOutputs(node) {
     migrateDirectorOutputLinks(node);
 }
 
-if (!globalThis.__MMX_MOTION_DIRECTOR_EXTENSION_REGISTERED__) {
+if (!globalThis.__MMX_BB_MOTION_DIRECTOR_EXTENSION_REGISTERED__) {
 app.registerExtension({
-    name: "ComfyUI.MiniMaxH3MotionDirectorPlugin",
+    name: "ComfyUI.BB_MiniMaxH3MotionDirectorPlugin",
     async beforeConfigureGraph(graphData) {
         migrateLegacySamplingControlWorkflow(graphData);
         repairDirectorGroupWidgetWorkflow(graphData);
@@ -11198,5 +11198,5 @@ app.registerExtension({
         };
     },
 });
-globalThis.__MMX_MOTION_DIRECTOR_EXTENSION_REGISTERED__ = true;
+globalThis.__MMX_BB_MOTION_DIRECTOR_EXTENSION_REGISTERED__ = true;
 }

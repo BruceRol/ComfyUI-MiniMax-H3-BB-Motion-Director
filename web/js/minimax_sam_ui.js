@@ -75,7 +75,7 @@ function refreshAll() {
 }
 
 app.registerExtension({
-    name: "MiniMaxH3.MotionDirector.SAMUI",
+    name: "BB_MiniMaxH3.MotionDirector.SAMUI",
     setup() {
         ensureDocumentObserver();
         if (!stopLocaleSync) stopLocaleSync = onLocaleChange(() => queueMicrotask(refreshAll));

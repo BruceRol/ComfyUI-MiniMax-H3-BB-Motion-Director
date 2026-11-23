@@ -59,22 +59,22 @@ else:
 
     install_audio_drive_support()
 
-    from .nodes.director_output import MiniMaxH3MotionDirector  # noqa: E402
+    from .nodes.director_output import BB_MiniMaxH3MotionDirector  # noqa: E402
     from .nodes.director_inputs import (  # noqa: E402
-        MiniMaxH3MotionDirectorAssets,
-        MiniMaxH3MotionDirectorInputs,
+        BB_MiniMaxH3MotionDirectorAssets,
+        BB_MiniMaxH3MotionDirectorInputs,
     )
 
     NODE_CLASS_MAPPINGS = {
-        "MiniMaxH3MotionDirector": MiniMaxH3MotionDirector,
-        "MiniMaxH3MotionDirectorInputs": MiniMaxH3MotionDirectorInputs,
-        "MiniMaxH3MotionDirectorAssets": MiniMaxH3MotionDirectorAssets,
+        "BB_MiniMaxH3MotionDirector": BB_MiniMaxH3MotionDirector,
+        "BB_MiniMaxH3MotionDirectorInputs": BB_MiniMaxH3MotionDirectorInputs,
+        "BB_MiniMaxH3MotionDirectorAssets": BB_MiniMaxH3MotionDirectorAssets,
     }
 
     NODE_DISPLAY_NAME_MAPPINGS = {
-        "MiniMaxH3MotionDirector": "MiniMax H3 Motion Director",
-        "MiniMaxH3MotionDirectorInputs": "MiniMax H3 Motion Director Inputs",
-        "MiniMaxH3MotionDirectorAssets": "MiniMax H3 Motion Director Assets",
+        "BB_MiniMaxH3MotionDirector": "BB MiniMax H3 Motion Director",
+        "BB_MiniMaxH3MotionDirectorInputs": "BB MiniMax H3 Motion Director Inputs",
+        "BB_MiniMaxH3MotionDirectorAssets": "BB MiniMax H3 Motion Director Assets",
     }
 
     WEB_DIRECTORY = "./web/js"

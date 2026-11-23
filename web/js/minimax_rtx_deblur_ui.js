@@ -205,7 +205,7 @@ function refreshAll() {
 }
 
 app.registerExtension({
-    name: "MiniMaxH3.MotionDirector.RTXDeblurUI",
+    name: "BB_MiniMaxH3.MotionDirector.RTXDeblurUI",
     setup() {
         if (!stopLocaleSync) stopLocaleSync = onLocaleChange(() => queueMicrotask(refreshAll));
         scheduleScan();

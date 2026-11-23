@@ -8,7 +8,7 @@ import {
     shouldShowInternalSampling,
 } from "./minimax_director_sections_core.mjs?boot=director_sections_v1";
 
-const DIRECTOR_CLASS = "MiniMaxH3MotionDirector";
+const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
 const SYNC_MS = 250;
 const SECTION_GAP = 9;
 
@@ -531,7 +531,7 @@ function wrapDirector(nodeType) {
 }
 
 app.registerExtension({
-    name: "MiniMaxH3.MotionDirector.MainSections",
+    name: "BB_MiniMaxH3.MotionDirector.MainSections",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData?.name !== DIRECTOR_CLASS) return;

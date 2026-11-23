@@ -37,7 +37,7 @@ Object.defineProperty(globalThis, "localStorage", {
 const { __extensions } = await import("../../../scripts/app.js");
 await import("../minimax_timeline.js?director_module_load_smoke=1");
 
-const extension = __extensions.find((item) => item?.name === "ComfyUI.MiniMaxH3MotionDirectorPlugin");
+const extension = __extensions.find((item) => item?.name === "ComfyUI.BB_MiniMaxH3MotionDirectorPlugin");
 assert.ok(extension, "the real Director module must load and register its ComfyUI extension");
 assert.equal(typeof extension.beforeRegisterNodeDef, "function");
 

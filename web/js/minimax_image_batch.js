@@ -424,7 +424,7 @@ async function uploadChunked(file) {
         body.append("total_chunks", String(totalChunks));
         body.append("filename", file.name);
         body.append("chunk", file.slice(start, end), `${file.name}.part`);
-        const resp = await api.fetchApi("/minimax/motion-director/upload_chunk", { method: "POST", body });
+        const resp = await api.fetchApi("/minimax/bb/motion-director/upload_chunk", { method: "POST", body });
         if (!resp.ok) throw new Error(await resp.text() || t("upload.chunkFailed", { status: resp.status }));
         const data = await resp.json();
         if (data.name) return data;

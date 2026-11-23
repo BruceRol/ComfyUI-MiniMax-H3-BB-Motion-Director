@@ -133,7 +133,7 @@ def _load_minimax_nodes():
         )
     except ImportError as exc:
         raise RuntimeError(
-            "MiniMaxH3MotionDirector requires ComfyUI official MiniMax H3 nodes "
+            "BB MiniMax H3 Motion Director requires ComfyUI official MiniMax H3 nodes "
             "(comfy_extras.nodes_minimax_h3). Upgrade to ComfyUI with PR #15224 merged."
         ) from exc
     return MiniMaxH3ImageToVideo, MiniMaxH3ReferenceToVideo
@@ -226,14 +226,14 @@ def run_minimax_conditioning(
         if audio_vae is None:
             raise ValueError("MiniMax H3 r2v/v2v/rv2v / reference conditioning requires audio_vae.")
         out = MiniMaxH3ReferenceToVideo.execute(
-            clip,
-            vae,
-            audio_vae,
-            prompt,
-            width,
-            height,
-            length,
-            ref_image_size,
+            clip=clip,
+            prompt=prompt,
+            width=width,
+            height=height,
+            length=length,
+            ref_image_size=ref_image_size,
+            vae=vae,
+            audio_vae=audio_vae,
             ref_images=ref_images,
             ref_videos=ref_videos,
             ref_video_audios=ref_video_audios,
@@ -256,7 +256,7 @@ def run_minimax_conditioning(
     return positive, [], latent, hint
 
 
-class MiniMaxH3MotionDirectorConditioning:
+class BB_MiniMaxH3MotionDirectorConditioning:
     """Thin wrapper around official MiniMax H3 conditioning (positive + latent)."""
 
     @classmethod
@@ -298,12 +298,12 @@ class MiniMaxH3MotionDirectorConditioning:
         return positive, latent
 
 
-class MiniMaxH3MotionDirectorPlannerConditioning:
+class BB_MiniMaxH3MotionDirectorPlannerConditioning:
     """Official MiniMax H3 conditioning plus task_mode string for planning UIs."""
 
     @classmethod
     def INPUT_TYPES(cls):
-        base = MiniMaxH3MotionDirectorConditioning.INPUT_TYPES()
+        base = BB_MiniMaxH3MotionDirectorConditioning.INPUT_TYPES()
         return base
 
     RETURN_TYPES = ("CONDITIONING", "LATENT", "STRING")

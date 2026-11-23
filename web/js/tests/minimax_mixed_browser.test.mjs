@@ -75,7 +75,7 @@ assert.equal(
 assert.ok(controller.root.querySelector(".bd-panel"), "Mixed panels must reuse Director .bd-panel styling");
 assert.ok(controller.root.querySelector(".bd-btn"), "Mixed buttons must reuse Director .bd-btn styling");
 assert.ok(controller.root.querySelector(".bd-select"), "Mixed selects must reuse Director .bd-select styling");
-const mixedStyle = document.getElementById("mmx-mixed-mode-integrated-styles")?.textContent || "";
+const mixedStyle = document.getElementById("mmx-bb-mixed-mode-integrated-styles")?.textContent || "";
 assert.match(mixedStyle, /\.mmx-mixed-cards\{[^}]*overflow-x:auto;overflow-y:hidden/,
     "Mixed segment strip must scroll horizontally only");
 assert.match(mixedStyle, /\.mmx-mixed-card\{[^}]*flex:1 0 190px;min-width:190px/,

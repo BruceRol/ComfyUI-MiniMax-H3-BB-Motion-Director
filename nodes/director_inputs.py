@@ -24,7 +24,7 @@ from ..director.progress import (
 )
 from ..director.rtx_deblur import apply_rtx_deblur
 from ..director.video_export import FINAL_VIDEO_REGISTRY
-from .director import MiniMaxH3MotionDirector as _BaseDirector
+from .director import BB_MiniMaxH3MotionDirector as _BaseDirector
 from .director_common import (
     default_timeline_json,
     finalize_director_outputs,
@@ -35,7 +35,7 @@ _CATEGORY = "MiniMaxH3"
 _INPUT_CATEGORY = "MiniMaxH3/Director"
 
 
-class MiniMaxH3MotionDirectorAssets:
+class BB_MiniMaxH3MotionDirectorAssets:
     """Pack one Director group's mode-specific external media bundle."""
 
     @classmethod
@@ -59,7 +59,7 @@ class MiniMaxH3MotionDirectorAssets:
         return (pack_assets_payload(**kwargs),)
 
 
-class MiniMaxH3MotionDirectorInputs:
+class BB_MiniMaxH3MotionDirectorInputs:
     """Director-controlled dynamic prompt/assets sockets."""
 
     @classmethod
@@ -83,7 +83,7 @@ class MiniMaxH3MotionDirectorInputs:
         return (pack_director_inputs_payload(**kwargs),)
 
 
-class MiniMaxH3MotionDirector(_BaseDirector):
+class BB_MiniMaxH3MotionDirector(_BaseDirector):
     """Public Director schema using the unified Director Inputs socket."""
 
     @classmethod

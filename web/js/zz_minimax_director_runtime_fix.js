@@ -20,7 +20,7 @@ import {
     enforceStandaloneSplitPointVisibility,
 } from "./minimax_mixed_ui.mjs?boot=mixed_issue16_v2";
 
-const DIRECTOR_CLASS = "MiniMaxH3MotionDirector";
+const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
 
 const INTERNAL_SAMPLING_SOURCES = Object.freeze([
     "steps",
@@ -358,7 +358,7 @@ function wrapDirector(nodeType) {
 }
 
 app.registerExtension({
-    name: "MiniMaxH3.MotionDirector.RuntimeContinuityFix",
+    name: "BB_MiniMaxH3.MotionDirector.RuntimeContinuityFix",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData?.name !== DIRECTOR_CLASS) return;

@@ -15,9 +15,9 @@ import {
     timelineGroupHasInternalPrompt,
 } from "./minimax_director_inputs_core.mjs?boot=unified_inputs_v2";
 
-const DIRECTOR_CLASS = "MiniMaxH3MotionDirector";
-const INPUTS_CLASS = "MiniMaxH3MotionDirectorInputs";
-const ASSETS_CLASS = "MiniMaxH3MotionDirectorAssets";
+const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
+const INPUTS_CLASS = "BB_MiniMaxH3MotionDirectorInputs";
+const ASSETS_CLASS = "BB_MiniMaxH3MotionDirectorAssets";
 const STYLE_ID = "mmx-unified-director-inputs-style";
 const SYNC_MS = 250;
 const LEGACY_DIRECTOR_INPUTS = new Set(["i2v_groups", "r2v_groups"]);
@@ -405,8 +405,8 @@ function blockLockedMediaEvent(event) {
 }
 
 function installLockedMediaGuard() {
-    if (window._mmxUnifiedInputsMediaGuard) return;
-    window._mmxUnifiedInputsMediaGuard = true;
+    if (window._mmxBbUnifiedInputsMediaGuard) return;
+    window._mmxBbUnifiedInputsMediaGuard = true;
     for (const type of ["pointerdown", "click", "dblclick", "dragstart", "dragover", "drop"]) {
         document.addEventListener(type, blockLockedMediaEvent, true);
     }
@@ -469,7 +469,7 @@ ensureStyles();
 installLockedMediaGuard();
 
 app.registerExtension({
-    name: "MiniMaxH3.MotionDirector.UnifiedInputs",
+    name: "BB_MiniMaxH3.MotionDirector.UnifiedInputs",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData?.name === DIRECTOR_CLASS) {

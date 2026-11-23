@@ -5,7 +5,7 @@ import { mountMaterialLibrary } from "./minimax_material_library_modal.mjs?boot=
 
 function isDirectorNode(node) {
     const cls = node?.comfyClass || node?.type || "";
-    return cls === "MiniMaxH3MotionDirector" || cls === "ComfyMiniMaxH3MotionDirector";
+    return cls === "BB_MiniMaxH3MotionDirector";
 }
 
 function bindMaterialLibraryModalState(controller) {
@@ -70,7 +70,7 @@ function scanGraph() {
 }
 
 app.registerExtension({
-    name: "MiniMaxH3MotionDirector.MaterialLibrary",
+    name: "BB_MiniMaxH3MotionDirector.MaterialLibrary",
     async setup() { scanGraph(); setTimeout(scanGraph, 500); },
     async nodeCreated(node) { scheduleMount(node); },
     async loadedGraphNode(node) { scheduleMount(node); },

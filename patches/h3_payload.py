@@ -104,12 +104,21 @@ def apply_patch():
         ):
             raise RuntimeError("MiniMaxH3.extra_conds no longer accepts **kwargs")
         source = inspect.getsource(cls.extra_conds)
+
+        # Newer ComfyUI versions moved H3 latent construction
+        # into the dedicated _cond_latents helper.
+        cond_latents = getattr(cls, "_cond_latents", None)
+
+        if callable(cond_latents):
+            source += inspect.getsource(cond_latents)
+
         required = (
             "minimax_keyframes",
             "minimax_refs",
             "minimax_payload",
             "cond_video_latents",
         )
+
         missing = [name for name in required if name not in source]
         if missing:
             raise RuntimeError(

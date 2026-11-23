@@ -7,7 +7,7 @@ import {
     staleDirectorOutputIndices,
 } from "./minimax_director_outputs_core.mjs?boot=director_outputs_v3";
 
-const DIRECTOR_CLASS = "MiniMaxH3MotionDirector";
+const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
 const REPORT_STYLE_ID = "mmx-director-report-tools";
 const reportEnhancements = new Map();
 const resultEnhancements = new Map();
@@ -228,7 +228,7 @@ function fetchCapabilities() {
         const requester = typeof api?.fetchApi === "function"
             ? (path) => api.fetchApi(path)
             : (path) => fetch(path);
-        capabilitiesPromise = requester("/minimax/motion-director/postprocess_capabilities")
+        capabilitiesPromise = requester("/minimax/bb/motion-director/postprocess_capabilities")
             .then((response) => response.json())
             .catch((error) => {
                 console.warn("[MiniMax H3 Motion Director] refine model list unavailable:", error);
@@ -585,7 +585,7 @@ function startReportEnhancements() {
 }
 
 app.registerExtension({
-    name: "MiniMaxH3.MotionDirector.PublicOutputs",
+    name: "BB_MiniMaxH3.MotionDirector.PublicOutputs",
 
     setup() {
         startRefineEventListeners();

@@ -2481,7 +2481,7 @@ export function mountOutputUI(
             try {
                 const response =
                     await fetchApi(
-                        "/minimax/motion-director/save_video",
+                        "/minimax/bb/motion-director/save_video",
                         {
                             method: "POST",
                             headers: {
@@ -2635,7 +2635,7 @@ export function mountOutputUI(
         try {
             const response =
                 await fetchApi(
-                    "/minimax/motion-director/postprocess_capabilities",
+                    "/minimax/bb/motion-director/postprocess_capabilities",
                 );
 
             if (!response?.ok) {
@@ -2758,7 +2758,7 @@ export function mountOutputUI(
 
             if (id) {
                 fetchApi(
-                    "/minimax/motion-director/release_video",
+                    "/minimax/bb/motion-director/release_video",
                     {
                         method: "POST",
                         headers: {

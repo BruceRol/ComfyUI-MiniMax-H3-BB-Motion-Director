@@ -2,7 +2,7 @@
 
 import { api } from "../../scripts/api.js";
 
-const BASE = "/minimax/motion-director/material-library";
+const BASE = "/minimax/bb/motion-director/material-library";
 const CHUNK_BYTES = 8 * 1024 * 1024;
 const CHUNK_THRESHOLD = 80 * 1024 * 1024;
 
