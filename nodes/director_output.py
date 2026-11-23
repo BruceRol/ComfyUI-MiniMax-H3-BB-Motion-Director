@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from .director_inputs import BB_MiniMaxH3MotionDirector as _UnifiedDirector
+from .director import BB_MiniMaxH3MotionDirector as _DirectorBase
 
 
-class BB_MiniMaxH3MotionDirector(_UnifiedDirector):
-    """Unified Director with optional graph outputs and self-executing output-node behavior."""
+class BB_MiniMaxH3MotionDirector(_DirectorBase):
+    """Director with trimmed graph outputs and self-executing output-node behavior."""
 
     RETURN_TYPES = ("IMAGE", "AUDIO", "FLOAT")
     RETURN_NAMES = ("images", "audio", "fps")

@@ -12,14 +12,23 @@ def _install_stubs():
         return kwargs["latent"]
 
     core.sample_single_stage = sample_single_stage
+    core.resolve_refine_model = lambda refine_model, fallback_model: (
+        refine_model if refine_model is not None else fallback_model,
+        str(refine_model) if refine_model is not None else "Follow First Pass",
+    )
     sys.modules["director.core_sampling"] = core
 
     cfg = types.ModuleType("director.postprocess_config")
+    cfg.refine_executed_steps_for = lambda schedule_steps, denoise: max(
+        1, round(int(schedule_steps) * float(denoise))
+    )
     cfg.refine_passes_for = lambda c: int(c.get("passes", 1))
     cfg.refine_pass_settings_for = lambda c, first: [
-        (float(c.get("denoise", 0.25)), int(c.get("steps") or 8))
+        (
+            float(c.get("denoise", 0.25)),
+            max(1, round(int(first) * float(c.get("denoise", 0.25)))),
+        )
     ] * int(c.get("passes", 1))
-    cfg.refine_steps_for = lambda c, first: int(c.get("steps") or 8)
     cfg.refine_seed_for = lambda c, seed, i=0: int(seed) + (i if c.get("seed_mode") == "offset" else 0)
     cfg.resolve_upscale_target = lambda c, w, h: (int(c.get("width", w)), int(c.get("height", h)))
     cfg.resolve_vsr_quality_name = lambda c: "HIGHBITRATE_HIGH"
@@ -133,7 +142,7 @@ def test_plain_second_sampling_keeps_existing_audio_drive_mask(monkeypatch):
     calls = _install_stubs()
     mod = _load_module()
     monkeypatch.setattr(mod, "_emit_refine_result_preview", lambda *a, **k: None)
-    monkeypatch.setattr(mod, "_selected_refine_model", lambda cfg, model: (model, "Follow First Pass"))
+    monkeypatch.setattr(mod, "resolve_refine_model", lambda refine_model, model: (model, "Follow First Pass"))
     source = {"samples": "source", "noise_mask": "audio-drive-mask"}
     out = mod.apply_global_refine(
         {
@@ -163,6 +172,50 @@ def test_plain_second_sampling_keeps_existing_audio_drive_mask(monkeypatch):
     )
     assert out.succeeded
     assert calls["sample"][0]["latent"]["noise_mask"] == "audio-drive-mask"
+    # Executed steps come from the connected schedule: round(8 * 0.25) = 2.
+    assert calls["sample"][0]["steps"] == 2
+    assert calls["sample"][0]["external_sampler"] is None
+    assert calls["sample"][0]["external_sigmas"] is None
+
+
+def test_refine_trio_overrides_the_shared_sampling_connection(monkeypatch):
+    calls = _install_stubs()
+    mod = _load_module()
+    monkeypatch.setattr(mod, "_emit_refine_result_preview", lambda *a, **k: None)
+    source = {"samples": "source"}
+    out = mod.apply_global_refine(
+        {
+            "enabled": True,
+            "mode": "refine",
+            "second_sampling_enabled": True,
+            "passes": 1,
+            "denoise": 0.5,
+        },
+        task_key="t2v",
+        samples=source,
+        model="first-pass-model",
+        vae=object(),
+        positive=[],
+        negative=[],
+        seed=3,
+        cfg=1.0,
+        first_steps=10,
+        external_sampler="shared-sampler",
+        external_sigmas="shared-sigmas",
+        refine_model="refine-model",
+        refine_sampler="refine-sampler",
+        refine_sigmas="refine-sigmas",
+        director_width=64,
+        director_height=32,
+    )
+    assert out.succeeded
+    sample = calls["sample"][0]
+    assert sample["model"] == "refine-model"
+    assert sample["external_sampler"] == "refine-sampler"
+    assert sample["external_sigmas"] == "refine-sigmas"
+    assert sample["steps"] == 5
+    assert out.refine_model == "refine-model"
+    assert "connected refine_sampler / refine_sigmas" in out.status
 
 
 def test_learned_latent_plus_deblur_fails_back_without_silent_pixel_fallback():

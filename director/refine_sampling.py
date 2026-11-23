@@ -15,14 +15,14 @@ from typing import Any, Callable
 
 import torch
 
-from .core_sampling import sample_single_stage
+from .core_sampling import resolve_refine_model, sample_single_stage
 from .h3_learned_latent import upscale_h3_av_latent
 from .h3_noise_mask import remap_h3_noise_mask, with_noise_mask
 from .postprocess_config import (
+    refine_executed_steps_for,
     refine_pass_settings_for,
     refine_passes_for,
     refine_seed_for,
-    refine_steps_for,
     resolve_upscale_target,
     resolve_vsr_quality_name,
 )
@@ -311,31 +311,6 @@ def _deblur_report_lines(outcome: RTXDeblurOutcome | None) -> list[str]:
     return lines
 
 
-def _selected_refine_model(config: dict[str, Any], fallback_model):
-    """Load the dropdown-selected H3 diffusion model; empty means first-pass MODEL."""
-    model_name = str(config.get("refine_model") or "").strip()
-    if not model_name:
-        return fallback_model, "Follow First Pass"
-
-    import comfy.model_base
-    import folder_paths
-    from nodes import UNETLoader
-
-    resolver = getattr(folder_paths, "get_full_path_or_raise", None)
-    if resolver is not None:
-        resolver("diffusion_models", model_name)
-    elif not getattr(folder_paths, "get_full_path", lambda *_: None)("diffusion_models", model_name):
-        raise FileNotFoundError(f"Refine model not found: {model_name}")
-
-    loaded = _unpack(UNETLoader().load_unet(model_name, "default"))[0]
-    base_model = getattr(loaded, "model", None)
-    if not isinstance(base_model, comfy.model_base.MiniMaxH3):
-        raise ValueError(
-            f"Refine Model must be MiniMax H3; selected {model_name} loaded {type(base_model).__name__}."
-        )
-    return loaded, model_name
-
-
 def _context_span_from_conditioning(conditioning) -> int:
     """Read the exact visual Motion Context prefix from H3 conditioning metadata."""
     try:
@@ -501,10 +476,17 @@ def apply_global_refine(
     seed: int,
     cfg: float,
     first_steps: int,
-    sampler_name: str,
-    scheduler: str,
-    shift_video: float,
-    shift_audio: float,
+    # sampler_name / scheduler / shifts are accepted for the frozen legacy call
+    # contract; internal sampling is gone, so they are ignored.
+    sampler_name: str = "",
+    scheduler: str = "",
+    shift_video: float = 12.0,
+    shift_audio: float = 3.0,
+    external_sampler=None,
+    external_sigmas=None,
+    refine_model=None,
+    refine_sampler=None,
+    refine_sigmas=None,
     director_width: int,
     director_height: int,
     repin: Callable[[Any, dict], Any] | None = None,
@@ -530,7 +512,7 @@ def apply_global_refine(
     # Invalid/mismatched schedules are configuration errors. Resolve them before
     # entering the stage fallback so a bad schedule is never silently ignored.
     pass_settings = refine_pass_settings_for(config, first_steps) if second_sampling_enabled else []
-    refine_steps = pass_settings[0][1] if pass_settings else refine_steps_for(config, first_steps)
+    refine_steps = pass_settings[0][1] if pass_settings else 0
     first_refine_seed = refine_seed_for(config, seed, 0)
     width, height = int(director_width), int(director_height)
     source_width, source_height = width, height
@@ -705,7 +687,9 @@ def apply_global_refine(
                 timings=timings,
             )
 
-        refine_model, selected_model_name = _selected_refine_model(config, model)
+        pass_model, selected_model_name = resolve_refine_model(refine_model, model)
+        pass_sampler = refine_sampler if refine_sampler is not None else external_sampler
+        pass_sigmas = refine_sigmas if refine_sigmas is not None else external_sigmas
         refined = work
         if on_phase:
             on_phase("global_refine", 0)
@@ -722,7 +706,7 @@ def apply_global_refine(
                     )
 
             refined = sample_single_stage(
-                model=refine_model,
+                model=pass_model,
                 positive=refine_positive,
                 negative=negative,
                 latent=refined,
@@ -733,6 +717,8 @@ def apply_global_refine(
                 scheduler=scheduler,
                 shift_video=shift_video,
                 shift_audio=shift_audio,
+                external_sampler=pass_sampler,
+                external_sigmas=pass_sigmas,
                 denoise=pass_denoise,
                 phase_name="global_refine",
                 on_phase=_pass_phase,
@@ -767,6 +753,11 @@ def apply_global_refine(
             "Second Sampling: ON",
             f"Result Previews: {'ON' if result_previews_enabled else 'OFF'}",
             f"Refine Model: {selected_model_name}",
+            (
+                "Refine Sampling: connected refine_sampler / refine_sigmas"
+                if refine_sampler is not None and refine_sigmas is not None
+                else "Refine Sampling: shared Advanced Sampling"
+            ),
             f"Passes: {pass_count}",
             f"Upscale: {'ON' if upscale_enabled else 'OFF'}",
             f"Upscale Method: {method}",

@@ -8,6 +8,7 @@ without global monkeypatches or broad executor rewrites.
 
 from __future__ import annotations
 
+import functools
 import time
 import types
 from typing import Any
@@ -18,10 +19,11 @@ from . import executor_core_legacy as _legacy
 from .audio_export import AUDIO_MODE_GENERATE, resolve_audio_mode
 from .context_cache import load_motion_context_cache
 from .context_links import resolve_context_link
-from .core_sampling import resolve_sampling_mode, validate_external_sampling
+from .core_sampling import resolve_refine_model, resolve_sampling_mode, validate_external_sampling
 from .face_refine_pipeline import FaceRefineOutcome, apply_face_refine as _apply_face_refine
 from .face_refine_validation import validate_face_refine_runtime
 from .postprocess_config import normalize_postprocess_config
+from .refine_sampling import apply_global_refine
 from .segment_cache import load_segment_cache
 from .source_bridge import source_bridge_boundary_enabled
 
@@ -45,6 +47,62 @@ class _TimedVAE:
             self._bucket[self._key] = self._bucket.get(self._key, 0.0) + (
                 time.perf_counter() - started
             )
+
+
+def _sampling_context_partials(
+    external_sampler,
+    external_sigmas,
+    refine_model=None,
+    refine_sampler=None,
+    refine_sigmas=None,
+) -> dict[str, Any]:
+    """Bind the Advanced Sampling connections for the refine stages.
+
+    The preserved executor calls the refine stages without the external
+    SAMPLER/SIGMAS objects, so the facade supplies them through its private
+    globals copy instead of rewriting the frozen legacy call sites. The optional
+    refine trio overrides the shared connection when fully connected.
+    """
+    return {
+        "apply_global_refine": functools.partial(
+            apply_global_refine,
+            external_sampler=external_sampler,
+            external_sigmas=external_sigmas,
+            refine_model=refine_model,
+            refine_sampler=refine_sampler,
+            refine_sigmas=refine_sigmas,
+        ),
+        "apply_face_refine": functools.partial(
+            _apply_face_refine,
+            external_sampler=external_sampler,
+            external_sigmas=external_sigmas,
+            refine_model=refine_model,
+            refine_sampler=refine_sampler,
+            refine_sigmas=refine_sigmas,
+        ),
+    }
+
+
+def _legacy_runner(function_globals: dict[str, Any]) -> types.FunctionType:
+    """The preserved executor bound to a private globals dictionary."""
+    runner = types.FunctionType(
+        _legacy.execute_director_plan_core.__code__,
+        function_globals,
+        name=_legacy.execute_director_plan_core.__name__,
+        argdefs=_legacy.execute_director_plan_core.__defaults__,
+        closure=_legacy.execute_director_plan_core.__closure__,
+    )
+    runner.__kwdefaults__ = dict(_legacy.execute_director_plan_core.__kwdefaults__ or {})
+    return runner
+
+
+def _append_executed_steps_report(report: str, executed_steps: int) -> str:
+    """State the schedule actually executed.
+
+    The preserved report prints the internal sampler/scheduler pair, which no
+    longer exists, so the facade records the connected SIGMAS length instead.
+    """
+    return (report or "") + "\n[Executed Sampling]\nSteps: " + str(int(executed_steps)) + " (connected SIGMAS)"
 
 
 def _aggregate_face_outcome(
@@ -151,13 +209,20 @@ def execute_director_plan_core(
     clip,
     cfg: float = 1.0,
     seed: int = 0,
+    # steps / sampler / scheduler / shifts are accepted for the frozen legacy
+    # contract but no longer select anything: internal sampling is gone, so the
+    # executed schedule is always the connected SIGMAS and the executed step
+    # count is the length of that schedule.
     steps: int = 25,
-    sampler: str = "res_multistep",
-    scheduler: str = "simple",
+    sampler: str = "",
+    scheduler: str = "",
     shift_video: float = 12.0,
     shift_audio: float = 3.0,
     external_sampler=None,
     external_sigmas=None,
+    refine_model=None,
+    refine_sampler=None,
+    refine_sigmas=None,
     motion_context_enabled: bool = True,
     context_length: int = 22,
     source_overlap_frames: int = 5,
@@ -170,6 +235,16 @@ def execute_director_plan_core(
     postprocess = normalize_postprocess_config(postprocess_config)
     face_config = postprocess["face_refine"]
     validate_face_refine_runtime(face_config)
+
+    # Internal sampling is gone: the executed schedule is always the connected
+    # SIGMAS, and the executed step count is the length of that schedule.
+    sampling_mode = resolve_sampling_mode(external_sampler, external_sigmas)
+    pass_model, _pass_model_label = resolve_refine_model(refine_model, model)
+    pass_sampler = refine_sampler if refine_sampler is not None else external_sampler
+    pass_sigmas = refine_sigmas if refine_sigmas is not None else external_sigmas
+    _, executed_steps = validate_external_sampling(pass_model, pass_sampler, pass_sigmas)
+    # The frozen legacy report reads this key; it now reports executed steps.
+    postprocess["global_refine"]["steps"] = executed_steps
 
     all_segments = list(plan.segments)
     source_bridge_pairs = [
@@ -186,7 +261,9 @@ def execute_director_plan_core(
         "clip": clip,
         "cfg": cfg,
         "seed": seed,
-        "steps": steps,
+        # Frozen legacy contract: the executed count is the connected SIGMAS
+        # schedule length, not a widget value.
+        "steps": executed_steps,
         "sampler": sampler,
         "scheduler": scheduler,
         "shift_video": shift_video,
@@ -200,13 +277,28 @@ def execute_director_plan_core(
         "color_reanchor_enabled": color_reanchor_enabled,
         "pin_renorm_enabled": pin_renorm_enabled,
         "clear_vram_between_segments": clear_vram_between_segments,
-        "postprocess_config": postprocess_config,
+        "postprocess_config": postprocess,
     }
+
+    sampling_partials = _sampling_context_partials(
+        external_sampler,
+        external_sigmas,
+        refine_model,
+        refine_sampler,
+        refine_sigmas,
+    )
+    base_globals = dict(_legacy.execute_director_plan_core.__globals__)
+    base_globals.update(sampling_partials)
 
     # Source Bridge pixels do not exist until both nominal segments are ready.
     # Keep the preserved assembled Face Refine path for those timelines.
     if not face_config["enabled"] or source_bridge_pairs:
-        return _legacy.execute_director_plan_core(plan, **call_kwargs)
+        combined, segment_outputs, segment_audios, report = _legacy_runner(base_globals)(
+            plan, **call_kwargs
+        )
+        return combined, segment_outputs, segment_audios, _append_executed_steps_report(
+            report, executed_steps
+        )
 
     run_indices = (
         plan.run_indices
@@ -222,11 +314,6 @@ def execute_director_plan_core(
     trim_cursor = 0
     pending_seam: dict[str, Any] | None = None
     last_final_slot: int | None = None
-
-    sampling_mode = resolve_sampling_mode(external_sampler, external_sigmas)
-    face_steps = int(steps)
-    if sampling_mode == "external":
-        _, face_steps = validate_external_sampling(model, external_sampler, external_sigmas)
 
     original_trim = _legacy.trim_segment_av
     original_seam = _legacy.apply_seam_color_match
@@ -292,11 +379,12 @@ def execute_director_plan_core(
             ),
             seed=int(seed) + slot,
             cfg=cfg,
-            steps=int(face_steps),
-            sampler_name=sampler,
-            scheduler=scheduler,
-            shift_video=shift_video,
-            shift_audio=shift_audio,
+            steps=int(executed_steps),
+            external_sampler=external_sampler,
+            external_sigmas=external_sigmas,
+            refine_model=refine_model,
+            refine_sampler=refine_sampler,
+            refine_sigmas=refine_sigmas,
             chunk_lengths=[int(images.shape[0])],
             tracking_history=previous_history(seg),
             on_phase=lambda phase, value: face_phase(seg, phase, value),
@@ -411,7 +499,7 @@ def execute_director_plan_core(
 
     # Run the preserved executor with a private globals dictionary. This is
     # thread-safe: no module-level function is monkeypatched for other runs.
-    function_globals = dict(_legacy.execute_director_plan_core.__globals__)
+    function_globals = dict(base_globals)
     function_globals.update(
         trim_segment_av=trim_hook,
         apply_seam_color_match=seam_hook,
@@ -420,20 +508,14 @@ def execute_director_plan_core(
         apply_face_refine=assembled_face_noop,
         report_director_report=lambda *_args, **_kwargs: None,
     )
-    runner = types.FunctionType(
-        _legacy.execute_director_plan_core.__code__,
-        function_globals,
-        name=_legacy.execute_director_plan_core.__name__,
-        argdefs=_legacy.execute_director_plan_core.__defaults__,
-        closure=_legacy.execute_director_plan_core.__closure__,
-    )
-    runner.__kwdefaults__ = dict(_legacy.execute_director_plan_core.__kwdefaults__ or {})
+    runner = _legacy_runner(function_globals)
 
     combined, segment_outputs, segment_audios, report = runner(plan, **call_kwargs)
     if pending_seam is not None or trim_cursor != len(generated_segments):
         raise RuntimeError(
             "Face Refine lifecycle error: final segment state was not completed for every generated segment."
         )
+    report = _append_executed_steps_report(report, executed_steps)
     report = _append_segment_final_report(report, face_outcomes, context_timings)
     return combined, segment_outputs, segment_audios, report
 

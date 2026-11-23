@@ -23,12 +23,13 @@ DEFAULT_POSTPROCESS_CONFIG: dict[str, Any] = {
         "mode": "refine",
         "second_sampling_enabled": True,
         "result_previews_enabled": False,
-        "refine_model": "",
         "passes": 1,
         "denoise": 0.25,
-        "steps": 0,
         "denoise_schedule": "0.25",
-        "steps_schedule": "0",
+        # Report-only placeholder. Executed refine steps always come from the
+        # connected SIGMAS; the frozen legacy report reads this key, so the
+        # facade fills it with the executed count. It is not a sampling knob.
+        "steps": 0,
         "seed_mode": "inherit",
         "seed_offset": 1,
         "skip_fl2v": False,
@@ -152,12 +153,6 @@ def _first_schedule_float(value: Any, default: float, low: float, high: float) -
     return _float(first, default, low, high)
 
 
-def _first_schedule_int(value: Any, default: int, low: int, high: int) -> int:
-    text = _schedule_text(value, default)
-    first = text.split(",", 1)[0].strip()
-    return _int(first, default, low, high)
-
-
 def _parse_numeric_schedule(
     value: Any,
     *,
@@ -234,17 +229,15 @@ def normalize_postprocess_config(raw: Any) -> dict[str, Any]:
     g["mode"] = _choice(g_raw.get("mode"), {"refine", "upscale"}, "refine")
     g["second_sampling_enabled"] = _bool(g_raw.get("second_sampling_enabled"), True)
     g["result_previews_enabled"] = _bool(g_raw.get("result_previews_enabled"), False)
-    g["refine_model"] = str(g_raw.get("refine_model") or "").strip()
     g["passes"] = _int(g_raw.get("passes"), 1, 1, 9999)
 
     legacy_denoise = g_raw.get("denoise", 0.25)
-    legacy_steps = g_raw.get("steps", 0)
     g["denoise_schedule"] = _schedule_text(g_raw.get("denoise_schedule"), legacy_denoise)
-    g["steps_schedule"] = _schedule_text(g_raw.get("steps_schedule"), legacy_steps)
-    # Keep legacy scalar fields in sync with pass 1 so older report/cache callers
-    # remain valid while schedule-aware sampling uses the full strings below.
+    # Keep the legacy scalar in sync with pass 1 so older report/cache callers
+    # remain valid while schedule-aware sampling uses the full string above.
     g["denoise"] = _first_schedule_float(g["denoise_schedule"], 0.25, 0.01, 1.0)
-    g["steps"] = _first_schedule_int(g["steps_schedule"], 0, 0, 200)
+    # Report-only: preserve the executed-step count the facade injects.
+    g["steps"] = _int(g_raw.get("steps"), 0, 0, 9999)
 
     g["seed_mode"] = _choice(g_raw.get("seed_mode"), {"inherit", "offset"}, "inherit")
     g["seed_offset"] = _int(g_raw.get("seed_offset"), 1, -2_147_483_648, 2_147_483_647)
@@ -402,9 +395,13 @@ def serialize_postprocess_config(raw: Any) -> str:
     return json.dumps(normalize_postprocess_config(raw), ensure_ascii=False, separators=(",", ":"))
 
 
-def refine_steps_for(config: dict[str, Any], first_steps: int) -> int:
-    configured = int(config.get("steps") or 0)
-    return configured if configured > 0 else max(8, int(round(int(first_steps) * 0.4)))
+def refine_executed_steps_for(schedule_steps: int, denoise: float) -> int:
+    """Steps a refine pass can actually run with an externally supplied SIGMAS.
+
+    The schedule length is fixed by the connected sampler, so a refine pass can
+    only request a denoise fraction of it.
+    """
+    return max(1, int(round(int(schedule_steps) * float(denoise))))
 
 
 def refine_passes_for(config: dict[str, Any]) -> int:
@@ -417,12 +414,11 @@ def refine_passes_for(config: dict[str, Any]) -> int:
 
 def refine_pass_settings_for(
     config: dict[str, Any],
-    first_steps: int,
+    schedule_steps: int,
 ) -> list[tuple[float, int]]:
-    """Resolve per-pass (denoise, steps) from one value or a comma schedule."""
+    """Resolve per-pass (denoise, executed steps) from one value or a comma schedule."""
     passes = refine_passes_for(config)
     denoise_raw = config.get("denoise_schedule") or config.get("denoise") or 0.25
-    steps_raw = config.get("steps_schedule") if config.get("steps_schedule") is not None else config.get("steps", 0)
     denoises = _parse_numeric_schedule(
         denoise_raw,
         passes=passes,
@@ -431,18 +427,9 @@ def refine_pass_settings_for(
         low=0.01,
         high=1.0,
     )
-    requested_steps = _parse_numeric_schedule(
-        steps_raw,
-        passes=passes,
-        label="Steps",
-        kind=int,
-        low=0,
-        high=200,
-    )
-    auto_steps = max(8, int(round(int(first_steps) * 0.4)))
     return [
-        (float(denoise), int(steps) if int(steps) > 0 else auto_steps)
-        for denoise, steps in zip(denoises, requested_steps)
+        (float(denoise), refine_executed_steps_for(schedule_steps, denoise))
+        for denoise in denoises
     ]
 
 
@@ -487,7 +474,7 @@ def postprocess_cache_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
 __all__ = [
     "DEFAULT_POSTPROCESS_CONFIG", "POSTPROCESS_CONFIG_VERSION",
     "normalize_postprocess_config", "serialize_postprocess_config",
-    "refine_steps_for", "refine_passes_for", "refine_pass_settings_for",
+    "refine_executed_steps_for", "refine_passes_for", "refine_pass_settings_for",
     "refine_seed_for", "resolve_vsr_quality_name",
     "resolve_upscale_target", "postprocess_cache_fingerprint",
 ]

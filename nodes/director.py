@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import time
 
-import comfy.samplers
-
 from ..director.executor_core import execute_director_plan_core
 from ..director.execution_report import append_report_section_lines, fmt_seconds
 from ..director.mixed_runtime import bind_mixed_runtime_node
@@ -103,6 +101,25 @@ class BB_MiniMaxH3MotionDirector:
                     "CLIP",
                     {"tooltip": "CLIPLoader type=minimax (qwen3vl)."},
                 ),
+                "sampler": (
+                    "SAMPLER",
+                    {
+                        "tooltip": (
+                            "Connect KSamplerSelect or MiniMax-H3 Turbo Sampler. "
+                            "Internal sampling was removed: this connection is required."
+                        )
+                    },
+                ),
+                "sigmas": (
+                    "SIGMAS",
+                    {
+                        "tooltip": (
+                            "Connect BasicScheduler or another standard ComfyUI "
+                            "scheduler built from the same H3 MODEL. Executed steps "
+                            "come from the schedule length."
+                        )
+                    },
+                ),
                 **director_timeline_required_inputs(),
             },
             "optional": {
@@ -190,51 +207,32 @@ class BB_MiniMaxH3MotionDirector:
                     },
                 ),
                 "bd_grp_advanced": ("BDGROUP", {"default": "高级采样"}),
-                "steps": (
-                    "INT",
-                    {
-                        "default": 25,
-                        "min": 1,
-                        "max": 200,
-                        "tooltip": "Sampling steps — official template: 25.",
-                    },
-                ),
-                "sampler_name": (
-                    comfy.samplers.KSampler.SAMPLERS,
-                    {
-                        "default": "res_multistep",
-                        "tooltip": "Internal mode sampler. Official template: res_multistep.",
-                    },
-                ),
-                "scheduler": (
-                    comfy.samplers.KSampler.SCHEDULERS,
-                    {
-                        "default": "simple",
-                        "tooltip": "Official template: BasicScheduler simple.",
-                    },
-                ),
-                "shift_video": (
-                    "FLOAT",
-                    {"default": 12.0, "min": 0.01, "max": 100.0, "step": 0.01, "tooltip": "MiniMaxH3SigmaShift shift_video."},
-                ),
-                "shift_audio": (
-                    "FLOAT",
-                    {"default": 3.0, "min": 0.01, "max": 100.0, "step": 0.01, "tooltip": "MiniMaxH3SigmaShift shift_audio."},
-                ),
-                "sampler": (
-                    "SAMPLER",
+                "refine_model": (
+                    "MODEL",
                     {
                         "tooltip": (
-                            "External mode: connect KSamplerSelect or MiniMax-H3 Turbo Sampler."
+                            "Optional refine model. When empty the refine pass follows "
+                            "the first-pass model. Must be a MiniMax H3 model carrying "
+                            "ModelSamplingAV so the refine schedule can be validated."
                         )
                     },
                 ),
-                "sigmas": (
+                "refine_sampler": (
+                    "SAMPLER",
+                    {
+                        "tooltip": (
+                            "Optional refine sampler. Falls back to the shared "
+                            "sampler connection when not connected."
+                        )
+                    },
+                ),
+                "refine_sigmas": (
                     "SIGMAS",
                     {
                         "tooltip": (
-                            "External mode: connect BasicScheduler or another standard "
-                            "ComfyUI scheduler built from the same H3 MODEL."
+                            "Optional refine schedule. Falls back to the shared sigmas "
+                            "connection when not connected. Executed refine steps = "
+                            "schedule length x denoise."
                         )
                     },
                 ),
@@ -278,11 +276,25 @@ class BB_MiniMaxH3MotionDirector:
                 "clip": "CLIP",
                 "sampler": "SAMPLER",
                 "sigmas": "SIGMAS",
+                "refine_model": "MODEL",
+                "refine_sampler": "SAMPLER",
+                "refine_sigmas": "SIGMAS",
             }
             for name, want in expected.items():
                 got = input_types.get(name)
                 if got is not None and got != want:
                     return f"{name}: expected {want}, linked node returns {got}."
+            refine_connected = [
+                name for name in ("refine_model", "refine_sampler", "refine_sigmas")
+                if input_types.get(name) is not None
+            ]
+            if refine_connected and len(refine_connected) != 3:
+                return (
+                    "Refine sampling must be connected as a complete trio "
+                    "(refine_model / refine_sampler / refine_sigmas); connected: "
+                    + ", ".join(refine_connected)
+                    + "."
+                )
         return True
 
     RETURN_TYPES = ("IMAGE", "AUDIO", "FLOAT", "INT", "IMAGE", "STRING")
@@ -292,8 +304,8 @@ class BB_MiniMaxH3MotionDirector:
     CATEGORY = _CATEGORY
     DESCRIPTION = (
         "MiniMax H3 Motion Director: exported video/audio Motion Context, "
-        "MiniMaxH3ImageToVideo / ReferenceToVideo conditioning, internal KSampler "
-        "or external SAMPLER+SIGMAS, and LTXVSeparateAVLatent decode. "
+        "MiniMaxH3ImageToVideo / ReferenceToVideo conditioning, external "
+        "SAMPLER+SIGMAS (required), and LTXVSeparateAVLatent decode. "
         "Supports t2v / i2v / fl2v / r2v / v2v / rv2v plus Mixed meta-mode. "
         "Optional i2v_groups / r2v_groups accept multi-group packs from Director Group nodes "
         "for standalone modes; Mixed v1 uses its own segment-local schema. "
@@ -322,15 +334,13 @@ class BB_MiniMaxH3MotionDirector:
         source_overlap_frames=5,
         audio_context_enabled=True,
         color_reanchor_enabled=False,
-        steps=25,
-        sampler_name="res_multistep",
-        scheduler="simple",
         sampler=None,
         sigmas=None,
         cfg=1.0,
         seed=0,
-        shift_video=12.0,
-        shift_audio=3.0,
+        refine_model=None,
+        refine_sampler=None,
+        refine_sigmas=None,
         clear_vram_between_segments=True,
         export_source_images=False,
         pin_renorm_enabled=False,
@@ -376,13 +386,11 @@ class BB_MiniMaxH3MotionDirector:
             clip=clip,
             cfg=cfg,
             seed=seed,
-            steps=steps,
-            sampler=sampler_name,
-            scheduler=scheduler,
-            shift_video=shift_video,
-            shift_audio=shift_audio,
             external_sampler=sampler,
             external_sigmas=sigmas,
+            refine_model=refine_model,
+            refine_sampler=refine_sampler,
+            refine_sigmas=refine_sigmas,
             motion_context_enabled=motion_context_enabled,
             context_length=context_length,
             source_overlap_frames=source_overlap_frames,

@@ -14,7 +14,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from .core_sampling import sample_single_stage
+from .core_sampling import resolve_refine_model, sample_single_stage
 from .face_refine_streaming import (
     aggregate_denoise_statistics,
     select_tracking_history,
@@ -142,6 +142,11 @@ def apply_face_refine(
     scheduler: str,
     shift_video: float,
     shift_audio: float,
+    external_sampler=None,
+    external_sigmas=None,
+    refine_model=None,
+    refine_sampler=None,
+    refine_sigmas=None,
     chunk_lengths: list[int] | None = None,
     tracking_history: torch.Tensor | None = None,
     on_phase: Callable[[str, float], None] | None = None,
@@ -154,6 +159,9 @@ def apply_face_refine(
     stage_started = time.perf_counter()
     timings: dict[str, Any] = {"sampling_chunks": []}
     base_denoise = float(config.get("base_denoise") or 0.45)
+    pass_model, _pass_model_name = resolve_refine_model(refine_model, model)
+    pass_sampler = refine_sampler if refine_sampler is not None else external_sampler
+    pass_sigmas = refine_sigmas if refine_sigmas is not None else external_sigmas
     try:
         if on_phase:
             on_phase("face_refine", 0)
@@ -208,7 +216,7 @@ def apply_face_refine(
                     on_phase("face_refine", 0.10 + 0.80 * fraction)
 
             sampled = sample_single_stage(
-                model=model,
+                model=pass_model,
                 positive=positive,
                 negative=negative,
                 latent=latent,
@@ -219,6 +227,8 @@ def apply_face_refine(
                 scheduler=scheduler,
                 shift_video=shift_video,
                 shift_audio=shift_audio,
+                external_sampler=pass_sampler,
+                external_sigmas=pass_sigmas,
                 denoise=base_denoise,
                 phase_name="face_refine",
                 on_phase=_chunk_phase,
