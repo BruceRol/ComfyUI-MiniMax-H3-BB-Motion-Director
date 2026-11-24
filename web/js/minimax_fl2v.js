@@ -1493,21 +1493,15 @@ export function setFl2vToolbar(editor, enabled) {
         editor.btnVideo.classList.toggle("hidden", enabled);
         editor.btnVideo.disabled = enabled;
     }
-    const externalLocked = !!(editor.hasExternalI2vGroups?.() || editor.hasExternalR2vGroups?.());
     const del = editor.root?.querySelector('[data-a="del"]');
     if (del) {
-        if (externalLocked) {
-            del.classList.add("hidden");
-            del.disabled = true;
-        } else {
-            del.disabled = false;
-            del.classList.remove("bd-disabled", "hidden");
-            del.textContent = enabled ? t("toolbar.deleteSelectedGroup") : t("toolbar.deleteSegment");
-            del.title = enabled ? t("tooltip.deleteSelectedFl2vGroup") : t("tooltip.deleteSegment");
-            // Keep data-i18n in sync when locale refreshes static attrs later.
-            del.setAttribute("data-i18n", enabled ? "toolbar.deleteSelectedGroup" : "toolbar.deleteSegment");
-            del.setAttribute("data-i18n-title", enabled ? "tooltip.deleteSelectedFl2vGroup" : "tooltip.deleteSegment");
-        }
+        del.disabled = false;
+        del.classList.remove("bd-disabled", "hidden");
+        del.textContent = enabled ? t("toolbar.deleteSelectedGroup") : t("toolbar.deleteSegment");
+        del.title = enabled ? t("tooltip.deleteSelectedFl2vGroup") : t("tooltip.deleteSegment");
+        // Keep data-i18n in sync when locale refreshes static attrs later.
+        del.setAttribute("data-i18n", enabled ? "toolbar.deleteSelectedGroup" : "toolbar.deleteSegment");
+        del.setAttribute("data-i18n-title", enabled ? "tooltip.deleteSelectedFl2vGroup" : "tooltip.deleteSegment");
     }
     for (const sel of ['[data-a="fl2v-insert-before"]', '[data-a="fl2v-insert-after"]', '[data-a="fl2v-replace"]']) {
         const btn = editor.root?.querySelector(sel);
@@ -1518,8 +1512,8 @@ export function setFl2vToolbar(editor, enabled) {
     }
     const addBtn = editor.root?.querySelector('[data-a="fl2v-add-shot"]');
     if (addBtn) {
-        addBtn.classList.toggle("hidden", !enabled || externalLocked);
-        addBtn.disabled = !enabled || externalLocked;
+        addBtn.classList.toggle("hidden", !enabled);
+        addBtn.disabled = !enabled;
     }
     updateFl2vToolbarBtns(editor);
 }
@@ -1527,8 +1521,7 @@ export function setFl2vToolbar(editor, enabled) {
 export function updateFl2vToolbarBtns(editor) {
     const addBtn = editor?.root?.querySelector?.('[data-a="fl2v-add-shot"]');
     if (addBtn) {
-        const externalLocked = !!(editor?.hasExternalI2vGroups?.() || editor?.hasExternalR2vGroups?.());
-        const show = !!editor?.isFl2vMode?.() && !externalLocked;
+        const show = !!editor?.isFl2vMode?.();
         addBtn.classList.toggle("hidden", !show);
         addBtn.disabled = !show;
     }

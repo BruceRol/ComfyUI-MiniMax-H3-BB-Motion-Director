@@ -123,26 +123,6 @@ class BB_MiniMaxH3MotionDirector:
                 **director_timeline_required_inputs(),
             },
             "optional": {
-                "i2v_groups": (
-                    "MMX_MOTION_DIR_GROUP",
-                    {
-                        "tooltip": (
-                            "External Image to Video group(s) (t2v / i2v / fl2v). "
-                            "When connected, overrides UI cards for execution (external priority). "
-                            "Connect Group (Image to Video).group, or Groups Combine."
-                        ),
-                    },
-                ),
-                "r2v_groups": (
-                    "MMX_MOTION_DIR_GROUP",
-                    {
-                        "tooltip": (
-                            "External Reference to Video group(s). "
-                            "When connected, overrides UI cards for execution (external priority). "
-                            "Connect Group (Reference to Video).group, or Groups Combine."
-                        ),
-                    },
-                ),
                 "bd_grp_motion": ("BDGROUP", {"default": "Motion Context"}),
                 "motion_context_enabled": (
                     "BOOLEAN",
@@ -307,8 +287,7 @@ class BB_MiniMaxH3MotionDirector:
         "MiniMaxH3ImageToVideo / ReferenceToVideo conditioning, external "
         "SAMPLER+SIGMAS (required), and LTXVSeparateAVLatent decode. "
         "Supports t2v / i2v / fl2v / r2v / v2v / rv2v plus Mixed meta-mode. "
-        "Optional i2v_groups / r2v_groups accept multi-group packs from Director Group nodes "
-        "for standalone modes; Mixed v1 uses its own segment-local schema. "
+        "Media is referenced by filename from the timeline JSON. "
         "Defaults: 0.4MP 16:9 (864×480), 5s / 124 frames @ 24 fps."
     )
 
@@ -327,8 +306,6 @@ class BB_MiniMaxH3MotionDirector:
         total_frames,
         timeline_data,
         unique_id=None,
-        i2v_groups=None,
-        r2v_groups=None,
         motion_context_enabled=True,
         context_length=22,
         source_overlap_frames=5,
@@ -366,8 +343,6 @@ class BB_MiniMaxH3MotionDirector:
             ref_max_size=ref_max_size,
             unique_id=unique_id,
             motion_context_enabled=motion_context_enabled,
-            i2v_groups=i2v_groups,
-            r2v_groups=r2v_groups,
         )
 
         if bool(getattr(plan, "mixed_mode", False)):

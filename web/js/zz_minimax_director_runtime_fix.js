@@ -5,30 +5,21 @@ import {
     directorGroupCount,
     parseDirectorTimeline,
     resolveDirectorTaskKey,
-} from "./minimax_director_inputs_core.mjs?boot=unified_inputs_v2";
+} from "./minimax_timeline_core.mjs?boot=timeline_core_v1";
 import {
     localizedWidgetLabel,
     samplingHeaderText,
     sectionTitle,
-} from "./minimax_director_sections_core.mjs?boot=director_sections_v1";
+} from "./minimax_director_sections_core.mjs?boot=director_sections_v2";
 import {
     generatedAudioContinuationShouldBeInteractive,
-    keepSamplingSourceHidden,
     restoreContinuityWidgetRenderer,
-} from "./minimax_director_runtime_fix_core.mjs?boot=continuity_runtime_fix_v4";
+} from "./minimax_director_runtime_fix_core.mjs?boot=continuity_runtime_fix_v5";
 import {
     enforceStandaloneSplitPointVisibility,
 } from "./minimax_mixed_ui.mjs?boot=mixed_issue16_v2";
 
 const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
-
-const INTERNAL_SAMPLING_SOURCES = Object.freeze([
-    "steps",
-    "sampler_name",
-    "scheduler",
-    "shift_video",
-    "shift_audio",
-]);
 
 const LABEL_SOURCE_BY_WIDGET = Object.freeze({
     seed: "seed",
@@ -42,11 +33,6 @@ const LABEL_SOURCE_BY_WIDGET = Object.freeze({
     mmx_global_refine_proxy: "mmx_global_refine_proxy",
     mmx_face_refine_proxy: "mmx_face_refine_proxy",
     clear_vram_between_segments: "clear_vram_between_segments",
-    mmx_section_steps_proxy: "steps",
-    mmx_section_sampler_proxy: "sampler_name",
-    mmx_section_scheduler_proxy: "scheduler",
-    mmx_section_shift_video_proxy: "shift_video",
-    mmx_section_shift_audio_proxy: "shift_audio",
 });
 
 function widgetByName(node, name) {
@@ -130,14 +116,6 @@ function syncGeneratedAudioContinuation(node) {
         changed = true;
     }
 
-    return changed;
-}
-
-function syncSamplingSourceOwnership(node) {
-    let changed = false;
-    for (const name of INTERNAL_SAMPLING_SOURCES) {
-        changed = keepSamplingSourceHidden(widgetByName(node, name)) || changed;
-    }
     return changed;
 }
 
@@ -274,7 +252,6 @@ function syncRuntimeFix(node) {
     if (!node || !Array.isArray(node.widgets)) return false;
 
     const changed = [
-        syncSamplingSourceOwnership(node),
         syncGeneratedAudioContinuation(node),
         syncLocalizedLabels(node),
         syncOutputUi(node),
@@ -340,9 +317,9 @@ function wrapDirector(nodeType) {
 
     const onDrawBackground = nodeType.prototype.onDrawBackground;
     nodeType.prototype.onDrawBackground = function () {
-        // Locale refresh and legacy sampling visibility run outside this extension.
-        // Reassert ownership before LiteGraph paints any widget so neither the
-        // old sampling rows nor old-language labels can reach a visible frame.
+        // Locale refresh runs outside this extension. Reassert labels before
+        // LiteGraph paints any widget so old-language labels cannot reach a
+        // visible frame.
         syncRuntimeFix(this);
         const result = onDrawBackground?.apply(this, arguments);
         syncRuntimeFix(this);

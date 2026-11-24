@@ -31,7 +31,8 @@ def test_visual_invalidity_keeps_audio_candidate_independent():
 def test_source_bridge_delegates_to_preserved_assembled_face_refine_path():
     source = _source()
     assert "if not face_config[\"enabled\"] or source_bridge_pairs:" in source
-    assert "return _legacy_runner(base_globals)(plan, **call_kwargs)" in source
+    assert "_legacy_runner(base_globals)(" in source
+    assert "_append_executed_steps_report(report, executed_steps)" in source
     legacy = Path("director/executor_core_legacy.py").read_text(encoding="utf-8")
     bridge_at = legacy.index("if generated_bridges:")
     face_at = legacy.index("face_outcome = apply_face_refine(", bridge_at)
@@ -44,10 +45,8 @@ def test_runtime_validation_happens_before_legacy_generation_and_hooks_are_per_c
     delegate_at = source.index("if not face_config[\"enabled\"] or source_bridge_pairs:")
     assert validate_at < delegate_at
     assert "base_globals = dict(_legacy.execute_director_plan_core.__globals__)" in source
-    assert (
-        "base_globals.update(_sampling_context_partials(external_sampler, external_sigmas))"
-        in source
-    )
+    assert "_sampling_context_partials(" in source
+    assert "base_globals.update(sampling_partials)" in source
     assert "function_globals = dict(base_globals)" in source
     assert "types.FunctionType(" in source
     assert "_legacy.trim_segment_av =" not in source

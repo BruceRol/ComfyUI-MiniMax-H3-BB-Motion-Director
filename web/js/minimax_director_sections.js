@@ -5,34 +5,11 @@ import {
     localizedWidgetLabel,
     samplingHeaderText,
     sectionTitle,
-    shouldShowInternalSampling,
-} from "./minimax_director_sections_core.mjs?boot=director_sections_v1";
+} from "./minimax_director_sections_core.mjs?boot=director_sections_v2";
 
 const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
 const SYNC_MS = 250;
 const SECTION_GAP = 9;
-
-const INTERNAL_SAMPLING = Object.freeze([
-    "steps",
-    "sampler_name",
-    "scheduler",
-    "shift_video",
-    "shift_audio",
-]);
-
-const PROXY_BY_SOURCE = Object.freeze({
-    steps: "mmx_section_steps_proxy",
-    sampler_name: "mmx_section_sampler_proxy",
-    scheduler: "mmx_section_scheduler_proxy",
-    shift_video: "mmx_section_shift_video_proxy",
-    shift_audio: "mmx_section_shift_audio_proxy",
-});
-
-const SOURCE_BY_PROXY = Object.freeze(
-    Object.fromEntries(
-        Object.entries(PROXY_BY_SOURCE).map(([source, proxy]) => [proxy, source]),
-    ),
-);
 
 const GAP_BEFORE = Object.freeze([
     ["bd_grp_motion", "mmx_section_gap_motion"],
@@ -92,28 +69,6 @@ function hideWidget(widget, key = "_mmxSectionHiddenState") {
     return changed;
 }
 
-function setTransientVisible(widget, visible) {
-    if (!widget) return false;
-    const key = "_mmxSectionProxyVisibility";
-    rememberVisibility(widget, key);
-    const saved = widget[key];
-    const currentlyVisible = widget.hidden !== true && widget.options?.hidden !== true;
-    if (visible) {
-        widget.computeSize = saved.computeSize;
-        widget.hidden = false;
-        widget.options = widget.options || {};
-        delete widget.options.hidden;
-        if (widget.element?.style) widget.element.style.display = saved.display || "";
-    } else {
-        widget.hidden = true;
-        widget.options = widget.options || {};
-        widget.options.hidden = true;
-        widget.computeSize = () => [0, 0];
-        if (widget.element?.style) widget.element.style.display = "none";
-    }
-    return currentlyVisible !== visible;
-}
-
 function setWidgetLabel(widget, label) {
     if (!widget || !label) return false;
     let changed = false;
@@ -155,72 +110,6 @@ function setHeaderLabel(widget, label) {
     return changed;
 }
 
-function proxyOptions(original) {
-    const options = { ...(original?.options || {}) };
-    options.serialize = false;
-    delete options.hidden;
-    return options;
-}
-
-function createSamplingProxy(node, sourceName) {
-    const original = widgetByName(node, sourceName);
-    if (!original || typeof node?.addWidget !== "function") return null;
-
-    const proxyName = PROXY_BY_SOURCE[sourceName];
-    let proxy = widgetByName(node, proxyName);
-    if (proxy) return proxy;
-
-    proxy = node.addWidget(
-        original.type || "number",
-        proxyName,
-        original.value,
-        (value) => {
-            original.value = value;
-            if (typeof original.callback === "function") {
-                try {
-                    original.callback.call(original, value);
-                } catch {
-                    // The five internal sampling widgets do not require callback side effects.
-                }
-            }
-            node.setDirtyCanvas?.(true, true);
-        },
-        proxyOptions(original),
-    );
-
-    if (!proxy) return null;
-    proxy.serialize = false;
-    proxy.options = proxy.options || {};
-    proxy.options.serialize = false;
-    proxy._mmxSectionProxySource = sourceName;
-    return proxy;
-}
-
-function ensureSamplingProxies(node) {
-    const proxies = INTERNAL_SAMPLING
-        .map((name) => createSamplingProxy(node, name))
-        .filter(Boolean);
-
-    if (!proxies.length || !Array.isArray(node?.widgets)) return proxies;
-
-    for (const proxy of proxies) {
-        const index = node.widgets.indexOf(proxy);
-        if (index >= 0) node.widgets.splice(index, 1);
-    }
-
-    let insertIndex = node.widgets.findIndex((widget) => widget?.name === "bd_grp_motion");
-    if (insertIndex < 0) {
-        insertIndex = node.widgets.findIndex((widget) => widget?.name === "mmx_postprocess_group");
-    }
-    if (insertIndex < 0) {
-        insertIndex = node.widgets.findIndex((widget) => widget?.name === "bd_grp_perf");
-    }
-    if (insertIndex < 0) insertIndex = node.widgets.length;
-
-    node.widgets.splice(insertIndex, 0, ...proxies);
-    return proxies;
-}
-
 function createGapWidget(name) {
     return {
         name,
@@ -249,21 +138,7 @@ function ensureGapBefore(node, headerName, gapName) {
     return true;
 }
 
-function syncSamplingValues(node, proxies) {
-    let changed = false;
-    for (const proxy of proxies) {
-        const sourceName = SOURCE_BY_PROXY[proxy.name] || proxy._mmxSectionProxySource;
-        const original = widgetByName(node, sourceName);
-        if (!original) continue;
-        if (proxy.value !== original.value) {
-            proxy.value = original.value;
-            changed = true;
-        }
-    }
-    return changed;
-}
-
-function syncLocalizedLabels(node, locale, samplingState, proxies) {
+function syncLocalizedLabels(node, locale, samplingState) {
     let changed = false;
 
     changed = setHeaderLabel(
@@ -297,14 +172,6 @@ function syncLocalizedLabels(node, locale, samplingState, proxies) {
         changed = setWidgetLabel(
             linked,
             localizedWidgetLabel(locale, "control_after_generate"),
-        ) || changed;
-    }
-
-    for (const proxy of proxies) {
-        const sourceName = SOURCE_BY_PROXY[proxy.name] || proxy._mmxSectionProxySource;
-        changed = setWidgetLabel(
-            proxy,
-            localizedWidgetLabel(locale, sourceName),
         ) || changed;
     }
 
@@ -379,7 +246,6 @@ function drawDirectorSectionFrames(node, ctx) {
             "seed",
             "control_after_generate",
             "control after generate",
-            ...Object.values(PROXY_BY_SOURCE),
         ],
         [
             "bd_grp_motion",
@@ -428,14 +294,8 @@ function syncDirectorSections(node) {
 
     const locale = getLocale() === "en" ? "en" : "zh";
     const samplingState = getSamplingConnectionState(node.inputs || []);
-    const showInternal = shouldShowInternalSampling(samplingState);
     let changed = false;
 
-    const proxies = ensureSamplingProxies(node);
-
-    for (const name of INTERNAL_SAMPLING) {
-        changed = hideWidget(widgetByName(node, name)) || changed;
-    }
     changed = hideWidget(widgetByName(node, "bd_grp_advanced")) || changed;
     changed = hideWidget(widgetByName(node, "bd_grp_experimental")) || changed;
 
@@ -448,18 +308,13 @@ function syncDirectorSections(node) {
         changed = hideWidget(sourceImages) || changed;
     }
 
-    for (const proxy of proxies) {
-        changed = setTransientVisible(proxy, showInternal) || changed;
-    }
-
-    changed = syncSamplingValues(node, proxies) || changed;
-    changed = syncLocalizedLabels(node, locale, samplingState, proxies) || changed;
+    changed = syncLocalizedLabels(node, locale, samplingState) || changed;
 
     for (const [headerName, gapName] of GAP_BEFORE) {
         ensureGapBefore(node, headerName, gapName);
     }
 
-    const signature = `${locale}|${samplingState}|${showInternal ? 1 : 0}`;
+    const signature = `${locale}|${samplingState}`;
     if (node._mmxSectionSignature !== signature) {
         node._mmxSectionSignature = signature;
         changed = true;

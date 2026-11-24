@@ -656,7 +656,6 @@ export function normalizeImageBatchSegments(editor) {
 }
 
 export function addImageBatchGroup(editor) {
-    if (editor.hasExternalI2vGroups?.() || editor.hasExternalR2vGroups?.()) return;
     const taskKey = resolveTaskKey(editor.getTaskKey?.() || editor.taskTypeWidget?.value);
     editor.timeline.segments.push(newBatchSegment({
         durationSec: defaultDurationSec(taskKey),
@@ -672,7 +671,6 @@ export function addImageBatchGroup(editor) {
 }
 
 export function deleteImageBatchGroup(editor, index) {
-    if (editor.hasExternalI2vGroups?.() || editor.hasExternalR2vGroups?.()) return;
     if (editor.timeline.segments.length <= 1) return;
     editor.timeline.segments.splice(index, 1);
     normalizeImageBatchSegments(editor);
@@ -1145,7 +1143,7 @@ function renderVideoSlot(el, ref, slot, index, editor, { r2v = false } = {}) {
             x.onclick = (e) => { e.stopPropagation(); removeSegVideo(editor, index, slot); };
             el.appendChild(x);
         } else if (posterSrc) {
-            // External IMAGE-batch video: show upstream first-frame poster (no file path).
+            // Wired video without a resolvable path: show the upstream first-frame poster.
             const img = document.createElement("img");
             img.className = "bd-r2v-media";
             img.src = posterSrc;
@@ -1153,13 +1151,13 @@ function renderVideoSlot(el, ref, slot, index, editor, { r2v = false } = {}) {
             thumb.appendChild(img);
             const hint = document.createElement("span");
             hint.className = "name";
-            hint.textContent = t("batch.r2v.externalPoster");
+            hint.textContent = t("batch.r2v.poster");
             meta.appendChild(hint);
         } else if (ref?.linked) {
             thumb.textContent = "▶";
             const hint = document.createElement("span");
             hint.className = "name";
-            hint.textContent = t("batch.r2v.externalLinked");
+            hint.textContent = t("batch.r2v.linked");
             meta.appendChild(hint);
         } else {
             thumb.textContent = "▶";
@@ -1709,7 +1707,6 @@ export function renderImageBatchGroups(editor) {
             ? t(hintKey)
             : t(isVideo ? "batch.hint.defaultVideo" : "batch.hint.defaultImage");
     }
-    const externalLocked = !!(editor.hasExternalI2vGroups?.() || editor.hasExternalR2vGroups?.());
     if (editor.batchI2vNotice) {
         const needsRefs = key === "r2i" || key === "r2v";
         const hasAnyMedia = (editor.timeline.segments || []).some((s) => (
@@ -1719,9 +1716,7 @@ export function renderImageBatchGroups(editor) {
                 r?.videoFile || r?.fileName || r?.previewImageFile || r?.previewImageUrl || r?.linked
             ))
         ));
-        // External graph media may exist as tensors even when UI path sync failed —
-        // don't scare users with a false "will degrade to t2v" notice.
-        if (needsRefs && !hasAnyMedia && !externalLocked && !motionOn) {
+        if (needsRefs && !hasAnyMedia && !motionOn) {
             editor.batchI2vNotice.textContent = t(key === "r2v" ? "batch.notice.r2vNoRefs" : "batch.notice.r2iNoRefs");
             editor.batchI2vNotice.classList.add("visible");
         } else {
@@ -1734,9 +1729,7 @@ export function renderImageBatchGroups(editor) {
         addBtn.textContent = t(key === "r2v" ? "batch.addRefGroup" : "batch.addPromptGroup");
         addBtn.setAttribute("data-i18n", key === "r2v" ? "batch.addRefGroup" : "batch.addPromptGroup");
         // r2v: add from toolbar (left of task select), like fl2v.
-        // External groups: never add UI cards (graph is source of truth).
-        addBtn.classList.toggle("hidden", key === "r2v" || externalLocked);
-        addBtn.disabled = externalLocked;
+        addBtn.classList.toggle("hidden", key === "r2v");
     }
 
     list.innerHTML = "";
@@ -1836,33 +1829,25 @@ export function renderImageBatchGroups(editor) {
                     editor.totalFramesWidget.value = sumFrameCounts(editor.timeline.segments);
                 }
             };
-            if (externalLocked) {
-                secInput.readOnly = true;
-                secInput.disabled = true;
-                secInput.title = t("external.durationLocked");
-            } else {
-                secInput.onchange = applySec;
-                secInput.oninput = () => {
-                    clearTimeout(secInput._t);
-                    secInput._t = setTimeout(applySec, 200);
-                };
-                secInput.onblur = () => {
-                    clearTimeout(secInput._t);
-                    secInput._t = null;
-                    applySec();
-                };
-            }
+            secInput.onchange = applySec;
+            secInput.oninput = () => {
+                clearTimeout(secInput._t);
+                secInput._t = setTimeout(applySec, 200);
+            };
+            secInput.onblur = () => {
+                clearTimeout(secInput._t);
+                secInput._t = null;
+                applySec();
+            };
             meta.appendChild(secRow);
         }
-        if (!externalLocked) {
-            const del = document.createElement("button");
-            del.type = "button";
-            del.className = "bd-batch-del";
-            del.textContent = t("batch.delete");
-            del.disabled = editor.timeline.segments.length <= 1;
-            del.onclick = (e) => { e.stopPropagation(); deleteImageBatchGroup(editor, index); };
-            meta.appendChild(del);
-        }
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "bd-batch-del";
+        del.textContent = t("batch.delete");
+        del.disabled = editor.timeline.segments.length <= 1;
+        del.onclick = (e) => { e.stopPropagation(); deleteImageBatchGroup(editor, index); };
+        meta.appendChild(del);
         head.appendChild(meta);
         card.appendChild(head);
 
@@ -2109,44 +2094,37 @@ export function setR2vToolbar(editor, enabled) {
     editor.root?.querySelector('[data-r="equal-n"]')?.classList.toggle("hidden", enabled);
     editor.root?.querySelector(".bd-mode")?.classList.toggle("hidden", enabled);
 
-    const externalLocked = !!(editor.hasExternalI2vGroups?.() || editor.hasExternalR2vGroups?.());
     const del = editor.root?.querySelector('[data-a="del"]');
     if (del) {
-        if (externalLocked) {
-            del.classList.add("hidden");
-            del.disabled = true;
-        } else {
-            del.disabled = false;
-            del.classList.remove("bd-disabled", "hidden");
-            del.textContent = enabled ? t("toolbar.deleteSelectedGroup") : t("toolbar.deleteSegment");
-            del.setAttribute("data-i18n", enabled ? "toolbar.deleteSelectedGroup" : "toolbar.deleteSegment");
-            del.setAttribute("data-i18n-title", enabled ? "tooltip.deleteSelectedFl2vGroup" : "tooltip.deleteSegment");
-            del.title = enabled
-                ? t("tooltip.deleteSelectedFl2vGroup")
-                : t("tooltip.deleteSegment");
-        }
+        del.disabled = false;
+        del.classList.remove("bd-disabled", "hidden");
+        del.textContent = enabled ? t("toolbar.deleteSelectedGroup") : t("toolbar.deleteSegment");
+        del.setAttribute("data-i18n", enabled ? "toolbar.deleteSelectedGroup" : "toolbar.deleteSegment");
+        del.setAttribute("data-i18n-title", enabled ? "tooltip.deleteSelectedFl2vGroup" : "tooltip.deleteSegment");
+        del.title = enabled
+            ? t("tooltip.deleteSelectedFl2vGroup")
+            : t("tooltip.deleteSegment");
     }
     const addBtn = editor.root?.querySelector('[data-a="r2v-add-group"]');
     if (addBtn) {
-        addBtn.classList.toggle("hidden", !enabled || externalLocked);
-        addBtn.disabled = !enabled || externalLocked;
+        addBtn.classList.toggle("hidden", !enabled);
+        addBtn.disabled = !enabled;
     }
     const batchAdd = editor.batchPanel?.querySelector('[data-a="batch-add"]');
-    if (batchAdd) batchAdd.classList.toggle("hidden", enabled || externalLocked);
+    if (batchAdd) batchAdd.classList.toggle("hidden", enabled);
     updateR2vToolbarBtns(editor);
 }
 
 export function updateR2vToolbarBtns(editor) {
     const addBtn = editor?.root?.querySelector?.('[data-a="r2v-add-group"]');
     if (!addBtn) return;
-    const externalLocked = !!(editor?.hasExternalI2vGroups?.() || editor?.hasExternalR2vGroups?.());
-    const show = !!editor?.isR2vBatch?.() && !externalLocked;
+    const show = !!editor?.isR2vBatch?.();
     addBtn.classList.toggle("hidden", !show);
     addBtn.disabled = !show;
     const deleteBtn = editor?.root?.querySelector?.('[data-a="del"]');
     if (deleteBtn && editor?.isR2vBatch?.()) {
         const lastGroup = (editor.timeline?.segments?.length || 0) <= 1;
-        deleteBtn.disabled = externalLocked || lastGroup;
+        deleteBtn.disabled = lastGroup;
         deleteBtn.title = lastGroup ? t("batch.r2v.keepOneGroup") : t("tooltip.deleteSegment");
     }
 }

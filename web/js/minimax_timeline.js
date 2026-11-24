@@ -14,7 +14,6 @@ import {
     mountPostprocessUI,
 } from "./minimax_postprocess_ui.mjs?boot=postprocess_output_v9";
 import { mountOutputUI } from "./minimax_output_ui.mjs?boot=live_results_v2";
-import { resolveExternalGroupTerminal } from "./minimax_external_groups.mjs";
 import {
     CUSTOM_ASPECT_RATIO,
     DEFAULT_ASPECT_RATIO,
@@ -139,9 +138,7 @@ import {
     toggleLocale,
 } from "./minimax_i18n.js";
 import {
-    applySamplingWidgetVisibility,
-    migrateLegacySamplingControlNode,
-    migrateLegacySamplingControlWorkflow,
+    getSamplingConnectionState,
     repairDirectorGroupWidgetWorkflow,
     seedControlModeFromWidgets,
 } from "./minimax_sampling_ui.js";
@@ -367,11 +364,6 @@ const DIRECTOR_WIDGET_LABEL_KEYS = {
     audio_context_enabled: "widget.audioContextEnabled",
     color_reanchor_enabled: "widget.colorReanchorEnabled",
     pin_renorm_enabled: "widget.pinRenormEnabled",
-    steps: "widget.steps",
-    sampler_name: "widget.samplerName",
-    scheduler: "widget.scheduler",
-    shift_video: "widget.shiftVideo",
-    shift_audio: "widget.shiftAudio",
     clear_vram_between_segments: "widget.clearVram",
     export_source_images: "widget.exportSourceImages",
     control_after_generate: "widget.controlAfterGenerate",
@@ -1076,36 +1068,6 @@ function migrateReorderedDirectorTail(serializedNode, currentWidgets = []) {
 }
 
 
-function repairInvalidDirectorSamplingState(node) {
-    const widget = (name) => node?.widgets?.find((item) => item.name === name);
-    const steps = widget("steps");
-    const sampler = widget("sampler_name");
-    const scheduler = widget("scheduler");
-    const videoShift = widget("shift_video");
-    const audioShift = widget("shift_audio");
-    const invalidCount = [
-        !Number.isFinite(Number(steps?.value)) || Number(steps?.value) < 1,
-        !Number.isFinite(Number(videoShift?.value)) || Number(videoShift?.value) < 0.01,
-        !Number.isFinite(Number(audioShift?.value)) || Number(audioShift?.value) < 0.01,
-    ].filter(Boolean).length;
-    if (invalidCount < 2) return false;
-
-    // Recovery for the short-lived frontend build that inserted non-serialized
-    // postprocess proxies before LiteGraph applied widgets_values.
-    if (steps) steps.value = 25;
-    if (sampler) sampler.value = "res_multistep";
-    if (scheduler) scheduler.value = "simple";
-    if (videoShift) videoShift.value = 12;
-    if (audioShift) audioShift.value = 3;
-    const clearVram = widget("clear_vram_between_segments");
-    const sourceImages = widget("export_source_images");
-    if (clearVram) clearVram.value = true;
-    if (sourceImages) sourceImages.value = false;
-    console.warn("[MiniMax H3 Motion Director] repaired invalid sampling values caused by transient widget ordering");
-    node?.setDirtyCanvas?.(true, true);
-    return true;
-}
-
 function ensurePinRenormProxy(node, pin) {
     const existing = node.widgets?.find((w) => w.name === "mmx_pin_renorm_proxy");
     if (existing) return existing;
@@ -1359,13 +1321,11 @@ function refreshDirectorContinuityUi(node, editor = node?._minimaxEditor) {
 }
 
 function refreshSamplingModeUi(node) {
-    if (!node) return "internal";
-    const state = applySamplingWidgetVisibility(node);
+    if (!node) return "incomplete";
+    const state = getSamplingConnectionState(node.inputs || []);
     const statusKey = state === "external"
         ? "sampling.status.external"
-        : state === "incomplete"
-            ? "sampling.status.incomplete"
-            : "sampling.status.internal";
+        : "sampling.status.incomplete";
     const label = `${t("widget.grpAdvanced")} · ${t(statusKey)}`;
     const header = node.widgets?.find((widget) => widget?.name === "bd_grp_advanced");
     if (header) {
@@ -1478,14 +1438,6 @@ const STYLES = `
 .bd-smart-split-msg{width:100%;box-sizing:border-box;font-size:11px;line-height:1.4;color:#f66;padding:0 2px;min-height:0}
 .bd-smart-split-msg.hidden{display:none!important}
 .bd-smart-split-msg.ok{color:#8c8}
-.bd-external-groups-msg{width:100%;box-sizing:border-box;font-size:11px;line-height:1.45;color:#9ad;padding:8px 10px;margin:0 0 4px;background:#152018;border:1px solid #2f4a38;border-radius:6px}
-.bd-external-groups-msg.hidden{display:none!important}
-.bd-wrap.bd-external-groups .bd-batch-card:not(.bd-r2v-common-card),.bd-wrap.bd-external-groups .bd-fl2v-shot{opacity:.48;pointer-events:none}
-.bd-wrap.bd-external-groups .bd-run-select-bar,.bd-wrap.bd-external-groups .bd-batch-run-check,.bd-wrap.bd-external-groups .bd-run-select-all-wrap{pointer-events:auto;opacity:1}
-.bd-wrap.bd-external-groups .bd-batch-card .bd-batch-run-check{pointer-events:auto;opacity:1}
-/* External mode: duration/delete stay non-interactive; allow media preview playback. */
-.bd-wrap.bd-external-groups .bd-batch-del,.bd-wrap.bd-external-groups .bd-batch-fc input{pointer-events:none!important;opacity:.55}
-.bd-wrap.bd-external-groups .bd-r2v-play,.bd-wrap.bd-external-groups .bd-batch-video video,.bd-wrap.bd-external-groups .bd-batch-audio audio,.bd-wrap.bd-external-groups .bd-r2v-thumb{pointer-events:auto;opacity:1}
 .bd-stage{width:100%;box-sizing:border-box;background:#0c0c0c;border:1px solid #222;border-bottom:none;border-radius:6px 6px 0 0;overflow:hidden;position:relative;min-height:120px;max-height:280px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
 .bd-stage.hidden{display:none!important}
 .bd-stage-video,.bd-stage-img{width:100%;height:100%;max-height:280px;object-fit:contain;background:#000;display:block}
@@ -1944,8 +1896,6 @@ function hookMotionContextWidget(node) {
         const r = orig?.apply(this, args);
         const ed = node._minimaxEditor;
         if (ed) {
-            ed._externalGroupsSyncSig = null;
-            ed.syncExternalGroupsTimeline?.();
             ed.renderImageBatchGroups?.();
             ed.scheduleRender?.();
         }
@@ -2333,7 +2283,6 @@ class MiniMaxH3MotionDirectorEditor {
                 this._directorModalOpen = true;
                 this._resetLayoutStyles();
                 this.applyZoomWidth();
-                this.syncExternalGroupsTimeline?.();
 
                 this.outputUi?.setPageVisibility?.(
                     this._directorModalController?.currentPage || "generation",
@@ -2458,21 +2407,7 @@ class MiniMaxH3MotionDirectorEditor {
         this.updateSelectionUI();
         this.commit(true, { syncTimeline: false });
         this._observeViewportResize();
-        this.syncExternalGroupsTimeline();
         this.scheduleSettleRender();
-    }
-
-    _inputLinkConnected(name) {
-        const inp = this.node?.inputs?.find((i) => i?.name === name);
-        return inp != null && inp.link != null;
-    }
-
-    hasExternalI2vGroups() {
-        return this._inputLinkConnected("i2v_groups");
-    }
-
-    hasExternalR2vGroups() {
-        return this._inputLinkConnected("r2v_groups");
     }
 
     isMotionContextEnabled() {
@@ -2563,174 +2498,6 @@ class MiniMaxH3MotionDirectorEditor {
 
     getSegmentContextMode(index) {
         return contextLinkMode(this.getSegmentContextLink(index), index);
-    }
-
-    updateExternalGroupsBanner() {
-        const el = this.externalGroupsMsgEl || this.root?.querySelector('[data-r="external-groups-msg"]');
-        if (!el) return;
-        const i2v = this.hasExternalI2vGroups();
-        const r2v = this.hasExternalR2vGroups();
-        const active = i2v || r2v;
-        el.classList.toggle("hidden", !active);
-        this.root?.classList.toggle("bd-external-groups", active);
-        // Refresh add/delete visibility when external wiring toggles.
-        if (this.isR2vBatch?.()) setR2vToolbar(this, true);
-        else if (this.isFl2vMode?.()) setFl2vToolbar(this, true);
-        else {
-            updateR2vToolbarBtns(this);
-            updateFl2vToolbarBtns(this);
-        }
-        if (!active) {
-            el.textContent = "";
-            return;
-        }
-        const specs = collectExternalGroupSpecs(this);
-        const n = specs?.length || 0;
-        const base = i2v ? t("external.i2vActive") : t("external.r2vActive");
-        const count = n > 0 ? ` (${t("external.groupCount", { n })})` : "";
-        el.textContent = `${base}${count} ${t("external.durationHint")}`;
-    }
-
-    /** Mirror graph-wired Group count/duration into the Director timeline UI. */
-    syncExternalGroupsTimeline() {
-        if (this.isMixedMode()) return;
-        this.updateExternalGroupsBanner();
-        const specs = collectExternalGroupSpecs(this);
-        if (!specs?.length) {
-            this._externalGroupsSyncSig = null;
-            return;
-        }
-
-        const mode = this.getDirectorMode?.() || this._directorMode;
-        const taskKey = resolveTaskKey(this.getTaskKey?.() || this.taskTypeWidget?.value);
-        const motionInheritance = !!(
-            this.isMotionContextEnabled?.()
-            && taskKey === "i2v"
-        );
-        const sig = JSON.stringify([motionInheritance, (this.timeline.segments || []).length, specs.map((s) => [
-            Number(s.durationSec) || 0,
-            s.prompt || "",
-            s.firstImageFile || "",
-            s.lastImageFile || "",
-            (s.refImages || []).map((r) => `${r.index}:${r.imageFile || ""}`).join(","),
-            (s.refVideos || []).map((r) => [
-                r.index,
-                r.videoFile || "",
-                r.previewImageFile || "",
-                r.previewImageUrl || "",
-                r.pairedAudioFile || "",
-                r.linked ? 1 : 0,
-            ].join(":")).join(","),
-            (s.refAudios || []).map((r) => `${r.index}:${r.audioFile || ""}`).join(","),
-        ])]);
-        if (this._externalGroupsSyncSig === sig) return;
-        this._externalGroupsSyncSig = sig;
-
-        if (mode === "fl2v") {
-            const prev = this.timeline.shots || [];
-            this.timeline.shots = specs.map((spec, i) => newFl2vShot({
-                ...(prev[i] || {}),
-                id: prev[i]?.id,
-                durationSec: spec.durationSec ?? defaultDurationSec("fl2v"),
-                prompt: (spec.prompt || prev[i]?.prompt || "").trim(),
-                // External graph is source of truth for media previews.
-                startImage: imageRefFromPath(spec.firstImageFile),
-                endImage: imageRefFromPath(spec.lastImageFile),
-            }));
-            syncFl2vFromShots(this);
-            this.selectedIndex = Math.min(this.selectedIndex ?? 0, Math.max(0, this.timeline.shots.length - 1));
-            updateFl2vDetailUI?.(this);
-            this.scheduleRender?.();
-            this.commit?.(false, { syncTimeline: true });
-            this.updateVideoNameLabel?.();
-            this.updateDomWidgetHeight?.();
-            this.updateRunSelectUI?.();
-            return;
-        }
-
-        if (mode === "prompt_batch" || mode === "image_batch" || isPromptBatchTask(taskKey)) {
-            const prev = this.timeline.segments || [];
-            const isR2v = taskKey === "r2v" || this.hasExternalR2vGroups?.();
-            const plannedCount = motionInheritance ? Math.max(prev.length, specs.length) : specs.length;
-            this.timeline.segments = Array.from({ length: plannedCount }, (_, i) => {
-                const spec = specs[i];
-                if (!spec) {
-                    // With Motion Context ON, disconnected tail cards remain in
-                    // the timeline and supply prompt/duration plus optional
-                    // reset/reference material to the backend planner.
-                    return newBatchSegment({
-                        ...(prev[i] || {}),
-                        id: prev[i]?.id,
-                        durationSec: prev[i]?.durationSec ?? defaultDurationSec(taskKey),
-                        prompt: (prev[i]?.prompt || "").trim(),
-                        refs: isR2v ? [] : (prev[i]?.refs || []),
-                        refAudios: isR2v ? [] : (prev[i]?.refAudios || []),
-                        refVideos: isR2v ? [] : (prev[i]?.refVideos || []),
-                        genImage: { imageFile: "" },
-                        imageFile: "",
-                    });
-                }
-                const firstRef = imageRefFromPath(spec.firstImageFile);
-                const genImage = firstRef
-                    || (isR2v ? (prev[i]?.genImage || { imageFile: "" }) : { imageFile: "" });
-                // External graph is source of truth for r2v media (do not keep stale UI uploads).
-                const refs = isR2v
-                    ? (spec.refImages || []).map((r) => ({
-                        index: r.index,
-                        assetId: (prev[i]?.refs || []).find((x) => Number(x.index ?? x.slot) === Number(r.index))?.assetId || "",
-                        imageFile: r.imageFile || "",
-                        imageB64: "",
-                    }))
-                    : (prev[i]?.refs || []);
-                const refVideos = isR2v
-                    ? (spec.refVideos || []).map((r) => ({
-                        index: r.index,
-                        assetId: (prev[i]?.refVideos || []).find((x) => Number(x.index ?? x.slot) === Number(r.index))?.assetId || "",
-                        videoFile: r.videoFile || "",
-                        fileName: r.fileName || "",
-                        type: r.type || "input",
-                        subfolder: r.subfolder || "",
-                        pairedAudioFile: r.pairedAudioFile || "",
-                        previewImageFile: r.previewImageFile || "",
-                        previewImageUrl: r.previewImageUrl || "",
-                        linked: !!r.linked || !!(r.videoFile || r.previewImageFile || r.previewImageUrl),
-                    }))
-                    : (prev[i]?.refVideos || []);
-                const refAudios = isR2v
-                    ? (spec.refAudios || []).map((r) => ({
-                        index: r.index,
-                        assetId: (prev[i]?.refAudios || []).find((x) => Number(x.index ?? x.slot) === Number(r.index))?.assetId || "",
-                        audioFile: r.audioFile || "",
-                        fileName: r.fileName || "",
-                        type: r.type || "input",
-                        subfolder: r.subfolder || "",
-                    }))
-                    : (prev[i]?.refAudios || []);
-                return newBatchSegment({
-                    ...(prev[i] || {}),
-                    id: prev[i]?.id,
-                    durationSec: spec.durationSec ?? defaultDurationSec(taskKey),
-                    prompt: (spec.prompt || prev[i]?.prompt || "").trim(),
-                    negativePrompt: prev[i]?.negativePrompt ?? "",
-                    refs,
-                    refAudios,
-                    refVideos,
-                    genImage: genImage?.imageFile ? genImage : { imageFile: "" },
-                    imageFile: genImage?.imageFile || "",
-                });
-            });
-            normalizeImageBatchSegments(this);
-            if (this.getTaskKey() === "r2v") ensureR2vReferenceAssetSchema(this.timeline);
-            else ensureReferenceAssetSchema(this.timeline);
-            this.selectedIndex = Math.min(this.selectedIndex ?? 0, Math.max(0, this.timeline.segments.length - 1));
-            this.renderImageBatchGroups?.();
-            this.scheduleRender?.();
-            this.commit?.(false, { syncTimeline: true });
-            this.updateVideoNameLabel?.();
-            this.updateDomWidgetHeight?.();
-            this.updateRunSelectUI?.();
-            this.updateSelectionUI?.();
-        }
     }
 
     _observeViewportResize() {
@@ -3079,11 +2846,9 @@ class MiniMaxH3MotionDirectorEditor {
                     <div class="bd-timecode" data-r="timecode">0.00s</div>
                 </div>
             </div>
-            <div class="bd-smart-split-msg hidden" data-r="smart-split-msg" role="status"></div>
-            <div class="bd-external-groups-msg hidden" data-r="external-groups-msg" role="status"></div>`;
+            <div class="bd-smart-split-msg hidden" data-r="smart-split-msg" role="status"></div>`;
         this.root.appendChild(toolbarWrap);
         this.smartSplitMsgEl = toolbarWrap.querySelector('[data-r="smart-split-msg"]');
-        this.externalGroupsMsgEl = toolbarWrap.querySelector('[data-r="external-groups-msg"]');
 
         this.mainBody = document.createElement("div");
         this.mainBody.className = "bd-main";
@@ -4256,7 +4021,7 @@ class MiniMaxH3MotionDirectorEditor {
             child.classList?.toggle("hidden", !!active);
         }
         for (const element of this.root?.querySelectorAll?.(
-            ".bd-actions, .bd-smart-split-msg, .bd-external-groups-msg",
+            ".bd-actions, .bd-smart-split-msg",
         ) || []) {
             element.classList?.toggle("hidden", !!active);
         }
@@ -4894,7 +4659,6 @@ class MiniMaxH3MotionDirectorEditor {
         this.timecodeEl?.classList.toggle("hidden", !isFl2v && !isR2v && (hideTimeline || isBatch));
         this.viewport?.classList.toggle("hidden", isBatch && !isR2v);
         this.updateStageVisibility();
-        this.syncExternalGroupsTimeline();
         this.root.querySelector(".bd-split")?.classList.toggle("hidden", isBatch || isFl2v);
         this.batchPanel?.classList.toggle("hidden", !isBatch);
         this.fl2vUi?.root?.classList.toggle("hidden", !isFl2v);
@@ -5929,7 +5693,6 @@ class MiniMaxH3MotionDirectorEditor {
         this.refreshLoopButtonTitle?.();
         this.refreshLiveTaePreviewButton?.();
         this.updateLiveSamplePanel?.();
-        this.syncExternalGroupsTimeline?.();
         updateFl2vDetailUI?.(this);
         updateFl2vToolbarBtns?.(this);
         updateR2vToolbarBtns?.(this);
@@ -10350,451 +10113,6 @@ function findDirectorNode(nodeId) {
     return null;
 }
 
-const EXTERNAL_GROUP_NODE_TYPES = new Set([
-    "BB_MiniMaxH3MotionDirectorGroupImageToVideo",
-    "BB_MiniMaxH3MotionDirectorGroupReferenceToVideo",
-]);
-const EXTERNAL_COMBINE_NODE_TYPE = "BB_MiniMaxH3MotionDirectorGroupsCombine";
-
-function graphLinkRecord(graph, linkId) {
-    if (linkId == null || !graph) return null;
-    const links = graph.links;
-    if (!links) return null;
-    let link = links[linkId];
-    if (!link && typeof links.find === "function") {
-        link = links.find((l) => l && (l.id === linkId || l[0] === linkId));
-    }
-    if (!link) return null;
-    return {
-        originId: link.origin_id ?? link[1],
-        originSlot: link.origin_slot ?? link[2],
-    };
-}
-
-function nodeWidgetValue(node, name) {
-    const w = (node?.widgets || []).find((x) => x?.name === name);
-    return w?.value;
-}
-
-/** Normalize LoadImage-style widget value → relative input path. */
-function normalizeImageWidgetPath(value) {
-    if (value == null || value === "") return null;
-    let val = value;
-    if (Array.isArray(val)) val = val[0];
-    if (typeof val === "object" && val) {
-        const name = String(val.filename || val.name || "").trim();
-        if (!name) return null;
-        const sub = String(val.subfolder || "").replace(/\\/g, "/").replace(/\/$/, "");
-        return sub ? `${sub}/${name}` : name;
-    }
-    if (typeof val === "string") {
-        const s = val.replace(/\s*\[(input|output|temp)\]\s*$/i, "").trim();
-        return s || null;
-    }
-    return null;
-}
-
-function readImageWidgetPath(node) {
-    for (const name of ["image", "image_path", "filename"]) {
-        const path = normalizeImageWidgetPath(nodeWidgetValue(node, name));
-        if (path) return path;
-    }
-    return null;
-}
-
-/** VHS Load Video / Load Video Path use `video`; some loaders use video_path. */
-function readVideoWidgetPath(node) {
-    for (const name of ["video", "video_path", "file"]) {
-        const path = normalizeImageWidgetPath(nodeWidgetValue(node, name));
-        if (path) return path;
-    }
-    return null;
-}
-
-/** LoadAudio uses `audio`; VHS audio output often has no file — fall back to sibling video widget. */
-function readAudioWidgetPath(node) {
-    for (const name of ["audio", "audio_path", "file"]) {
-        const path = normalizeImageWidgetPath(nodeWidgetValue(node, name));
-        if (path) return path;
-    }
-    return readVideoWidgetPath(node);
-}
-
-function mediaBaseName(path) {
-    const s = String(path || "").replace(/\\/g, "/");
-    return s.split("/").pop() || s;
-}
-
-function parseViewUrlToPath(url) {
-    try {
-        const u = new URL(String(url || ""), window.location.origin);
-        const filename = u.searchParams.get("filename");
-        if (!filename) return null;
-        const subfolder = (u.searchParams.get("subfolder") || "").replace(/\\/g, "/").replace(/\/$/, "");
-        return subfolder ? `${subfolder}/${filename}` : filename;
-    } catch {
-        return null;
-    }
-}
-
-function linkedSourceNode(graph, node, inputName) {
-    if (!graph || !node) return null;
-    const inp = (node.inputs || []).find((i) => i?.name === inputName);
-    if (inp?.link == null) return null;
-    const rec = graphLinkRecord(graph, inp.link);
-    if (!rec) return null;
-    return graph.getNodeById?.(rec.originId) || null;
-}
-
-/** Resolve an IMAGE input on `node` to a Comfy input-folder relative path. */
-function resolveLinkedImageFile(graph, node, inputName, depth = 0) {
-    if (!graph || !node || depth > 8) return null;
-    const src = linkedSourceNode(graph, node, inputName);
-    if (!src) return null;
-
-    const direct = readImageWidgetPath(src);
-    if (direct) return direct;
-
-    const imgEl = (src.imageIndex != null ? src.imgs?.[src.imageIndex] : null) || src.imgs?.[0];
-    const fromPreview = parseViewUrlToPath(imgEl?.src);
-    if (fromPreview) return fromPreview;
-
-    // Walk through IMAGE passthrough nodes (Resize, etc.).
-    const imgInputs = (src.inputs || []).filter((i) => String(i?.type || "") === "IMAGE" && i.link != null);
-    for (const next of imgInputs) {
-        const path = resolveLinkedImageFile(graph, src, next.name, depth + 1);
-        if (path) return path;
-    }
-    return null;
-}
-
-/**
- * Resolve ref_video IMAGE-batch wiring to a previewable file path.
- * VHS Load Video exposes frames on IMAGE but the path lives on the `video` widget.
- */
-function resolveLinkedVideoFile(graph, node, inputName, depth = 0) {
-    if (!graph || !node || depth > 8) return null;
-    const src = linkedSourceNode(graph, node, inputName);
-    if (!src) return null;
-
-    const direct = readVideoWidgetPath(src);
-    if (direct) return direct;
-
-    // Some loaders still put the clip name on filename / image widgets.
-    const fallback = readImageWidgetPath(src);
-    if (fallback && /\.(mp4|webm|mov|mkv|avi|m4v)$/i.test(fallback)) return fallback;
-
-    const walkTypes = new Set(["IMAGE", "VIDEO"]);
-    const nextInputs = (src.inputs || []).filter(
-        (i) => walkTypes.has(String(i?.type || "").toUpperCase()) && i.link != null,
-    );
-    for (const next of nextInputs) {
-        const path = resolveLinkedVideoFile(graph, src, next.name, depth + 1);
-        if (path) return path;
-    }
-    return null;
-}
-
-/** Resolve AUDIO wiring (LoadAudio / VHS audio out) to a previewable path. */
-function resolveLinkedAudioFile(graph, node, inputName, depth = 0) {
-    if (!graph || !node || depth > 8) return null;
-    const src = linkedSourceNode(graph, node, inputName);
-    if (!src) return null;
-
-    const direct = readAudioWidgetPath(src);
-    if (direct) return direct;
-
-    const nextInputs = (src.inputs || []).filter(
-        (i) => String(i?.type || "").toUpperCase() === "AUDIO" && i.link != null,
-    );
-    for (const next of nextInputs) {
-        const path = resolveLinkedAudioFile(graph, src, next.name, depth + 1);
-        if (path) return path;
-    }
-    return null;
-}
-
-function imageRefFromPath(path) {
-    if (!path) return null;
-    return { imageFile: path, width: 0, height: 0 };
-}
-
-function videoRefFromPath(path, index) {
-    if (!path) return null;
-    return {
-        index,
-        videoFile: path,
-        fileName: mediaBaseName(path),
-        type: "input",
-        subfolder: "",
-        pairedAudioFile: "",
-        previewImageFile: "",
-        previewImageUrl: "",
-        linked: true,
-    };
-}
-
-/** First-frame poster from Load Video / IMAGE-batch upstream (when file path missing). */
-function resolveLinkedVideoPoster(graph, node, inputName, depth = 0) {
-    if (!graph || !node || depth > 8) return null;
-    const src = linkedSourceNode(graph, node, inputName);
-    if (!src) return null;
-    const imgEl = (src.imageIndex != null ? src.imgs?.[src.imageIndex] : null) || src.imgs?.[0];
-    if (imgEl?.src) {
-        return {
-            previewImageUrl: imgEl.src,
-            previewImageFile: parseViewUrlToPath(imgEl.src) || "",
-        };
-    }
-    const nextInputs = (src.inputs || []).filter(
-        (i) => String(i?.type || "").toUpperCase() === "IMAGE" && i.link != null,
-    );
-    for (const next of nextInputs) {
-        const poster = resolveLinkedVideoPoster(graph, src, next.name, depth + 1);
-        if (poster) return poster;
-    }
-    return null;
-}
-
-function collectAutogrowVideoRefs(graph, node) {
-    const found = new Map();
-    const re = /(?:^|\.)ref_video_(\d+)$/;
-    for (const inp of node.inputs || []) {
-        const m = String(inp?.name || "").match(re);
-        if (!m || inp.link == null) continue;
-        const idx = parseInt(m[1], 10);
-        if (!Number.isFinite(idx) || found.has(idx)) continue;
-        patchUpstreamVideoWidgetSync(graph, node, inp.name);
-        const path = resolveLinkedVideoFile(graph, node, inp.name);
-        const poster = resolveLinkedVideoPoster(graph, node, inp.name);
-        if (path) {
-            const ref = videoRefFromPath(path, idx);
-            if (poster) {
-                ref.previewImageFile = poster.previewImageFile || "";
-                ref.previewImageUrl = poster.previewImageUrl || "";
-            }
-            found.set(idx, ref);
-        } else if (poster?.previewImageUrl || poster?.previewImageFile) {
-            found.set(idx, {
-                index: idx,
-                videoFile: "",
-                fileName: poster.previewImageFile
-                    ? mediaBaseName(poster.previewImageFile)
-                    : `video_${idx + 1}`,
-                type: "input",
-                subfolder: "",
-                pairedAudioFile: "",
-                previewImageFile: poster.previewImageFile || "",
-                previewImageUrl: poster.previewImageUrl || "",
-                linked: true,
-            });
-        } else {
-            // Linked IMAGE batch without resolvable path/poster — still mark occupied.
-            found.set(idx, {
-                index: idx,
-                videoFile: "",
-                fileName: "",
-                type: "input",
-                subfolder: "",
-                pairedAudioFile: "",
-                previewImageFile: "",
-                previewImageUrl: "",
-                linked: true,
-            });
-        }
-    }
-    return [...found.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-}
-
-function audioRefFromPath(path, index) {
-    if (!path) return null;
-    return {
-        index,
-        audioFile: path,
-        fileName: mediaBaseName(path),
-        type: "input",
-        subfolder: "",
-    };
-}
-
-function patchUpstreamWidgetSync(graph, node, inputName, widgetNames) {
-    if (!graph || !node || !widgetNames?.length) return;
-    const src = linkedSourceNode(graph, node, inputName);
-    if (!src?.widgets) return;
-    const names = new Set(widgetNames);
-    for (const w of src.widgets) {
-        if (!w || !names.has(w.name)) continue;
-        if (w._mmxExternalMediaSyncPatched) continue;
-        w._mmxExternalMediaSyncPatched = true;
-        const prev = w.callback;
-        w.callback = function (...cbArgs) {
-            const r = prev?.apply(this, cbArgs);
-            queueMicrotask(() => notifyDirectorsSyncExternalGroups());
-            return r;
-        };
-    }
-}
-
-function patchUpstreamImageWidgetSync(graph, node, inputName) {
-    patchUpstreamWidgetSync(graph, node, inputName, ["image", "image_path", "filename"]);
-}
-
-function patchUpstreamVideoWidgetSync(graph, node, inputName) {
-    patchUpstreamWidgetSync(graph, node, inputName, ["video", "video_path", "file", "filename"]);
-}
-
-function patchUpstreamAudioWidgetSync(graph, node, inputName) {
-    patchUpstreamWidgetSync(graph, node, inputName, ["audio", "audio_path", "video", "video_path", "file", "filename"]);
-}
-
-/** Collect Autogrow / legacy slots matching `(?:^|\.)prefix_(\\d+)$`. */
-function collectAutogrowSlotRefs(graph, node, prefix, resolvePath, toRef, patchSync) {
-    const found = new Map();
-    const re = new RegExp(`(?:^|\\.)${prefix}_(\\d+)$`);
-    for (const inp of node.inputs || []) {
-        const m = String(inp?.name || "").match(re);
-        if (!m || inp.link == null) continue;
-        const idx = parseInt(m[1], 10);
-        if (!Number.isFinite(idx) || found.has(idx)) continue;
-        patchSync?.(graph, node, inp.name);
-        const path = resolvePath(graph, node, inp.name);
-        const ref = path ? toRef(path, idx) : null;
-        if (ref) found.set(idx, ref);
-    }
-    return [...found.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-}
-
-function readExternalGroupSpec(node, graph = null) {
-    const g = graph || app.graph || app.canvas?.graph;
-    const durRaw = Number(nodeWidgetValue(node, "duration_sec"));
-    const prompt = String(nodeWidgetValue(node, "prompt") ?? "");
-    const cls = node?.comfyClass || node?.type || "";
-    const firstImageFile = resolveLinkedImageFile(g, node, "first_frame");
-    const lastImageFile = resolveLinkedImageFile(g, node, "last_frame");
-    patchUpstreamImageWidgetSync(g, node, "first_frame");
-    patchUpstreamImageWidgetSync(g, node, "last_frame");
-
-    let refImages = [];
-    let refVideos = [];
-    let refAudios = [];
-    if (cls === "BB_MiniMaxH3MotionDirectorGroupReferenceToVideo") {
-        // Autogrow: ref_images.ref_image_0 / ref_videos.ref_video_0 / …
-        refImages = collectAutogrowSlotRefs(
-            g, node, "ref_image", resolveLinkedImageFile,
-            (path, idx) => ({ index: idx, imageFile: path, imageB64: "" }),
-            patchUpstreamImageWidgetSync,
-        );
-        refVideos = collectAutogrowVideoRefs(g, node);
-        const standaloneAudios = collectAutogrowSlotRefs(
-            g, node, "ref_audio", resolveLinkedAudioFile,
-            audioRefFromPath,
-            patchUpstreamAudioWidgetSync,
-        );
-        // Paired soundtrack for the same-index reference video (ref_video_audio_N).
-        const pairedAudios = collectAutogrowSlotRefs(
-            g, node, "ref_video_audio", resolveLinkedAudioFile,
-            audioRefFromPath,
-            patchUpstreamAudioWidgetSync,
-        );
-        const pairedByIndex = new Map(pairedAudios.map((a) => [a.index, a]));
-        for (const vid of refVideos) {
-            const paired = pairedByIndex.get(vid.index);
-            if (paired?.audioFile) {
-                vid.pairedAudioFile = paired.audioFile;
-                pairedByIndex.delete(vid.index);
-            }
-        }
-        // Show unpaired video-audio (or standalone) in the 参考音频 strip.
-        const audioMap = new Map(standaloneAudios.map((a) => [a.index, a]));
-        for (const [idx, paired] of pairedByIndex) {
-            if (!audioMap.has(idx)) audioMap.set(idx, paired);
-        }
-        refAudios = [...audioMap.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-    }
-
-    return {
-        durationSec: Number.isFinite(durRaw) && durRaw > 0 ? durRaw : null,
-        prompt,
-        firstImageFile,
-        lastImageFile,
-        refImages,
-        refVideos,
-        refAudios,
-    };
-}
-
-/** Autogrow slots are named `groups.group_0`; legacy used `group_0` / `group_01`. */
-function combineGroupSlotIndex(name) {
-    const m = String(name || "").match(/(?:^|\.)group_(\d+)$/);
-    return m ? parseInt(m[1], 10) : null;
-}
-
-function isCombineGroupSlot(input) {
-    if (!input) return false;
-    if (combineGroupSlotIndex(input.name) != null) return true;
-    // Fallback: any MMX_MOTION_DIR_GROUP input on the combine node.
-    return String(input.type || "") === "MMX_MOTION_DIR_GROUP";
-}
-
-function expandExternalGroupLink(graph, linkId, depth = 0) {
-    if (linkId == null || depth > 16) return [];
-    const terminal = resolveExternalGroupTerminal(graph, linkId, 16 - depth);
-    if (!terminal) return [];
-    const node = terminal.node;
-    const cls = node.comfyClass || node.type || "";
-    if (cls === EXTERNAL_COMBINE_NODE_TYPE) {
-        const out = [];
-        const slots = (node.inputs || [])
-            .filter(isCombineGroupSlot)
-            .sort((a, b) => {
-                const ai = combineGroupSlotIndex(a.name);
-                const bi = combineGroupSlotIndex(b.name);
-                if (ai != null && bi != null) return ai - bi;
-                return 0;
-            });
-        for (const input of slots) {
-            if (input.link == null) continue;
-            out.push(...expandExternalGroupLink(graph, input.link, depth + 1));
-        }
-        return out;
-    }
-    if (EXTERNAL_GROUP_NODE_TYPES.has(cls)) {
-        return [readExternalGroupSpec(node, graph)];
-    }
-    // Unknown upstream packer — still reserve one slot for run-select/timeline.
-    return [{
-        durationSec: null,
-        prompt: "",
-        firstImageFile: null,
-        lastImageFile: null,
-        refImages: [],
-        refVideos: [],
-        refAudios: [],
-    }];
-}
-
-function collectExternalGroupSpecs(editor) {
-    const port = editor?.hasExternalI2vGroups?.()
-        ? "i2v_groups"
-        : editor?.hasExternalR2vGroups?.()
-            ? "r2v_groups"
-            : null;
-    if (!port) return null;
-    const graph = app.graph ?? app.canvas?.graph;
-    const inp = editor?.node?.inputs?.find((i) => i?.name === port);
-    if (!graph || inp?.link == null) return null;
-    const specs = expandExternalGroupLink(graph, inp.link);
-    return specs.length ? specs : null;
-}
-
-function notifyDirectorsSyncExternalGroups() {
-    const graph = app.graph ?? app.canvas?.graph;
-    for (const node of graph?._nodes ?? graph?.nodes ?? []) {
-        if (!isMiniMaxH3MotionDirectorNode(node)) continue;
-        node._minimaxEditor?.syncExternalGroupsTimeline?.();
-    }
-}
-
 function clearAllDirectorRunStatus() {
     const graph = app.graph ?? app.canvas?.graph;
     for (const node of graph?._nodes ?? graph?.nodes ?? []) {
@@ -10866,7 +10184,6 @@ if (!globalThis.__MMX_BB_MOTION_DIRECTOR_EXTENSION_REGISTERED__) {
 app.registerExtension({
     name: "ComfyUI.BB_MiniMaxH3MotionDirectorPlugin",
     async beforeConfigureGraph(graphData) {
-        migrateLegacySamplingControlWorkflow(graphData);
         repairDirectorGroupWidgetWorkflow(graphData);
     },
     async setup() {
@@ -10968,37 +10285,6 @@ app.registerExtension({
         };
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        const cls = nodeType?.comfyClass || nodeData?.name || "";
-        if (EXTERNAL_GROUP_NODE_TYPES.has(cls) || cls === EXTERNAL_COMBINE_NODE_TYPE) {
-            const onConnectionsChange = nodeType.prototype.onConnectionsChange;
-            nodeType.prototype.onConnectionsChange = function (...args) {
-                const out = onConnectionsChange?.apply(this, args);
-                // Combine/Group wiring changes do not fire Director.onConnectionsChange.
-                queueMicrotask(() => notifyDirectorsSyncExternalGroups());
-                return out;
-            };
-            const onCreated = nodeType.prototype.onNodeCreated;
-            nodeType.prototype.onNodeCreated = function () {
-                const out = onCreated?.apply(this, arguments);
-                // Keep Director timeline in sync when duration/prompt widgets change.
-                queueMicrotask(() => {
-                    for (const w of this.widgets || []) {
-                        if (w?.name !== "duration_sec" && w?.name !== "prompt") continue;
-                        if (w._mmxExternalSyncPatched) continue;
-                        w._mmxExternalSyncPatched = true;
-                        const prev = w.callback;
-                        w.callback = function (...cbArgs) {
-                            const r = prev?.apply(this, cbArgs);
-                            notifyDirectorsSyncExternalGroups();
-                            return r;
-                        };
-                    }
-                });
-                return out;
-            };
-            return;
-        }
-
         if (!isDirectorNodeDef(nodeType, nodeData)) return;
 
         // Current Vue-node tooltips are built from the registered node definition.
@@ -11074,14 +10360,12 @@ app.registerExtension({
             // Reselect often lands after graph zoom/layout changes — settle redraw
             // fixes thumbs that were stretched from a mismatched canvas CSS box.
             this._minimaxEditor?.scheduleSettleRender?.();
-            this._minimaxEditor?.syncExternalGroupsTimeline?.();
             return out;
         };
 
         const onConnectionsChange = nodeType.prototype.onConnectionsChange;
         nodeType.prototype.onConnectionsChange = function (...args) {
             const out = onConnectionsChange?.apply(this, args);
-            this._minimaxEditor?.syncExternalGroupsTimeline?.();
             refreshSamplingModeUi(this);
             queueMicrotask(() => refreshSamplingModeUi(this));
             return out;
@@ -11119,10 +10403,6 @@ app.registerExtension({
             // visual facades must never exist while native deserialization runs.
             detachDirectorTransientWidgets(this);
 
-            migrateLegacySamplingControlNode(
-                arguments[0],
-            );
-
             migrateColorReanchorWidgetValues(
                 arguments[0],
                 this.widgets || [],
@@ -11150,10 +10430,6 @@ app.registerExtension({
                 );
             } finally {
                 this._mmxContinuityConfiguring = false;
-
-                repairInvalidDirectorSamplingState(
-                    this,
-                );
 
                 for (const widget of this.widgets || []) {
                     if (widget?._mmxContinuityDisabled) {
@@ -11190,8 +10466,6 @@ app.registerExtension({
                 ed.selectedIndex = 0;
                 ed.updateSelectionUI();
                 ed.commit(true, { syncTimeline: false });
-                ed._externalGroupsSyncSig = null;
-                ed.syncExternalGroupsTimeline?.();
                 ed.scheduleSettleRender?.();
             }, 80);
             return out;

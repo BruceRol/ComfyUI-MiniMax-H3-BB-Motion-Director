@@ -48,34 +48,3 @@ export function restoreContinuityWidgetRenderer(widget) {
     }
     return changed;
 }
-
-export function keepSamplingSourceHidden(widget) {
-    if (!widget) return false;
-
-    widget.options = widget.options || {};
-    const hiddenCompute = widget._mmxRuntimeHiddenCompute
-        || (() => [0, 0]);
-    widget._mmxRuntimeHiddenCompute = hiddenCompute;
-
-    let changed = widget.hidden !== true
-        || widget.options.hidden !== true
-        || widget.computeSize !== hiddenCompute
-        || (widget.element?.style && widget.element.style.display !== "none");
-
-    widget.hidden = true;
-    widget.options.hidden = true;
-    widget.computeSize = hiddenCompute;
-    if (widget.element?.style) widget.element.style.display = "none";
-
-    // Legacy applySamplingWidgetVisibility() restores this snapshot whenever the
-    // locale or sampling state refreshes. Make that owner restore the hidden
-    // source widget; the visible controls are the section proxies.
-    widget._mmxSamplingVisibility = {
-        computeSize: hiddenCompute,
-        hidden: true,
-        optionHidden: true,
-        display: "none",
-    };
-
-    return changed;
-}

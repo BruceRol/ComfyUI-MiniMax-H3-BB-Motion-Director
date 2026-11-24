@@ -14,7 +14,6 @@ const COPY = Object.freeze({
             bd_grp_perf: "性能",
         },
         samplingStates: {
-            internal: "内部",
             external: "外部",
             incomplete: "连接不完整",
         },
@@ -22,11 +21,6 @@ const COPY = Object.freeze({
             seed: "种子",
             control_after_generate: "生成后定制",
             "control after generate": "生成后定制",
-            steps: "采样步数",
-            sampler_name: "内置采样器",
-            scheduler: "调度器",
-            shift_video: "视频 Sigma Shift",
-            shift_audio: "音频 Sigma Shift",
             motion_context_enabled: "运动上下文",
             context_length: "上下文帧数",
             pin_renorm_enabled: "潜变量尺度锁定",
@@ -47,7 +41,6 @@ const COPY = Object.freeze({
             bd_grp_perf: "Performance",
         },
         samplingStates: {
-            internal: "Internal",
             external: "External",
             incomplete: "Incomplete",
         },
@@ -55,11 +48,6 @@ const COPY = Object.freeze({
             seed: "Seed",
             control_after_generate: "Control After Generate",
             "control after generate": "Control After Generate",
-            steps: "Sampling Steps",
-            sampler_name: "Internal Sampler",
-            scheduler: "Scheduler",
-            shift_video: "Video Sigma Shift",
-            shift_audio: "Audio Sigma Shift",
             motion_context_enabled: "Motion Context",
             context_length: "Context Frames",
             pin_renorm_enabled: "Latent Scale Lock",
@@ -85,17 +73,11 @@ export function sectionTitle(locale, sectionId) {
 
 export function samplingHeaderText(locale, state) {
     const lang = localeKey(locale);
-    const normalized = ["internal", "external", "incomplete"].includes(state)
-        ? state
-        : "internal";
+    const normalized = state === "external" ? "external" : "incomplete";
     return `${COPY[lang].sections.bd_grp_sample}  [${COPY[lang].samplingStates[normalized]}]`;
 }
 
 export function localizedWidgetLabel(locale, name) {
     const lang = localeKey(locale);
     return COPY[lang].widgets[String(name || "")] || String(name || "");
-}
-
-export function shouldShowInternalSampling(state) {
-    return state !== "external";
 }

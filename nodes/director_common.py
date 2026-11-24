@@ -212,13 +212,7 @@ def prepare_director_plan(
     ref_max_size: int,
     unique_id: str | None,
     motion_context_enabled: bool = True,
-    i2v_groups=None,
-    r2v_groups=None,
 ):
-    from ..director.external_groups import (
-        build_plan_from_external_groups,
-        validate_external_group_inputs,
-    )
     from ..director.mixed_plan import build_mixed_director_plan, is_mixed_timeline
 
     task_key_requested = resolve_task_key(task_type)
@@ -248,11 +242,6 @@ def prepare_director_plan(
         raise ValueError(f"Invalid timeline_data JSON: {exc}") from exc
 
     if is_mixed_timeline(timeline_obj, task_key_requested):
-        if i2v_groups is not None or r2v_groups is not None:
-            raise ValueError(
-                "Mixed v1 does not accept Director Inputs / external groups. "
-                "Disconnect i2v_groups/r2v_groups and configure each Mixed segment in the Director."
-            )
         plan = build_mixed_director_plan(
             timeline_obj,
             global_task_type=task_type,
@@ -270,43 +259,6 @@ def prepare_director_plan(
             timeline_segment_total=len(plan.segments),
         )
         log.info("MiniMax H3 Motion Director: Mixed | %s", plan_summary(plan).replace("\n", " | "))
-        return plan
-
-    task_key, ext_groups, family = validate_external_group_inputs(
-        task_type=task_type,
-        i2v_groups=i2v_groups,
-        r2v_groups=r2v_groups,
-        motion_context_enabled=motion_context_enabled,
-        timeline_data=timeline_data,
-    )
-
-    if ext_groups is not None and family is not None:
-        plan = build_plan_from_external_groups(
-            ext_groups,
-            family=family,
-            timeline_data=timeline_data,
-            task_type=task_type,
-            global_prompt=global_prompt,
-            total_frames=total_frames,
-            frame_rate=frame_rate,
-            width=width,
-            height=height,
-            ref_max_size=ref_max_size,
-            motion_context_enabled=motion_context_enabled,
-        )
-        runnable = len(plan.run_indices) if plan.run_indices is not None else len(plan.segments)
-        report_director_planning(
-            unique_id,
-            runnable,
-            timeline_segment_total=len(plan.segments),
-        )
-        log.info(
-            "MiniMax H3 Motion Director: external %s groups × %d (task=%s) | %s",
-            family,
-            len(ext_groups),
-            task_key,
-            plan_summary(plan).replace("\n", " | "),
-        )
         return plan
 
     report_director_planning(

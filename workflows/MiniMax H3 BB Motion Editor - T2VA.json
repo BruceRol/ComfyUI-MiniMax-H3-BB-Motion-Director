@@ -1,8 +1,8 @@
 {
   "id": "f6f16231-3c49-4ce5-b7e6-e75cc7c185de",
   "revision": 0,
-  "last_node_id": 18,
-  "last_link_id": 44,
+  "last_node_id": 19,
+  "last_link_id": 53,
   "nodes": [
     {
       "id": 1,
@@ -24,7 +24,7 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            37
+            46
           ]
         }
       ],
@@ -60,7 +60,7 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            38
+            47
           ]
         }
       ],
@@ -134,7 +134,7 @@
           "name": "CLIP",
           "type": "CLIP",
           "links": [
-            39
+            48
           ]
         }
       ],
@@ -218,7 +218,7 @@
           "name": "SAMPLER",
           "type": "SAMPLER",
           "links": [
-            40
+            49
           ]
         }
       ],
@@ -340,7 +340,7 @@
           "name": "SIGMAS",
           "type": "SIGMAS",
           "links": [
-            41
+            50
           ]
         }
       ],
@@ -428,7 +428,7 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            36
+            45
           ]
         }
       ],
@@ -473,13 +473,13 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 42
+          "link": 51
         },
         {
           "name": "audio",
           "shape": 7,
           "type": "AUDIO",
-          "link": 43
+          "link": 52
         },
         {
           "name": "meta_batch",
@@ -499,7 +499,7 @@
           "widget": {
             "name": "frame_rate"
           },
-          "link": 44
+          "link": 53
         }
       ],
       "outputs": [
@@ -530,20 +530,20 @@
           "hidden": false,
           "paused": false,
           "params": {
-            "filename": "MiniMaxH3_00001-audio.mp4",
+            "filename": "MiniMaxH3_00002-audio.mp4",
             "subfolder": "",
             "type": "output",
             "format": "video/h264-mp4",
             "frame_rate": 24,
-            "workflow": "MiniMaxH3_00001.png",
-            "fullpath": "V:\\python\\ComfyUI\\ComfyUI\\output\\MiniMaxH3_00001-audio.mp4",
+            "workflow": "MiniMaxH3_00002.png",
+            "fullpath": "V:\\python\\ComfyUI\\ComfyUI\\output\\MiniMaxH3_00002-audio.mp4",
             "metadata": {
               "kind": "video",
               "width": 864,
               "height": 480,
-              "duration": 15.5,
+              "duration": 5.166666666666667,
               "fps": 24,
-              "frame_count": 372
+              "frame_count": 124
             }
           }
         }
@@ -563,35 +563,35 @@
           "hidden": false,
           "paused": false,
           "params": {
-            "filename": "MiniMaxH3_00001-audio.mp4",
+            "filename": "MiniMaxH3_00002-audio.mp4",
             "subfolder": "",
             "type": "output",
             "format": "video/h264-mp4",
             "frame_rate": 24,
-            "workflow": "MiniMaxH3_00001.png",
-            "fullpath": "V:\\python\\ComfyUI\\ComfyUI\\output\\MiniMaxH3_00001-audio.mp4",
+            "workflow": "MiniMaxH3_00002.png",
+            "fullpath": "V:\\python\\ComfyUI\\ComfyUI\\output\\MiniMaxH3_00002-audio.mp4",
             "metadata": {
               "kind": "video",
               "width": 864,
               "height": 480,
-              "duration": 15.5,
+              "duration": 5.166666666666667,
               "fps": 24,
-              "frame_count": 372
+              "frame_count": 124
             }
           }
         }
       }
     },
     {
-      "id": 18,
+      "id": 19,
       "type": "BB_MiniMaxH3MotionDirector",
       "pos": [
-        3305.1316468860523,
-        -557.8011749313572
+        3330.299597766874,
+        -549.500089965058
       ],
       "size": [
         620,
-        727
+        687
       ],
       "flags": {},
       "order": 11,
@@ -600,44 +600,32 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 36
+          "link": 45
         },
         {
           "name": "video_vae",
           "type": "VAE",
-          "link": 37
+          "link": 46
         },
         {
           "name": "audio_vae",
           "type": "VAE",
-          "link": 38
+          "link": 47
         },
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 39
+          "link": 48
         },
         {
           "name": "sampler",
           "type": "SAMPLER",
-          "link": 40
+          "link": 49
         },
         {
           "name": "sigmas",
           "type": "SIGMAS",
-          "link": 41
-        },
-        {
-          "name": "i2v_groups",
-          "shape": 7,
-          "type": "MMX_MOTION_DIR_GROUP",
-          "link": null
-        },
-        {
-          "name": "r2v_groups",
-          "shape": 7,
-          "type": "MMX_MOTION_DIR_GROUP",
-          "link": null
+          "link": 50
         },
         {
           "name": "refine_model",
@@ -664,7 +652,7 @@
           "shape": 6,
           "type": "IMAGE",
           "links": [
-            42
+            51
           ]
         },
         {
@@ -672,34 +660,34 @@
           "shape": 6,
           "type": "AUDIO",
           "links": [
-            43
+            52
           ]
         },
         {
           "name": "fps",
           "type": "FLOAT",
           "links": [
-            44
+            53
           ]
         }
       ],
       "properties": {
         "cnr_id": "minimax-h3-motion-director",
-        "ver": "6f65ea0b209444f37ceeaa9616c7cef54f0705d7",
+        "ver": "be5c8e4e3054135c7916d12e3b8fc7d9703529eb",
         "Node name for S&R": "BB_MiniMaxH3MotionDirector",
         "mmx_director_widget_state": {
           "task_type": "t2v — 文生视频(Text to Video)",
           "global_prompt": "",
           "bd_grp_sample": "Sampling Settings  [External]",
           "cfg": 1,
-          "seed": 489389841110911,
+          "seed": 935527907727602,
           "control_after_generate": "randomize",
           "frame_rate": 24,
           "width": 864,
           "height": 480,
           "ref_max_size": 864,
           "total_frames": 372,
-          "timeline_data": "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":372,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{},\"continuousReference\":false},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"all\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwtv5ro2g7mtf\",\"start\":0,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwtv7abcjwr5u\",\"start\":124,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwtv7amfjgf1z\",\"start\":248,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"width\":864,\"height\":480,\"refMaxSize\":864,\"timelineMode\":\"prompt_batch\",\"seedMode\":\"randomize\"}",
+          "timeline_data": "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":372,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{},\"continuousReference\":false},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"segments\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwuffuo2o8ovl\",\"start\":0,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwufgzvmw21mu\",\"start\":124,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwufh08o51cwo\",\"start\":248,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"width\":864,\"height\":480,\"refMaxSize\":864,\"timelineMode\":\"prompt_batch\",\"seedMode\":\"randomize\"}",
           "bd_grp_motion": "Cross-Segment Continuity",
           "motion_context_enabled": true,
           "context_length": 22,
@@ -721,14 +709,14 @@
         "",
         "Sampling Settings  [External]",
         1,
-        489389841110911,
+        935527907727602,
         "randomize",
         24,
         864,
         480,
         864,
         372,
-        "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":372,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{},\"continuousReference\":false},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"all\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwtv5ro2g7mtf\",\"start\":0,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwtv7abcjwr5u\",\"start\":124,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwtv7amfjgf1z\",\"start\":248,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"width\":864,\"height\":480,\"refMaxSize\":864,\"timelineMode\":\"prompt_batch\",\"seedMode\":\"randomize\"}",
+        "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":372,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{},\"continuousReference\":false},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"segments\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwuffuo2o8ovl\",\"start\":0,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwufgzvmw21mu\",\"start\":124,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwufh08o51cwo\",\"start\":248,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"width\":864,\"height\":480,\"refMaxSize\":864,\"timelineMode\":\"prompt_batch\",\"seedMode\":\"randomize\"}",
         "Cross-Segment Continuity",
         true,
         22,
@@ -749,14 +737,14 @@
         "global_prompt": "",
         "bd_grp_sample": "Sampling Settings  [External]",
         "cfg": 1,
-        "seed": 489389841110911,
+        "seed": 935527907727602,
         "control_after_generate": "randomize",
         "frame_rate": 24,
         "width": 864,
         "height": 480,
         "ref_max_size": 864,
         "total_frames": 372,
-        "timeline_data": "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":372,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{},\"continuousReference\":false},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"all\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwtv5ro2g7mtf\",\"start\":0,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwtv7abcjwr5u\",\"start\":124,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwtv7amfjgf1z\",\"start\":248,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"width\":864,\"height\":480,\"refMaxSize\":864,\"timelineMode\":\"prompt_batch\",\"seedMode\":\"randomize\"}",
+        "timeline_data": "{\"version\":5,\"editMode\":\"segment\",\"totalFrames\":372,\"frameRate\":24,\"video\":{\"fileName\":\"\",\"videoFile\":\"\",\"subfolder\":\"\",\"type\":\"input\",\"frames\":[],\"frameMap\":[]},\"videoClips\":[],\"global\":{\"taskType\":\"t2v — 文生视频(Text to Video)\",\"prompt\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"referenceVideo\":{},\"continuousReference\":false},\"output\":{\"mode\":\"fixed\",\"aspectRatio\":\"16:9 (宽屏)\",\"megapixels\":0.4,\"multiple\":32,\"longEdge\":864,\"width\":864,\"height\":480,\"maxExportFrames\":0,\"exportMode\":\"segments\",\"audioMode\":\"generate\",\"continuityEnabled\":false,\"continuityOverlapFrames\":9},\"runSelectEnabled\":false,\"runSelection\":[],\"liveTaePreview\":true,\"segments\":[{\"id\":\"mwuffuo2o8ovl\",\"start\":0,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s Saturday-morning cartoon style, vibrant cel-shaded colors, bold black outlines, and limited TV animation. A small, cheerful bunny with long floppy ears and a fluffy white tail strolls happily through a sun-dappled forest clearing. The bunny hums a tune, its ears bouncing with each light step. The camera tracks alongside at a low angle, moving at a gentle, steady pace. Bright, saturated greens and warm golden sunlight filter through the trees. Keep the bunny’s design and colors consistent.\\n\\noverall_soundscape: Soft forest ambience—birds chirping, leaves rustling, and the light patter of the bunny’s footsteps on grass.\\n\\nnon_diegetic_music: Upbeat, bouncy 80s cartoon synth melody with a cheerful bassline and light xylophone accents.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":false,\"visual\":false,\"audio\":false}},{\"id\":\"mwufgzvmw21mu\",\"start\":124,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: Same 80s cartoon style—vibrant cel-shaded colors and bold outlines. The bunny stops mid-step and freezes, its long ears perking straight up. In the foreground, a large, bright orange carrot with a leafy green top sits on a patch of dirt. The bunny’s eyes widen into classic cartoon “heart-eyes” as it leans forward, nose twitching excitedly. The camera slowly pushes in on the carrot, then racks focus to the bunny’s eager expression. Warm, saturated forest lighting with a soft spotlight effect on the carrot. Keep the bunny’s design identical to the previous shot.\\n\\noverall_soundscape: A sudden “boing” sound effect as the bunny stops, followed by rapid sniffing and a soft, excited squeak.\\n\\nnon_diegetic_music: The cheerful synth melody pauses, replaced by a playful, curious plucked-string motif that builds anticipation.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}},{\"id\":\"mwufh08o51cwo\",\"start\":248,\"length\":124,\"frameCount\":124,\"durationSec\":5,\"prompt\":\"integrated_multimodal_description: 80s cartoon style, high-contrast lighting and dramatic cel-shaded shadows. A lanky, grey wolf with exaggerated sharp features and a sly grin creeps out from behind a thick tree trunk directly behind the unsuspecting bunny. The wolf tiptoes forward in classic cartoon “sneak” pose—knees bent, arms outstretched. The bunny is still focused on the carrot, completely unaware. The camera cuts to a low-angle shot from behind the carrot, framing the wolf looming in the background. The lighting shifts to cooler, shadowy tones with dappled light through the leaves. Keep the bunny’s design and the carrot’s position consistent.\\n\\noverall_soundscape: A low, cartoonish “dun-dun-dun” sting as the wolf emerges, followed by exaggerated tip-toe footsteps and a tense, quiet forest ambience.\\n\\nnon_diegetic_music: The playful music cuts out abruptly, replaced by a low, ominous synth drone with a ticking percussion pulse that builds suspense.\",\"negativePrompt\":\"\",\"taskType\":\"\",\"refs\":[],\"refAudios\":[],\"refVideos\":[],\"genImage\":{\"imageFile\":\"\",\"fileName\":\"\"},\"contextLink\":{\"schema\":\"previous_context_link_v1\",\"enabled\":true,\"visual\":true,\"audio\":true}}],\"width\":864,\"height\":480,\"refMaxSize\":864,\"timelineMode\":\"prompt_batch\",\"seedMode\":\"randomize\"}",
         "bd_grp_motion": "Cross-Segment Continuity",
         "motion_context_enabled": true,
         "context_length": 22,
@@ -816,72 +804,72 @@
       "MODEL"
     ],
     [
-      36,
+      45,
       13,
       0,
-      18,
+      19,
       0,
       "MODEL"
     ],
     [
-      37,
+      46,
       1,
       0,
-      18,
+      19,
       1,
       "VAE"
     ],
     [
-      38,
+      47,
       2,
       0,
-      18,
+      19,
       2,
       "VAE"
     ],
     [
-      39,
+      48,
       5,
       0,
-      18,
+      19,
       3,
       "CLIP"
     ],
     [
-      40,
+      49,
       8,
       0,
-      18,
+      19,
       4,
       "SAMPLER"
     ],
     [
-      41,
+      50,
       11,
       0,
-      18,
+      19,
       5,
       "SIGMAS"
     ],
     [
-      42,
-      18,
+      51,
+      19,
       0,
       15,
       0,
       "IMAGE"
     ],
     [
-      43,
-      18,
+      52,
+      19,
       1,
       15,
       1,
       "AUDIO"
     ],
     [
-      44,
-      18,
+      53,
+      19,
       2,
       15,
       4,
@@ -917,10 +905,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5736089767723987,
+      "scale": 0.5214627061567262,
       "offset": [
-        -2606.602536284164,
-        1139.2196220493545
+        -2827.896388849663,
+        1052.4905741350742
       ]
     },
     "frontendVersion": "1.59.10",
@@ -931,6 +919,6 @@
   },
   "version": 0.4,
   "seed_widgets": {
-    "18": 4
+    "19": 4
   }
 }
