@@ -11,9 +11,8 @@ import torch
 
 import folder_paths
 
-from .cache_path import cache_root
+from .cache_path import cache_root, _write_via_temp
 from .context_cache import context_fingerprint
-from .segment_cache import _write_via_temp
 
 log = logging.getLogger("ComfyUI-MiniMax-H3-Motion-Director.latent_context_cache")
 

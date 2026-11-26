@@ -23,9 +23,9 @@ SECTION_ORDER = (
     "Second Sampling",
     "Upscale",
     "RTX Deblur",
-    "Face Refine",
     "Timing",
     "Preview",
+    "Clip Output",
     "Warnings",
     "Final",
 )
@@ -139,7 +139,7 @@ def _not_run_reason(cache_state: str | None) -> str:
     lower = state.lower()
     if "cache hit" in lower:
         return "NOT RUN (cache hit)"
-    if "selection skipped" in lower or "passthrough" in lower:
+    if "selection skipped" in lower:
         return "NOT RUN (selection skipped)"
     if state:
         return f"NOT RUN ({state})"

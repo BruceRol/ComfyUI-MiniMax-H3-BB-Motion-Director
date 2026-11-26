@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, Optional
 
 import torch
 
@@ -34,11 +34,15 @@ from .core_sampling import (
     resolve_sampling_mode,
     validate_external_sampling,
 )
+from .clip_merge import merge_clips
+from .clip_stream import ClipStreamState
+from .clip_window import ClipWindow
+from .clip_writer import ClipWriterManager
+from .low_ram import resolve_low_ram
 from .postprocess_config import normalize_postprocess_config, postprocess_cache_fingerprint
 from .refine_sampling import apply_global_refine
 from .seam_report import build_seam_report_lines
 from .preview_manager import DirectorPreviewManager
-from .face_refine_pipeline import apply_face_refine
 from .frame_align import (
     H3_REFERENCE_VIDEO_PIPELINE,
     H3_SOURCE_BRIDGE_PIPELINE,
@@ -77,6 +81,7 @@ from .latent_context_cache import (
     prepare_latent_context_tail,
     save_latent_context_cache,
 )
+from .mixed_runtime import capture_mixed_reference_frames
 from .audio_export import (
     AUDIO_MODE_GENERATE,
     AUDIO_MODE_MUTE,
@@ -87,10 +92,10 @@ from .audio_export import (
 from .segment_runtime import (
     frames_label,
     load_source_bridge_clip,
+    resolve_nominal_segment_frames,
     resolve_segment_raw_clip,
     resolve_segment_raw_clip_with_lookahead,
     resolve_source_bridge_window,
-    segment_passthrough_chunk,
     tensor_frame_to_jpeg_b64,
 )
 from .color_reanchor import (
@@ -117,29 +122,17 @@ from .progress import (
     report_director_report,
     report_director_segment_preview,
 )
-from .segment_cache import (
-    load_segment_audio_cache,
-    load_segment_cache,
-    save_segment_audio_cache,
-    save_segment_cache,
-    segment_cache_status,
-)
-from .cache_policy import (
-    resolve_nominal_segment_frames,
-    should_persist_segment_cache,
-    write_segment_cache_if_required,
-)
 from .source_bridge import (
     GeneratedSourceBridge,
-    assemble_source_bridges,
-    bridge_anchors,
+    apply_source_bridge_to_windows,
+    bridge_anchors_windows,
     reference_bundles_match,
     source_bridge_boundary_enabled,
     source_bridge_enabled,
     validate_source_bridge_frames,
 )
 from .segment_continuity import (
-    concat_continuous_chunks,
+    apply_pair_ops_windows,
     is_continuity_active,
     resolve_prev_segment_output,
 )
@@ -344,7 +337,11 @@ def execute_director_plan_core(
     pin_renorm_enabled: bool = False,
     clear_vram_between_segments: bool = True,
     postprocess_config: str | dict[str, Any] = "",
-) -> tuple[torch.Tensor, list[torch.Tensor], list[dict[str, Any]], str]:
+    dirname_prefix: str = "",
+    pix_fmt: str = "yuv420p",
+    crf: int = 23,
+    low_ram: bool = True,
+) -> tuple[ClipStreamState, list[torch.Tensor], list[dict[str, Any]], str]:
     core_started = time.perf_counter()
     legacy_preview = (plan.raw or {}).get(
         "liveTaePreview", (plan.raw or {}).get("live_tae_preview", True)
@@ -354,7 +351,6 @@ def execute_director_plan_core(
         config_source = {"liveTaePreview": legacy_preview}
     postprocess = normalize_postprocess_config(config_source)
     global_refine_config = postprocess["global_refine"]
-    face_refine_config = postprocess["face_refine"]
     preview_config = postprocess["preview"]
     preview_manager = DirectorPreviewManager(node_id, preview_config)
     audio_mode = resolve_audio_mode(plan)
@@ -450,13 +446,17 @@ def execute_director_plan_core(
         if source_bridge_boundary_enabled(left, right, requested_source_bridge)
     ]
     source_bridge_consumer_slots = {int(right.timeline_index) for _left, right in source_bridge_pairs}
-    source_bridge_segment_indices = {int(seg.index) for pair in source_bridge_pairs for seg in pair}
-    persist_segment_cache = should_persist_segment_cache(plan, source_bridge_active=bool(source_bridge_pairs))
-    run_indices = plan.run_indices if plan.run_indices is not None else frozenset(range(len(all_segments)))
+    # Every segment used by this run must be generated in this run: there is no
+    # cross-run segment cache, so a run selection is expanded to its dependency
+    # closure (mixed_plan) and "Export all" always runs the whole timeline.
+    run_indices = (
+        plan.run_indices
+        if plan.export_mode == "segments" and plan.run_indices is not None
+        else frozenset(range(len(all_segments)))
+    )
     run_list = sorted(run_indices)
     seg_total = len(run_list)
     progress_pos = {idx: pos for pos, idx in enumerate(run_list)}
-    passthrough_indices: list[int] = []
     ext_meta = (plan.raw or {}).get("externalGroups") or {}
     try:
         timeline_seg_total = int(ext_meta.get("count") or 0) or len(all_segments)
@@ -464,9 +464,17 @@ def execute_director_plan_core(
         timeline_seg_total = len(all_segments)
     timeline_seg_total = max(timeline_seg_total, len(all_segments))
 
-    selected_results: dict[int, tuple[torch.Tensor, dict[str, Any]]] = {}
-    all_export_results: dict[int, tuple[torch.Tensor, dict[str, Any]]] = {}
-    nominal_generated_frames: dict[int, torch.Tensor] = {}
+    low_ram_enabled = resolve_low_ram(low_ram, default=True)
+    writer_manager = ClipWriterManager(
+        node_id=node_id,
+        dirname_prefix=dirname_prefix,
+        pix_fmt=pix_fmt,
+        crf=crf,
+        fps=float(plan.frame_rate or 24.0),
+        width=int(plan.width or 0),
+        height=int(plan.height or 0),
+    )
+
     reports: list[str] = [plan_summary(plan), "", "Execution path: ComfyUI official MiniMax H3"]
     reports.append(f"Legacy global Motion Context default: {'ON' if motion_enabled else 'OFF'}")
     reports.append(
@@ -476,10 +484,6 @@ def execute_director_plan_core(
     reports.append(f"Motion Context handoff: {LATENT_HANDOFF_PIPELINE} (canvas-aware latent-first)")
     reports.append(f"Context frames: {requested_context}")
     reports.append(f"Source Bridge frames: {requested_source_bridge} (V2V/RV2V only)")
-    reports.append(
-        "Full segment disk cache: "
-        + ("ON (multi-segment partial-rerun safety / Source Bridge)" if persist_segment_cache else "OFF")
-    )
     if source_bridge_pairs:
         reports.append(
             "Source Bridge v1: nominal segment generations + an independent "
@@ -543,11 +547,10 @@ def execute_director_plan_core(
 
     completed_outputs: dict[int, torch.Tensor] = {}
     completed_contexts: dict[int, CachedMotionContext] = {}
+    context_available_frames: dict[int, int] = {}
     completed_refine_contexts: dict[int, tuple[dict[str, Any], dict[str, Any]]] = {}
     execution_report = DirectorExecutionReport()
     generated_indices: set[int] = set()
-    cache_hit_indices: set[int] = set()
-    cache_statuses: dict[int, str] = {}
     context_cache_hits: set[int] = set()
     boundary_diagnostics: dict[int, dict[str, Any]] = {}
     pin_diagnostics: dict[int, str] = {}
@@ -557,7 +560,7 @@ def execute_director_plan_core(
     global_refine_outcomes: dict[int, Any] = {}
     segment_stage_timings: dict[int, dict[str, float]] = {}
 
-    def _run_one_segment(seg, *, progress_index: int) -> tuple[torch.Tensor, dict[str, Any] | None]:
+    def _run_one_segment(seg, *, progress_index: int) -> ClipWindow:
         if seg.task_key not in SUPPORTED_TASK_KEYS:
             raise ValueError(
                 f"Task '{seg.task_key}' is not supported on MiniMax H3 Motion Director. "
@@ -735,6 +738,7 @@ def execute_director_plan_core(
                 context_cache_hits.add(previous_index)
             available_context_frames = int(
                 (context_entry.handoff or {}).get("export_frames")
+                or context_available_frames.get(previous_index)
                 or (context_entry.frames.shape[0] if isinstance(context_entry.frames, torch.Tensor) else 0)
             )
             context_span = select_context_span(requested_context, available_context_frames)
@@ -762,7 +766,7 @@ def execute_director_plan_core(
             )
         prev_tail = None
         if not context_pipeline_active and is_continuity_active(plan, seg):
-            prev_tail = resolve_prev_segment_output(plan, all_segments, seg.index, completed_outputs, node_id)
+            prev_tail = resolve_prev_segment_output(plan, all_segments, seg.index, completed_outputs)
         ctx_w = plan.width
         ctx_h = plan.height
         if visible_clip_frames is not None and visible_clip_frames.shape[0] > 0:
@@ -1040,19 +1044,20 @@ def execute_director_plan_core(
                 "waveform": audio_dict["waveform"].detach().cpu(),
                 "sample_rate": int(audio_dict["sample_rate"]),
             }
-        write_segment_cache_if_required(
-            persist_segment_cache,
-            lambda: save_segment_cache(node_id, seg, plan, chunk),
+
+        # The clip's retention window opens here, while the full chunk is still in
+        # memory.  Every capture-time decision (Motion Context export, Color Re-anchor
+        # baseline, preview) is made on the full chunk exactly as in the legacy path;
+        # only the later boundary ops read through the window.
+        window = stream.open_window(
+            seg, chunk, audio_dict, context_pipeline_active=context_pipeline_active
         )
-        write_segment_cache_if_required(
-            persist_segment_cache,
-            lambda: save_segment_audio_cache(
-                node_id, seg, plan, audio_dict if audio_mode == AUDIO_MODE_GENERATE else None,
-            ),
-        )
+        context_available_frames[timeline_slot] = window.available_context_frames()
+        retained = window.retained_view()
+
         if context_pipeline_active:
             if not save_motion_context_cache(
-                node_id, seg, plan, frames=chunk,
+                node_id, seg, plan, frames=retained,
                 audio=audio_dict if audio_mode == AUDIO_MODE_GENERATE else None,
                 settings=cache_settings,
             ):
@@ -1089,13 +1094,13 @@ def execute_director_plan_core(
                     f"S{ui_idx + 1}: Refine Canvas AV latent cache write failed"
                 )
 
-        completed_outputs[seg.index] = chunk
+        completed_outputs[seg.index] = retained
         completed_contexts[timeline_slot] = CachedMotionContext(
-            frames=chunk,
+            frames=retained,
             audio=audio_dict if audio_has_samples(audio_dict) else None,
             metadata={
                 "fps": float(plan.frame_rate or 24.0),
-                "frame_count": int(chunk.shape[0]),
+                "frame_count": int(window.available_context_frames()),
                 "width": int(chunk.shape[2]),
                 "height": int(chunk.shape[1]),
                 "segment_index": int(seg.index),
@@ -1104,11 +1109,11 @@ def execute_director_plan_core(
             handoff=cached_handoff,
         )
 
-        if (
-            not source_bridge_active
-            and seg.task_key in {"t2v", "i2v", "r2v", "fl2v", "v2v", "rv2v"}
-            and decoded.shape[0] >= 1
-        ):
+        # Previews are sent from the full chunk while it is still in memory.  In Low RAM
+        # the retained window is not the whole clip, so this is the only point where every
+        # exported frame is available; the later boundary ops can only change the frames
+        # inside the windows.
+        if seg.task_key in {"t2v", "i2v", "r2v", "fl2v", "v2v", "rv2v"} and decoded.shape[0] >= 1:
             try:
                 frames_b64 = [tensor_frame_to_jpeg_b64(decoded[i]) for i in range(int(decoded.shape[0]))]
                 h, w = int(decoded.shape[1]), int(decoded.shape[2])
@@ -1219,131 +1224,35 @@ def execute_director_plan_core(
             "MiniMax H3 Motion Director segment %d/%d done (%d frames, task=%s)",
             ui_idx + 1, timeline_seg_total, target_len, seg.task_key,
         )
-        return chunk, audio_dict
+        # Mixed Segment Result references are resolved from the frames retained during
+        # this same run; there is no cross-run segment cache.
+        capture_mixed_reference_frames(plan, seg, chunk)
+        return window
 
-    for seg in all_segments:
-        if seg.index in run_indices:
-            if clear_vram_between_segments and selected_results:
-                cleanup_segment_vram(enabled=True)
-            _segment_started = time.perf_counter()
-            chunk, audio_dict = _run_one_segment(seg, progress_index=progress_pos[seg.index])
-            segment_stage_timings.setdefault(int(seg.timeline_index), {})["total"] = time.perf_counter() - _segment_started
-            result = (chunk, audio_dict or {})
-            nominal_generated_frames[int(seg.index)] = chunk
-            selected_results[int(seg.index)] = result
-            if plan.export_mode == "all":
-                all_export_results[int(seg.index)] = result
-            continue
+    # --- Streaming pass -------------------------------------------------------
+    # One pass per generated segment: generate, open its retention window, apply the
+    # boundary with the previous segment, then flush the previous clip and this clip's
+    # head.  A clip is final once its boundary with the next segment has been applied,
+    # so it is written at that moment instead of in a burst at the end.
+    stream = ClipStreamState(
+        plan,
+        writer_manager,
+        low_ram=low_ram_enabled,
+        requested_context=requested_context,
+        run_indices=run_indices,
+    )
+    export_views: dict[int, tuple[torch.Tensor, dict[str, Any]]] = {}
+    generated_bridges: dict[int, GeneratedSourceBridge] = {}
+    prev_window: Optional[ClipWindow] = None
 
-        if plan.export_mode != "all":
-            continue
+    def _apply_bridge_boundary(left_window: ClipWindow, right_window: ClipWindow) -> None:
+        """Generate the five-frame bridge and write it through the two windows.
 
-        cache_statuses[int(seg.index)] = segment_cache_status(node_id, seg, plan)
-        cached = load_segment_cache(node_id, seg, plan)
-        cached_context = None
-        cached_latent_context = None
-        cached_refine_latent_context = None
-        if context_pipeline_active:
-            cached_latent_context = load_latent_context_cache(
-                node_id, seg, plan, settings=cache_settings,
-            )
-            cached_refine_latent_context = load_latent_context_cache(
-                node_id, seg, plan, settings=cache_settings, variant="refine",
-            )
-            if cached_refine_latent_context is not None:
-                completed_refine_contexts[int(seg.timeline_index)] = (
-                    cached_refine_latent_context.latent,
-                    cached_refine_latent_context.handoff,
-                )
-        if int(seg.index) in source_bridge_segment_indices:
-            cached_context = load_motion_context_cache(
-                node_id, seg, plan, settings=cache_settings, strict=False,
-            ) if context_pipeline_active else None
-        elif context_pipeline_active:
-            cached_context = load_motion_context_cache(
-                node_id, seg, plan, settings=cache_settings, strict=False,
-            )
-        if cached_latent_context is not None:
-            cached_context = CachedMotionContext(
-                frames=cached_context.frames if cached_context is not None else None,
-                audio=cached_context.audio if cached_context is not None else None,
-                metadata=(cached_context.metadata if cached_context is not None else cached_latent_context.metadata),
-                latent=cached_latent_context.latent,
-                handoff=cached_latent_context.handoff,
-            )
-            completed_contexts[int(seg.timeline_index)] = cached_context
-        if cached is not None:
-            cached = cached.float()
-            cache_hit_indices.add(int(seg.index))
-            cached_audio = None
-            if audio_mode == AUDIO_MODE_GENERATE:
-                cached_audio = load_segment_audio_cache(node_id, seg, plan)
-                if not audio_has_samples(cached_audio):
-                    raise ValueError(
-                        f"Segment {seg.index + 1} has a valid video cache but no full generated audio cache. "
-                        "Run the full sequence once to rebuild complete video + audio segment caches before using partial regeneration."
-                    )
-            if int(seg.index) in source_bridge_segment_indices:
-                nominal_generated_frames[int(seg.index)] = cached
-            completed_outputs[seg.index] = cached
-            if cached_context is not None:
-                completed_contexts[int(seg.timeline_index)] = cached_context
-            reports.append(
-                f"Segment {seg.index + 1}/{len(all_segments)}: loaded from full segment cache ({cached.shape[0]} frames)"
-            )
-            all_export_results[int(seg.index)] = (cached, cached_audio if cached_audio is not None else {})
-            continue
-        fill = segment_passthrough_chunk(plan, seg)
-        if fill is None:
-            raise ValueError(
-                f"Segment {seg.index + 1} is not selected and has no valid cache or source frames to passthrough. "
-                "Include it in「选择运行」, or switch export to「分段导出」."
-            )
-        completed_outputs[seg.index] = fill
-        passthrough_indices.append(seg.index)
-        reports.append(
-            f"Segment {seg.index + 1}/{len(all_segments)}: source passthrough "
-            f"({fill.shape[0]} frames, not sampled — outside run selection)"
-        )
-        all_export_results[int(seg.index)] = (fill, {})
-
-    if passthrough_indices:
-        reports.append(
-            "Passthrough (not sampled) segment(s) "
-            f"{[i + 1 for i in passthrough_indices]} — run selection is honored; "
-            "unselected gaps filled from cache/source for「全部导出」."
-        )
-
-    def _report_resolved_preview(seg, frames: torch.Tensor) -> None:
-        if int(frames.shape[0]) <= 0:
-            return
-        try:
-            frames_b64 = [tensor_frame_to_jpeg_b64(frames[i]) for i in range(int(frames.shape[0]))]
-            height, width = int(frames.shape[1]), int(frames.shape[2])
-            report_director_segment_preview(
-                node_id, segment_index=int(seg.timeline_index), image_b64=frames_b64[0],
-                width=width, height=height, frames=frames_b64, fps=float(plan.frame_rate or 24),
-            )
-        except Exception as exc:
-            log.debug("Resolved Source Bridge preview skipped: %s", exc)
-
-    def _nominal_for_bridge(seg) -> torch.Tensor:
-        index = int(seg.index)
-        frames, loaded_from_disk = resolve_nominal_segment_frames(
-            nominal_generated_frames, segment_index=index, expected_frames=int(seg.frame_count),
-            disk_loader=lambda: load_segment_cache(node_id, seg, plan),
-        )
-        if loaded_from_disk:
-            reports.append(
-                f"Segment {int(seg.timeline_index) + 1}: loaded validated nominal segment cache for Source Bridge."
-            )
-        return frames
-
-    generated_bridges: list[GeneratedSourceBridge] = []
-    for left, right in source_bridge_pairs:
-        pair_indices = {int(left.index), int(right.index)}
-        if plan.export_mode != "all" and not pair_indices.intersection(run_indices):
-            continue
+        Same decision and the same pixels as the legacy bridge loop: the anchors are read
+        through the retained windows, which cover them, and the bridge writes land at the
+        left window's last frame and the right window's first two frames.
+        """
+        left, right = left_window.seg, right_window.seg
         window, skip_reason = resolve_source_bridge_window(plan, left, right)
         if window is None:
             right_slot = int(right.timeline_index)
@@ -1361,7 +1270,7 @@ def execute_director_plan_core(
                 f"Boundary Segment {int(left.timeline_index) + 1} → {int(right.timeline_index) + 1}: "
                 f"{skip_reason} Nominal hard cut retained."
             )
-            continue
+            return
         if "rv2v" in {left.task_key, right.task_key} and not reference_bundles_match(left, right):
             right_slot = int(right.timeline_index)
             right_diag = boundary_diagnostics.get(right_slot)
@@ -1382,11 +1291,9 @@ def execute_director_plan_core(
                 "Source Bridge skipped because the effective RV2V Picture/Audio reference bundles differ. "
                 "Nominal hard cut retained."
             )
-            continue
+            return
 
-        left_frames = _nominal_for_bridge(left)
-        right_frames = _nominal_for_bridge(right)
-        first_anchor, last_anchor = bridge_anchors(left, left_frames, right, right_frames, window)
+        first_anchor, last_anchor = bridge_anchors_windows(left_window, right_window, window)
         bridge_raw = load_source_bridge_clip(plan, window)
         if plan.output_mode == "fixed":
             bridge_source = fit_canvas(bridge_raw, plan.width, plan.height)
@@ -1473,16 +1380,17 @@ def execute_director_plan_core(
                 "or pad generated output."
             )
         bridge_frames = bridge_decoded[:5].detach().cpu().float()
-        target_height = int(left_frames.shape[1])
-        target_width = int(left_frames.shape[2])
+        target_view = left_window.left_view
+        target_height = int(target_view.shape[1])
+        target_width = int(target_view.shape[2])
         if (int(bridge_frames.shape[1]), int(bridge_frames.shape[2])) != (target_height, target_width):
             bridge_frames = fit_canvas(bridge_frames, target_width, target_height)
-        generated_bridges.append(
-            GeneratedSourceBridge(
-                left_segment_index=int(left.index), right_segment_index=int(right.index),
-                window=window, frames=bridge_frames,
-            )
+        bridge = GeneratedSourceBridge(
+            left_segment_index=int(left.index), right_segment_index=int(right.index),
+            window=window, frames=bridge_frames,
         )
+        generated_bridges[int(left.index)] = bridge
+        apply_source_bridge_to_windows(left_window, right_window, bridge)
         right_diag = boundary_diagnostics.get(int(right.timeline_index))
         if right_diag is not None:
             right_diag["visual_source"] = "Source Bridge"
@@ -1504,134 +1412,63 @@ def execute_director_plan_core(
         if clear_vram_between_segments:
             cleanup_segment_vram(enabled=True)
 
-    if generated_bridges:
-        resolved = assemble_source_bridges(all_segments, nominal_generated_frames, generated_bridges)
-        for index, frames in resolved.items():
-            completed_outputs[index] = frames
-            if index in selected_results:
-                selected_results[index] = (frames, selected_results[index][1])
-            if index in all_export_results:
-                all_export_results[index] = (frames, all_export_results[index][1])
-
+    # --- Main streaming pass --------------------------------------------------
+    bridge_pair_set = {(int(left.index), int(right.index)) for left, right in source_bridge_pairs}
     for seg in all_segments:
-        if (
-            int(seg.index) in run_indices and int(seg.index) in source_bridge_segment_indices
-            and int(seg.index) in selected_results
-        ):
-            _report_resolved_preview(seg, selected_results[int(seg.index)][0])
+        if seg.index not in run_indices:
+            continue
+        if clear_vram_between_segments and export_views:
+            cleanup_segment_vram(enabled=True)
+        _segment_started = time.perf_counter()
+        window = _run_one_segment(seg, progress_index=progress_pos[seg.index])
+        segment_stage_timings.setdefault(int(seg.timeline_index), {})["total"] = time.perf_counter() - _segment_started
 
-    missing_selected = [index for index in run_list if index not in selected_results]
+        if prev_window is not None:
+            # Boundary order is the legacy one: the Source Bridge write first, then the
+            # continuity pair ops, because a pair op can overwrite the bridge frame at the
+            # left window's last frame.  The previous clip is final after both.
+            if (int(prev_window.seg.index), int(seg.index)) in bridge_pair_set:
+                _apply_bridge_boundary(prev_window, window)
+            apply_pair_ops_windows(prev_window, window, plan)
+            export_views[int(prev_window.seg.index)] = (prev_window.retained_view(), prev_window.audio_dict)
+            stream.finalize(prev_window)
+
+        stream.write_ready(window)
+        prev_window = window
+
+    if prev_window is not None:
+        export_views[int(prev_window.seg.index)] = (prev_window.retained_view(), prev_window.audio_dict)
+        stream.finalize_open()
+
+    ordered_windows = stream.export_order()
+    if not ordered_windows:
+        raise ValueError("Director plan produced no segments.")
+    missing_selected = [index for index in run_list if index not in stream.windows]
     if missing_selected:
         raise RuntimeError(
-            "Motion Director internal error: selected segment result(s) missing after Source Bridge resolution: "
+            "Motion Director internal error: selected segment window(s) missing: "
             f"{[i + 1 for i in missing_selected]}"
         )
-    segment_outputs = [selected_results[index][0] for index in run_list]
-    segment_audios = [selected_results[index][1] for index in run_list]
-    if not segment_outputs:
-        raise ValueError("Director plan produced no segments.")
+
+    export_segments = [window.seg for window in ordered_windows]
+    export_views_ordered = [export_views[int(window.seg.index)] for window in ordered_windows]
+    segment_outputs = [item[0] for item in export_views_ordered]
+    export_audios = [item[1] for item in export_views_ordered]
+    segment_audios = export_audios
+    # The seam report reads one frame per side, so each window contributes the first and
+    # the last exported frame; the reported lengths come from the true clip lengths.
+    export_chunks = [window.seam_view() for window in ordered_windows]
 
     report_director_progress(
         node_id, segment_index=max(0, seg_total - 1), segment_total=max(1, seg_total),
-        phase="assemble", phase_value=0, phase_max=1,
+        phase="finalize", phase_value=1, phase_max=1,
     )
-    _assembly_started = time.perf_counter()
-    if plan.export_mode == "all":
-        missing_all = [seg.index for seg in all_segments if seg.index not in all_export_results]
-        if missing_all:
-            raise RuntimeError(
-                "Motion Director internal error: full export segment result(s) missing: "
-                f"{[i + 1 for i in missing_all]}"
-            )
-        export_chunks = [all_export_results[int(seg.index)][0] for seg in all_segments]
-        export_audios = [all_export_results[int(seg.index)][1] for seg in all_segments]
-        export_segments = all_segments
-    else:
-        export_chunks = segment_outputs
-        export_audios = segment_audios
-        export_segments = [all_segments[i] for i in run_list]
-    if context_pipeline_active or bridge_feature_active:
-        from ..lib.image_prep import cat_frames_variable_size
-        combined = cat_frames_variable_size(export_chunks)
-    else:
-        combined = concat_continuous_chunks(export_chunks, export_segments, plan)
-    assembly_seconds = time.perf_counter() - _assembly_started
-    report_director_progress(
-        node_id, segment_index=max(0, seg_total - 1), segment_total=max(1, seg_total),
-        phase="assemble", phase_value=1, phase_max=1,
-    )
-
-    def _report_face_phase(phase: str, value: float) -> None:
-        report_director_progress(
-            node_id, segment_index=max(0, seg_total - 1), segment_total=max(1, seg_total),
-            phase=phase, phase_value=value, phase_max=1,
-        )
-
-    face_outcome = apply_face_refine(
-        face_refine_config,
-        images=combined,
-        model=model,
-        vae=vae,
-        audio_vae=audio_vae,
-        clip=clip,
-        prompt=str(getattr(plan, "global_prompt", "") or "Refine the tracked face with stable natural detail."),
-        seed=seed,
-        cfg=cfg,
-        steps=int(external_steps or steps),
-        sampler_name=sampler,
-        scheduler=scheduler,
-        shift_video=shift_video,
-        shift_audio=shift_audio,
-        chunk_lengths=[int(chunk.shape[0]) for chunk in export_chunks],
-        on_phase=_report_face_phase,
-        on_step_preview=(
-            (lambda step, total, x0, latent_shapes: preview_manager.submit(
-                segment_index=max(0, len(export_chunks) - 1), stage="Face Refine",
-                step=step + 1, total_steps=total, x0=x0, latent_shapes=latent_shapes,
-            )) if live_tae_preview else None
-        ),
-        preview_every=int(preview_config["preview_every"]),
-    )
-    if face_outcome.succeeded:
-        combined = face_outcome.images
-        lengths = [int(chunk.shape[0]) for chunk in export_chunks]
-        if sum(lengths) == int(combined.shape[0]):
-            refined_chunks = []
-            cursor = 0
-            for length in lengths:
-                refined_chunks.append(combined[cursor : cursor + length])
-                cursor += length
-            export_chunks = refined_chunks
-            if plan.export_mode != "all" or len(segment_outputs) == len(refined_chunks):
-                segment_outputs = refined_chunks
-            if node_id:
-                for export_segment, refined_chunk in zip(export_segments, refined_chunks):
-                    try:
-                        frames_b64 = [
-                            tensor_frame_to_jpeg_b64(refined_chunk[index])
-                            for index in range(int(refined_chunk.shape[0]))
-                        ]
-                        report_director_segment_preview(
-                            node_id, segment_index=int(export_segment.timeline_index),
-                            image_b64=frames_b64[0], width=int(refined_chunk.shape[2]),
-                            height=int(refined_chunk.shape[1]), frames=frames_b64,
-                            fps=float(plan.frame_rate or 24), stage="Face Refine Final", result_kind="segment",
-                        )
-                    except Exception as exc:
-                        log.debug("Face-refined segment preview skipped: %s", exc)
-    elif face_outcome.status in {"FAILED", "NO_FACE"}:
-        if face_outcome.status == "FAILED":
-            cleanup_segment_vram(enabled=True, unload_models=False)
-        warning_messages.append(
-            f"Face Refine {face_outcome.status}; fallback ASSEMBLED_RESULT — {face_outcome.error}"
-        )
 
     skipped_indices = set(range(len(all_segments))) - set(run_indices)
     execution_report.add(
         "Run",
         f"Segments: {segment_list(range(len(all_segments)))}",
         f"Generated: {segment_list(generated_indices)}",
-        f"Reused from cache: {segment_list(cache_hit_indices)}",
         f"Skipped by run selection: {segment_list(skipped_indices)}",
         f"Run selection: {len(run_indices)}/{len(all_segments)}",
         f"Seed mode: {normalize_seed_mode((plan.raw or {}).get('seedMode', (plan.raw or {}).get('seed_mode')))}",
@@ -1641,13 +1478,15 @@ def execute_director_plan_core(
     )
     execution_report.add(
         "Generation",
-        f"Status: {'SUCCESS' if combined is not None and int(combined.shape[0]) > 0 else 'FAILED'}",
+        "Status: SUCCESS",
         f"Modes: {', '.join(sorted({seg.task_key.upper() for seg in all_segments}))}",
-        f"Output frames: {int(combined.shape[0])}",
+        f"Output frames: {sum(int(window.chunk_len) for window in ordered_windows)}",
+        f"Low RAM: {'ON' if stream.low_ram else 'OFF'}",
     )
     for seam_line in build_seam_report_lines(
         export_chunks, export_audios, fps=float(plan.frame_rate or 24),
         segment_slots=[int(seg.timeline_index) for seg in export_segments],
+        segment_lengths=[int(window.chunk_len) for window in ordered_windows],
     ):
         execution_report.add("Seam Diagnostics", seam_line)
     if sampling_mode == "internal":
@@ -1687,10 +1526,10 @@ def execute_director_plan_core(
                 "audio": resolved.audio,
                 "visual_reason": resolved.visual_reason,
                 "audio_reason": resolved.audio_reason,
-                "visual_source": "validated full-segment cache" if slot in cache_hit_indices else "none",
-                "audio_source": "validated full-segment cache" if slot in cache_hit_indices else "none",
+                "visual_source": "none",
+                "audio_source": "none",
                 "requested_frames": requested_context,
-                "actual_frames": "cached" if slot in cache_hit_indices else 0,
+                "actual_frames": 0,
             }
         execution_report.add("Previous Context", format_previous_context(slot - 1, slot, diag))
         execution_report.add("Audio Context", format_audio_context(slot - 1, slot, diag))
@@ -1709,44 +1548,18 @@ def execute_director_plan_core(
                     "Latent Scale Lock",
                     f"S{slot} -X-> S{slot + 1}\nchain reset\nPin Renorm: SKIPPED\nReason: {diag['visual_reason']}",
                 )
-            elif slot in cache_hit_indices:
-                execution_report.add(
-                    "Latent Scale Lock",
-                    f"S{slot} -> S{slot + 1}\nPin Renorm: SKIPPED\n"
-                    "Reason: segment reused full cache; no new latent was conditioned",
-                )
         if not any("baseline:" in value for value in pin_diagnostics.values()):
             warning_messages.append("pin_renorm ON but no raw video latent handoff occurred")
 
     for slot in sorted(color_diagnostics):
         execution_report.add("Color", color_diagnostics[slot])
     for index in range(len(all_segments)):
-        if index in generated_indices:
-            state = "generated"
-        elif index in cache_hit_indices:
-            state = "cache hit"
-        elif index in passthrough_indices:
-            prior = cache_statuses.get(index, "missing")
-            state = f"cache {prior}; source passthrough (selection skipped)"
-        else:
-            state = "not part of this export"
+        state = "generated" if index in generated_indices else "not part of this run"
         execution_report.add("Cache", f"S{index + 1}: {state}")
     for index in sorted(context_cache_hits):
         execution_report.add("Cache", f"Previous context: S{index + 1} cache valid")
-    for index, status in sorted(cache_statuses.items()):
-        if status == "stale":
-            execution_report.add("Cache", f"S{index + 1}: stale / invalidated")
-            warning_messages.append(f"S{index + 1}: segment cache stale because timeline or dependency changed")
-        elif status in {"missing", "error"} and index not in cache_hit_indices:
-            execution_report.add("Cache", f"S{index + 1}: cache {status}")
     for slot, line in sorted(reference_diagnostics.items()):
         execution_report.add("References", line)
-    for seg in all_segments:
-        slot = int(seg.timeline_index)
-        if slot not in reference_diagnostics and int(seg.index) in cache_hit_indices:
-            execution_report.add(
-                "References", f"S{slot + 1}: cache reuse; no H3 reference conditioning executed this run",
-            )
 
     execution_report.add(
         "Global Refine",
@@ -1785,24 +1598,6 @@ def execute_director_plan_core(
                 ) if line
             ),
         )
-    execution_report.add(
-        "Face Refine",
-        f"Enabled: {'ON' if face_refine_config['enabled'] else 'OFF'}",
-        f"Detector: {face_refine_config['detector']}",
-        f"Canvas: {face_outcome.canvas or face_refine_config['canvas_mode']}",
-        f"Mask mode: {face_refine_config['mask_mode']}",
-        f"Status: {face_outcome.status}",
-        (f"Frames: {int((face_outcome.statistics or {}).get('frames') or 0)}" if face_outcome.statistics else "Frames: n/a"),
-        (f"Detected: {int((face_outcome.statistics or {}).get('detected') or 0)} / {int((face_outcome.statistics or {}).get('frames') or 0)}" if face_outcome.statistics else ""),
-        (f"Detection Rate: {100.0 * int((face_outcome.statistics or {}).get('detected') or 0) / max(1, int((face_outcome.statistics or {}).get('frames') or 0)):.1f}%" if face_outcome.statistics else ""),
-        (f"Interpolated: {int((face_outcome.statistics or {}).get('interpolated') or 0)}" if face_outcome.statistics else ""),
-        (f"Face px min/mean/max: {float((face_outcome.statistics or {}).get('face_px_min') or 0):.1f} / {float((face_outcome.statistics or {}).get('face_px_mean') or 0):.1f} / {float((face_outcome.statistics or {}).get('face_px_max') or 0):.1f}" if face_outcome.statistics else ""),
-        (f"Steps: {int(face_outcome.steps)}" if face_outcome.steps else ""),
-        (f"Base Denoise: {float(face_outcome.base_denoise):g}" if face_outcome.base_denoise else ""),
-        (f"Adaptive Strength min/mean/max: {float((face_outcome.statistics or {}).get('denoise_min') or 0):.3f} / {float((face_outcome.statistics or {}).get('denoise_mean') or 0):.3f} / {float((face_outcome.statistics or {}).get('denoise_max') or 0):.3f}" if face_outcome.statistics and 'denoise_mean' in face_outcome.statistics else ""),
-        f"Error: {face_outcome.error}" if face_outcome.error else "",
-        f"Fallback: {face_outcome.fallback}" if face_outcome.fallback else "",
-    )
     core_seconds = time.perf_counter() - core_started
     for slot, timing in sorted(segment_stage_timings.items()):
         outcome = global_refine_outcomes.get(slot)
@@ -1822,22 +1617,6 @@ def execute_director_plan_core(
             (f"  Global Refine Total: {global_total:.2f}s" if global_times else "  Global Refine Total: 0.00s"),
             f"  AV Decode: {float(timing.get('av_decode', 0.0)):.2f}s",
         )
-    execution_report.add("Timing", f"Assembly: {assembly_seconds:.2f}s")
-    if face_outcome.timings:
-        execution_report.add(
-            "Timing",
-            f"Face Refine Detection / Tracking: {float(face_outcome.timings.get('detection_tracking', 0.0)):.2f}s",
-            f"Face Refine Mask: {float(face_outcome.timings.get('mask', 0.0)):.2f}s",
-        )
-        for part_index, seconds in enumerate(face_outcome.timings.get("sampling_chunks", [])):
-            execution_report.add("Timing", f"Face Refine S{part_index + 1} Sampling: {float(seconds):.2f}s")
-        execution_report.add(
-            "Timing",
-            f"Face Refine Stitch: {float(face_outcome.timings.get('stitch', 0.0)):.2f}s",
-            f"Face Refine Total: {float(face_outcome.timings.get('total', 0.0)):.2f}s",
-        )
-    else:
-        execution_report.add("Timing", "Face Refine Total: 0.00s")
     execution_report.add("Timing", f"Core Pipeline: {core_seconds:.2f}s")
 
     execution_report.add(
@@ -1851,6 +1630,18 @@ def execute_director_plan_core(
         f"jpeg_quality: {preview_config['jpeg_quality']}",
         f"preview_every: {preview_config['preview_every']}",
     )
+    for line in stream.report_lines():
+        execution_report.add("Clip Output", line)
+
+    # Merge only in "Export all", purely from the files that were written, in export
+    # order.  "By segment" writes the selected clips and stops.
+    merge_result = None
+    if plan.export_mode == "all":
+        merge_result = merge_clips(stream, crf=int(crf), pix_fmt=stream.manager.pix_fmt)
+        if merge_result is not None:
+            for line in merge_result.lines:
+                execution_report.add("Clip Output", line)
+
     for message in dict.fromkeys(warning_messages):
         execution_report.add("Warnings", f"- {message}")
     execution_report.add(
@@ -1863,16 +1654,5 @@ def execute_director_plan_core(
     report_director_finish(node_id, seg_total)
     rendered_report = execution_report.render()
     report_director_report(node_id, rendered_report)
-    if node_id:
-        try:
-            final_frames_b64 = [tensor_frame_to_jpeg_b64(combined[index]) for index in range(int(combined.shape[0]))]
-            if final_frames_b64:
-                report_director_segment_preview(
-                    node_id, segment_index=max(0, len(export_chunks) - 1), image_b64=final_frames_b64[0],
-                    width=int(combined.shape[2]), height=int(combined.shape[1]), frames=final_frames_b64,
-                    fps=float(plan.frame_rate or 24), stage="Final", result_kind="final",
-                )
-        except Exception as exc:
-            log.debug("Final result preview skipped: %s", exc)
     preview_manager.close()
-    return combined, segment_outputs, export_audios, rendered_report
+    return stream, segment_outputs, export_audios, rendered_report

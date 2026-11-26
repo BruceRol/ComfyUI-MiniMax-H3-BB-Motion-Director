@@ -32,18 +32,23 @@ const DIRECTOR_GROUP_INPUT_NAMES = new Set([
     "bd_grp_advanced",
     "bd_grp_perf",
     "bd_grp_experimental",
+    "bd_grp_output",
 ]);
 
 // Current Director widget serialization order. BDBROUP widgets are real widgets
 // when the frontend extension is loaded. If the extension fails during a graph
 // load, ComfyUI can persist them as input sockets instead, shifting every later
 // widget value by one slot. Repair that graph shape before node construction.
+// Only groups followed by a numeric/boolean widget can be repaired, so the Output
+// group (followed by the string dirname_prefix) is intentionally not listed.
+// Indices include the seed control slot created by control_after_generate, which is
+// a real widget value between seed and frame_rate.
 const DIRECTOR_GROUP_WIDGET_LAYOUT = Object.freeze([
     [2, "采样设置"],
     [12, "Motion Context"],
     [18, "高级采样"],
-    [24, "性能"],
-    [27, "Experimental"],
+    [19, "性能"],
+    [22, "Experimental"],
 ]);
 
 function isDirectorWorkflowNode(node) {

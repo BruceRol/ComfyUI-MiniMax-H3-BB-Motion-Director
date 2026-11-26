@@ -1,6 +1,6 @@
 # Tutorial image slots
 
-`docs/USER_GUIDE.md` and `docs/USER_GUIDE_zh.md` already reference the following files. Replace the slots by placing the annotated screenshots here with these exact names:
+`docs/USER_GUIDE.md` already references the following files. Replace the slots by placing the annotated screenshots here with these exact names:
 
 ```text
 01-standalone-t2v.webp

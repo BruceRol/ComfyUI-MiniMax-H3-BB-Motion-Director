@@ -10,19 +10,6 @@ const DEFAULT_CONFIG = Object.freeze({
         width: 1376, height: 768,
         rtx_deblur_enabled: false, rtx_deblur_quality: "medium", rtx_deblur_strength: 1,
     },
-    face_refine: {
-        enabled: false, detector: "ultralytics", detector_model: "", confidence: 0.35,
-        select: "largest", crop_factor: 2.5, canvas_mode: "auto_capped_768", canvas_size: 768,
-        smooth_method: "gaussian", smooth_window: 21, size_smooth_window: 51, size_mode: "adaptive",
-        adaptive: true, base_denoise: 0.45, strength_small_face: 0.8,
-        strength_large_face: 0.35, face_px_small: 30, face_px_large: 120,
-        mask_mode: "rect", paste_region: "face_rect", feather: 24,
-        colour_match: true, blend: 1, undetected_frames: "fade",
-        identity_reference: "", identity_track: false, identity_threshold: 0.28,
-        fallback_detector: "none", fallback_head_frac: 0.5, gamma: 1,
-        denoise_smooth: 9, mask_dilation: 24, feather_scales_with_crop: false,
-        sam_model: "", sam_threshold: 0.93, sam_dilation: 0, sam_temporal_smooth: 5,
-    },
     preview: { enabled: true, preview_frames: 8, preview_fps: 12, max_resolution: 1024, jpeg_quality: 80, preview_every: 1 },
     save: {
         auto_save: false, filename_prefix: "video/MiniMaxH3_Director",
@@ -35,27 +22,17 @@ const inChoice = (value, choices, fallback) => choices.includes(String(value || 
 
 const POST_TEXT = {
     en: {
-        global_title: "Global Refine", face_title: "Face Refine", sampling: "Second Sampling",
+        global_title: "Global Refine", sampling: "Second Sampling",
         upscale: "Upscale", output_resolution: "Output Resolution",
-        detection_canvas: "Detection", tracking_denoise: "Refine",
-        stitch: "Stitch", advanced: "Advanced Settings", enabled: "ON / OFF", disabled: "Disabled",
-        detection_note: "Choose a face detector model. Lower 0.35 only when faces are missed.",
-        refine_note: "Adaptive mode strengthens small faces and backs off on large faces.",
-        stitch_note: "Rectangle is recommended. Use SAM only when a tighter face-shaped edge is needed.",
-        no_face_detector: "No face detector model found. face_yolov8m.pt is recommended.",
+        advanced: "Advanced Settings", enabled: "ON / OFF", disabled: "Disabled",
         runtime_detected: "Runtime detected (validated when generation starts)",
         missing_no_downgrade: "Not installed (stage will fail without downgrade)",
         lbh_note: "Director scans compatible MiniMax H3 learned-latent checkpoints from models/latent_upscale_models automatically. Select a checkpoint below; its 2D/3D architecture is detected from the weights. No separate LBH custom node is required.",
     },
     zh: {
-        global_title: "全局精修", face_title: "人脸精修", sampling: "二次采样",
+        global_title: "全局精修", sampling: "二次采样",
         upscale: "放大", output_resolution: "输出分辨率",
-        detection_canvas: "检测", tracking_denoise: "精修",
-        stitch: "回贴", advanced: "高级设置", enabled: "开 / 关", disabled: "已停用",
-        detection_note: "通常只需选择人脸检测模型。置信度 0.35 可直接使用，漏脸时再降低。",
-        refine_note: "自适应会加强远处小脸、减弱近处大脸，避免重写已有细节。",
-        stitch_note: "推荐矩形遮罩；只有确实需要更贴脸的边缘时再使用 SAM。",
-        no_face_detector: "未找到人脸检测模型，建议放入 face_yolov8m.pt。",
+        advanced: "高级设置", enabled: "开 / 关", disabled: "已停用",
         runtime_detected: "已检测到运行库（生成时验证）",
         missing_no_downgrade: "未安装（此阶段会失败，不会自动降级）",
         lbh_note: "Director 会自动扫描 models/latent_upscale_models 中兼容的 MiniMax H3 Learned Latent checkpoint。只需选择模型，2D/3D 架构会直接从权重自动识别；无需另装 LBH 自定义节点。",
@@ -80,25 +57,6 @@ const POST_LABELS = {
     "global_refine.megapixels": ["Megapixels", "百万像素"],
     "global_refine.width": ["Width", "宽度"],
     "global_refine.height": ["Height", "高度"],
-    "face_refine.detector": ["Detector Engine", "检测引擎"], "face_refine.detector_model": ["Face Detector Model", "人脸检测模型"],
-    "face_refine.confidence": ["Confidence", "置信度"], "face_refine.select": ["Target Face", "目标人脸"],
-    "face_refine.crop_factor": ["Crop Factor", "裁切倍率"], "face_refine.canvas_mode": ["Canvas Quality", "画布质量"],
-    "face_refine.canvas_size": ["Canvas Size", "画布尺寸"], "face_refine.smooth_method": ["Smooth", "平滑方法"],
-    "face_refine.smooth_window": ["Centre Window", "中心平滑窗口"], "face_refine.size_smooth_window": ["Size Window", "尺寸平滑窗口"],
-    "face_refine.size_mode": ["Size Mode", "尺寸模式"], "face_refine.adaptive": ["Adaptive Strength", "自适应强度"],
-    "face_refine.base_denoise": ["Refine Strength", "精修强度"],
-    "face_refine.strength_small_face": ["Small Face", "小脸强度"],
-    "face_refine.strength_large_face": ["Large Face", "大脸强度"], "face_refine.face_px_small": ["Face px Small", "小脸像素阈值"],
-    "face_refine.face_px_large": ["Face px Large", "大脸像素阈值"], "face_refine.mask_mode": ["Mask", "遮罩"],
-    "face_refine.paste_region": ["Paste", "回贴区域"], "face_refine.feather": ["Feather (source px)", "羽化（源画面 px）"],
-    "face_refine.colour_match": ["Colour Match", "颜色匹配"], "face_refine.blend": ["Blend", "混合"],
-    "face_refine.undetected_frames": ["Undetected", "未检测帧"], "face_refine.identity_reference": ["Identity Reference", "身份参考图"],
-    "face_refine.identity_track": ["Identity Track", "身份跟踪"], "face_refine.identity_threshold": ["Identity Threshold", "身份阈值"],
-    "face_refine.fallback_detector": ["Fallback Detector", "备用检测器"], "face_refine.fallback_head_frac": ["Fallback Head Frac", "备用头部比例"],
-    "face_refine.gamma": ["Gamma", "伽马"], "face_refine.denoise_smooth": ["Denoise Smooth", "降噪平滑"],
-    "face_refine.mask_dilation": ["Mask Dilation (canvas px)", "遮罩扩张（画布 px）"], "face_refine.feather_scales_with_crop": ["Legacy canvas feather", "旧式画布羽化"],
-    "face_refine.sam_model": ["SAM Model", "SAM 模型"], "face_refine.sam_threshold": ["SAM Threshold", "SAM 阈值"],
-    "face_refine.sam_dilation": ["SAM Dilation", "SAM 扩张"], "face_refine.sam_temporal_smooth": ["SAM Temporal", "SAM 时序平滑"],
 };
 
 const POST_OPTION_LABELS = {
@@ -120,20 +78,6 @@ const POST_OPTION_LABELS = {
         follow_director: ["Follow Director", "跟随 Director"],
         aspect_megapixels: ["Aspect + Megapixels", "画幅比 + 百万像素"], custom: ["Custom", "自定义"],
     },
-    "face_refine.select": { largest: ["Largest", "最大脸"], most_central: ["Most central", "最靠近中心"] },
-    "face_refine.canvas_mode": {
-        manual: ["Manual", "手动"], auto_no_downscale: ["Preserve source detail", "保留原始细节"],
-        auto_capped_768: ["Auto (recommended, max 768)", "自动（推荐，上限 768）"],
-    },
-    "face_refine.smooth_method": {
-        gaussian: ["Gaussian", "高斯"], savgol: ["Savitzky–Golay", "Savitzky–Golay"],
-        moving_average: ["Moving average", "移动平均"],
-    },
-    "face_refine.size_mode": { adaptive: ["Adaptive", "自适应"], stable: ["Stable", "稳定"] },
-    "face_refine.mask_mode": { rect: ["Rectangle (recommended)", "矩形（推荐）"], ellipse: ["Ellipse", "椭圆"], sam: ["SAM (optional)", "SAM（可选）"] },
-    "face_refine.paste_region": { face_rect: ["Face rectangle", "人脸区域"], full_crop: ["Full crop", "完整裁切区"] },
-    "face_refine.undetected_frames": { fade: ["Fade", "淡出"], skip: ["Skip", "跳过"] },
-    "face_refine.fallback_detector": { none: ["None", "无"] },
 };
 
 export function normalizePostprocessConfig(raw) {
@@ -142,16 +86,11 @@ export function normalizePostprocessConfig(raw) {
     }
     raw = raw && typeof raw === "object" ? raw : {};
     const result = clone(DEFAULT_CONFIG);
-    for (const key of ["global_refine", "face_refine", "preview", "save"]) {
-        const legacy = key === "global_refine" ? raw.globalRefine : key === "face_refine" ? raw.faceRefine : null;
+    for (const key of ["global_refine", "preview", "save"]) {
+        const legacy = key === "global_refine" ? raw.globalRefine : null;
         Object.assign(result[key], legacy || {}, raw[key] || {});
     }
     if (raw.liveTaePreview === false || raw.live_tae_preview === false) result.preview.enabled = false;
-    const rawVersion=Number(raw.version||0);
-    if(rawVersion>0&&rawVersion<4){
-        const m={crop_factor:[2,2.5],smooth_window:[9,21],size_smooth_window:[13,51],base_denoise:[0.22,0.45],strength_small_face:[0.35,0.8],strength_large_face:[0.16,0.35],face_px_small:[96,30],face_px_large:[320,120],feather:[0.12,24],identity_threshold:[0.35,0.28],fallback_head_frac:[0.34,0.5],denoise_smooth:[5,9],mask_dilation:[0.06,24],feather_scales_with_crop:[true,false],sam_threshold:[0.5,0.93],sam_dilation:[0.04,0]};
-        for(const [k,[a,b]] of Object.entries(m)) if(result.face_refine[k]===a) result.face_refine[k]=b;
-    }
     const global = result.global_refine;
     global.enabled = !!global.enabled;
     global.mode = inChoice(global.mode, ["refine", "upscale"], "refine");
@@ -173,19 +112,6 @@ export function normalizePostprocessConfig(raw) {
     global.rtx_deblur_quality = inChoice(global.rtx_deblur_quality, ["low", "medium", "high", "ultra"], "medium");
     const deblurStrength = Number(global.rtx_deblur_strength);
     global.rtx_deblur_strength = Number.isFinite(deblurStrength) ? Math.max(0, Math.min(3, deblurStrength)) : 1;
-    const face=result.face_refine;
-    face.enabled=!!face.enabled;
-    face.detector=inChoice(face.detector,["ultralytics","insightface"],"ultralytics");
-    face.select=inChoice(face.select,["largest","most_central"],"largest");
-    face.canvas_mode=inChoice(face.canvas_mode,["manual","auto_no_downscale","auto_capped_768"],"auto_capped_768");
-    face.smooth_method=inChoice(face.smooth_method,["gaussian","savgol","moving_average"],"gaussian");
-    face.size_mode=inChoice(face.size_mode,["adaptive","stable"],"adaptive");
-    face.mask_mode=inChoice(face.mask_mode,["rect","ellipse","sam"],"rect");
-    face.paste_region=inChoice(face.paste_region,["face_rect","full_crop"],"face_rect");
-    face.undetected_frames=inChoice(face.undetected_frames,["fade","skip"],"fade");
-    face.adaptive=face.adaptive!==false;
-    face.identity_track=!!face.identity_track;
-    face.feather_scales_with_crop=!!face.feather_scales_with_crop;
     result.preview.enabled = result.preview.enabled !== false;
     result.save.auto_save = !!result.save.auto_save;
     result.save.filename_prefix = String(result.save.filename_prefix || "video/MiniMaxH3_Director").trim().slice(0, 512) || "video/MiniMaxH3_Director";
@@ -234,11 +160,6 @@ export function globalRefineVisibility(config) {
     };
 }
 
-export function faceRefineVisibility(config){
-    const f=normalizePostprocessConfig(config).face_refine;
-    return {detectorModel:f.detector==="ultralytics",manualCanvas:f.canvas_mode==="manual",sam:f.mask_mode==="sam",identity:!!f.identity_track,fallback:String(f.fallback_detector||"none")!=="none"};
-}
-
 export function globalRefineSummary(config, width = 864, height = 480, locale = "en") {
     const global = normalizePostprocessConfig(config).global_refine;
     const zh = locale === "zh";
@@ -266,17 +187,6 @@ export function globalRefineSummary(config, width = 864, height = 480, locale = 
         parts.push(`${method} → ${targetW}×${targetH}`);
     }
     return parts.join(" · ");
-}
-
-export function faceRefineSummary(config, locale = "en") {
-    const face = normalizePostprocessConfig(config).face_refine;
-    const zh = locale === "zh";
-    if (!face.enabled) return POST_TEXT[zh ? "zh" : "en"].disabled;
-    const canvas=face.canvas_mode==="manual"?`${face.canvas_size}`:face.canvas_mode==="auto_capped_768"?(zh?"自动 768":"Auto 768"):(zh?"保留细节":"Preserve detail");
-    const target=face.select==="most_central"?(zh?"中心脸":"Central face"):(zh?"最大脸":"Largest face");
-    const strength=`${face.adaptive?(zh?"自适应":"Adaptive"):(zh?"固定":"Fixed")} D${Number(face.base_denoise).toFixed(2)}`;
-    const mask=face.mask_mode==="sam"?"SAM":face.mask_mode==="ellipse"?(zh?"椭圆":"Ellipse"):(zh?"矩形":"Rect");
-    return `${target} · ${canvas} · ${strength} · ${mask}`;
 }
 
 export class PostprocessConfigStore {
@@ -330,7 +240,7 @@ function ensureStyles() {
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-.mmx-postprocess{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;height:100%;min-height:0;box-sizing:border-box}
+.mmx-postprocess{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;height:100%;min-height:0;box-sizing:border-box}
 .mmx-post-column{min-width:0;overflow:auto;border:1px solid #343434;border-radius:8px;background:#181818;padding:10px;box-sizing:border-box}
 .mmx-post-head,.mmx-post-section-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.mmx-post-head{margin-bottom:8px}.mmx-post-head h3{margin:0;font-size:15px}
 .mmx-post-section-head h4{margin:0;font-size:12px;color:#ddd}.mmx-post-enable,.mmx-post-subenable{display:flex;align-items:center;gap:6px;color:#4fff8f;font-weight:650}
@@ -343,7 +253,7 @@ function ensureStyles() {
 .mmx-post-result{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 7px;border-radius:4px;background:#202020}.mmx-post-result b{color:#ddd;font-size:12px}
 .mmx-post-advanced>summary{cursor:pointer;color:#bbb;font-size:12px;font-weight:650;padding:3px}
 .mmx-post-disabled{opacity:.52}.mmx-post-capability{font-size:10px;color:#999}.mmx-post-capability.bad{color:#ff8d8d}
-@media(max-width:980px){.mmx-postprocess{grid-template-columns:1fr}.mmx-post-column{overflow:visible}.mmx-post-grid{grid-template-columns:1fr}}
+@media(max-width:980px){.mmx-post-grid{grid-template-columns:1fr}}
 `;
     document.head.appendChild(style);
 }
@@ -395,69 +305,10 @@ export function mountPostprocessUI(container, store, { fetchApi, directorSize = 
               ${conditional("megapixels", field("Megapixels", "global_refine.megapixels", "number", 'min="0.1" max="16" step="0.1"'))}
               ${conditional("width", field("Width", "global_refine.width", "number", 'min="32" max="8192" step="32"'))}
               ${conditional("height", field("Height", "global_refine.height", "number", 'min="32" max="8192" step="32"'))}
-              <div class="mmx-post-result mmx-post-wide"><span data-field-label="resolved_target">Resolved Target</span><b data-resolved-target></b></div>
+              <div class="mmx-post-result mmx-post-wide"><span data-field-label="resolved_target">Final Size</span><b data-resolved-target></b></div>
             </div>
           </div>
         </div>
-      </section>
-      <section class="mmx-post-column" data-section="face_refine">
-        <div class="mmx-post-head"><h3 data-post-text="face_title">Face Refine</h3><label class="mmx-post-enable"><input type="checkbox" data-path="face_refine.enabled"> <span data-post-text="enabled">ON / OFF</span></label></div>
-        <p class="mmx-post-summary" data-summary="face_refine"></p>
-        <div class="mmx-post-section"><h4 data-post-text="detection_canvas">Detection</h4><p class="mmx-post-note" data-post-text="detection_note"></p><div class="mmx-post-grid">
-          ${conditional("face_detector_model", field("Face Detector Model", "face_refine.detector_model", "select", '<option value="">—</option>'))}
-          ${field("Confidence", "face_refine.confidence", "number", 'min="0.05" max="0.95" step="0.05"')}
-          ${field("Target Face", "face_refine.select", "select", options([["largest","largest"],["most_central","most_central"]]))}
-          <div class="mmx-post-capability mmx-post-wide" data-capability="face_detector"></div>
-        </div></div>
-        <div class="mmx-post-section"><h4 data-post-text="tracking_denoise">Refine</h4><p class="mmx-post-note" data-post-text="refine_note"></p><div class="mmx-post-grid">
-          ${field("Adaptive Strength", "face_refine.adaptive", "checkbox")}
-          ${field("Refine Strength", "face_refine.base_denoise", "number", 'min="0.01" max="1" step="0.01"')}
-          ${field("Canvas Quality", "face_refine.canvas_mode", "select", options([["auto_capped_768","Auto (recommended, max 768)"],["auto_no_downscale","Preserve source detail"],["manual","Manual"]]))}
-          ${conditional("face_canvas_size", field("Canvas Size", "face_refine.canvas_size", "number", 'min="256" max="1536" step="32"'))}
-        </div></div>
-        <div class="mmx-post-section"><h4 data-post-text="stitch">Stitch</h4><p class="mmx-post-note" data-post-text="stitch_note"></p><div class="mmx-post-grid">
-          ${field("Mask", "face_refine.mask_mode", "select", options([["rect","Rectangle (recommended)"],["ellipse","Ellipse"],["sam","SAM (optional)"]]))}
-          ${conditional("face_sam_model", field("SAM Model", "face_refine.sam_model", "select", '<option value="">—</option>'))}
-          ${field("Colour Match", "face_refine.colour_match", "checkbox")}
-          ${field("Blend", "face_refine.blend", "number", 'min="0" max="1" step="0.05"')}
-        </div></div>
-        <details class="mmx-post-section mmx-post-advanced"><summary data-post-text="advanced">Advanced Settings</summary>
-          <div class="mmx-post-divider-title">Tracking</div><div class="mmx-post-grid">
-            ${field("Detector Engine", "face_refine.detector", "select", options([["ultralytics","YOLO"],["insightface","InsightFace"]]))}
-            ${field("Crop Factor", "face_refine.crop_factor", "number", 'min="1.2" max="5" step="0.1"')}
-            ${field("Smooth", "face_refine.smooth_method", "select", options([["gaussian","gaussian"],["savgol","savgol"],["moving_average","moving_average"]]))}
-            ${field("Centre Window", "face_refine.smooth_window", "number", 'min="1" max="201" step="2"')}
-            ${field("Size Window", "face_refine.size_smooth_window", "number", 'min="1" max="201" step="2"')}
-            ${field("Size Mode", "face_refine.size_mode", "select", options([["adaptive","adaptive"],["stable","stable"]]))}
-          </div>
-          <div class="mmx-post-divider-title">Adaptive Denoise</div><div class="mmx-post-grid">
-            ${field("Small Face", "face_refine.strength_small_face", "number", 'min="0" max="1" step="0.05"')}
-            ${field("Large Face", "face_refine.strength_large_face", "number", 'min="0" max="1" step="0.05"')}
-            ${field("Face px Small", "face_refine.face_px_small", "number", 'min="4" max="400" step="1"')}
-            ${field("Face px Large", "face_refine.face_px_large", "number", 'min="8" max="800" step="1"')}
-            ${field("Gamma", "face_refine.gamma", "number", 'min="0.1" max="4" step="0.1"')}
-            ${field("Denoise Smooth", "face_refine.denoise_smooth", "number", 'min="1" max="51" step="2"')}
-          </div>
-          <div class="mmx-post-divider-title">Identity / Fallback</div><div class="mmx-post-grid">
-            ${field("Identity Track", "face_refine.identity_track", "checkbox")}
-            ${conditional("face_identity", field("Identity Reference", "face_refine.identity_reference", "text"))}
-            ${conditional("face_identity", field("Identity Threshold", "face_refine.identity_threshold", "number", 'min="0" max="1" step="0.01"'))}
-            ${field("Fallback Detector", "face_refine.fallback_detector", "select", options([["none","none"]]))}
-            ${conditional("face_fallback", field("Fallback Head Frac", "face_refine.fallback_head_frac", "number", 'min="0" max="1.5" step="0.05"'))}
-          </div>
-          <div class="mmx-post-divider-title">Stitch</div><div class="mmx-post-grid">
-            ${field("Paste", "face_refine.paste_region", "select", options([["face_rect","face_rect"],["full_crop","full_crop"]]))}
-            ${field("Feather", "face_refine.feather", "number", 'min="0" max="256" step="2"')}
-            ${field("Mask Dilation", "face_refine.mask_dilation", "number", 'min="0" max="256" step="2"')}
-            ${field("Undetected", "face_refine.undetected_frames", "select", options([["fade","fade"],["skip","skip"]]))}
-            ${field("Legacy canvas feather", "face_refine.feather_scales_with_crop", "checkbox")}
-          </div>
-          <div class="mmx-post-divider-title">SAM</div><div class="mmx-post-grid">
-            ${conditional("face_sam_advanced", field("SAM Threshold", "face_refine.sam_threshold", "number", 'min="0" max="1" step="0.01"'))}
-            ${conditional("face_sam_advanced", field("SAM Dilation", "face_refine.sam_dilation", "number", 'min="0" max="256" step="1"'))}
-            ${conditional("face_sam_advanced", field("SAM Temporal", "face_refine.sam_temporal_smooth", "number", 'min="1" max="51" step="2"'))}
-          </div>
-        </details>
       </section>`;
     container.replaceChildren(root);
 
@@ -523,20 +374,11 @@ export function mountPostprocessUI(container, store, { fetchApi, directorSize = 
         setConditional("megapixels", !visible.aspectMegapixels);
         setConditional("width", !visible.customSize);
         setConditional("height", !visible.customSize);
-        const fv=faceRefineVisibility(config);
-        setConditional("face_detector_model",!fv.detectorModel);
-        setConditional("face_canvas_size",!fv.manualCanvas);
-        setConditional("face_sam_model",!fv.sam);
-        setConditional("face_sam_advanced",!fv.sam);
-        setConditional("face_identity",!fv.identity);
-        setConditional("face_fallback",!fv.fallback);
         const [w, h] = directorSize();
         root.querySelector('[data-summary="global_refine"]').textContent = globalRefineSummary(config, w, h, locale());
-        root.querySelector('[data-summary="face_refine"]').textContent = faceRefineSummary(config, locale());
         const [tw, th] = resolveGlobalTarget(config, w, h);
         root.querySelector("[data-resolved-target]").textContent = `${tw}×${th}`;
         root.querySelector('[data-section="global_refine"]').classList.toggle("mmx-post-disabled", !config.global_refine.enabled);
-        root.querySelector('[data-section="face_refine"]').classList.toggle("mmx-post-disabled", !config.face_refine.enabled);
     };
     const unsubscribe = store.subscribe(render);
     render(store.get());
@@ -551,23 +393,12 @@ export function mountPostprocessUI(container, store, { fetchApi, directorSize = 
         };
         fill("global_refine.upscale_model", caps.upscale_models);
         fill("global_refine.latent_upscale_model", caps.latent_upscale_models);
-        fill("face_refine.detector_model", caps.face_detectors);
-        fill("face_refine.fallback_detector", ["none", ...(caps.face_detectors || [])]);
-        fill("face_refine.sam_model", caps.sam_models);
         const h3LatentModels = caps.latent_upscale_models || [];
         const currentGlobal = store.get().global_refine;
         if (!currentGlobal.latent_upscale_model && h3LatentModels.length === 1) {
             store.patch("global_refine", "latent_upscale_model", h3LatentModels[0]);
         }
-        const detectors=caps.face_detectors||[];
-        const currentFace=store.get().face_refine;
-        if(!currentFace.detector_model&&detectors.length){
-            const preferred=detectors.find((name)=>/face.*yolo/i.test(String(name)))||detectors[0];
-            store.patch("face_refine","detector_model",preferred);
-        }
         capabilities = caps;
-        const ds=root.querySelector('[data-capability="face_detector"]');
-        if(ds){ds.textContent=detectors.length?"":POST_TEXT[locale()==="en"?"en":"zh"].no_face_detector;ds.classList.toggle("bad",!detectors.length);}
         const vsr = root.querySelector('[data-capability="nvidia_rtx_vsr"]');
         const ready = !!caps.dependencies?.nvidia_rtx_vsr;
         vsr.classList.toggle("bad", !ready);

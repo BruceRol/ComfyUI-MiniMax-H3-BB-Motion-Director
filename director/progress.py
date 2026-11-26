@@ -28,13 +28,12 @@ DIRECTOR_PHASES = (
     "global_refine",
     "decode",
     "assemble",
-    "face_refine",
     "finalize",
     "rtx_deblur",
 )
 
 SEGMENT_PHASES = ("prepare", "context_encode", "sample", "global_upscale", "global_refine", "decode")
-GLOBAL_PHASES = ("assemble", "face_refine", "finalize", "rtx_deblur")
+GLOBAL_PHASES = ("assemble", "finalize", "rtx_deblur")
 PHASE_WEIGHTS = {
     "prepare": 1.0,
     "context_encode": 1.5,
@@ -43,7 +42,6 @@ PHASE_WEIGHTS = {
     "global_refine": 4.0,
     "decode": 2.0,
     "assemble": 1.0,
-    "face_refine": 8.0,
     "finalize": 1.0,
     "rtx_deblur": 4.0,
 }
@@ -59,7 +57,6 @@ PHASE_LABELS = {
     "global_refine": "全局精修 · 二次采样",
     "decode": "AV 解码",
     "assemble": "多段组合",
-    "face_refine": "人脸精修",
     "finalize": "生成结果整理",
     "rtx_deblur": "NVIDIA RTX Deblur",
     "plan": "解析时间轴 / 加载视频",
@@ -234,23 +231,6 @@ def report_director_report(node_id: str | None, report: str) -> None:
             )
     except Exception as exc:
         log.debug("Director report send skipped: %s", exc)
-
-
-def report_director_final_ready(node_id: str | None, payload: dict) -> None:
-    if not node_id:
-        return
-    try:
-        from server import PromptServer
-
-        srv = PromptServer.instance
-        if srv:
-            srv.send_sync(
-                "minimax_motion_director_final_ready",
-                {"node_id": str(node_id), **dict(payload or {})},
-                srv.client_id,
-            )
-    except Exception as exc:
-        log.debug("Director final-ready send skipped: %s", exc)
 
 
 def report_director_audio_preview(node_id: str | None, audio_outputs) -> None:

@@ -13,9 +13,8 @@ import folder_paths
 
 from ..lib.tensor_fingerprint import tensor_fingerprint
 from .audio_trim import audio_has_samples
-from .cache_path import cache_root
+from .cache_path import cache_root, _write_via_temp
 from .context_identity import context_producer_fingerprint
-from .segment_cache import _write_via_temp
 
 log = logging.getLogger("ComfyUI-MiniMax-H3-Motion-Director.context_cache")
 

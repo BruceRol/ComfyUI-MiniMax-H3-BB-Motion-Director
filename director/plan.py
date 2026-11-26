@@ -136,8 +136,8 @@ class DirectorPlan:
     export_max_frames: int = 0
     export_mode: str = "all"  # "all" | "segments"
     run_indices: frozenset[int] | None = None  # None = run all segments
-    # Kept separately because an enabled, all-selected run also needs to build
-    # reusable full-segment caches even though run_indices collapses to None.
+    # Kept because the timeline UI round-trips this flag; run_indices collapses to
+    # None when every segment is selected, so the two cannot be merged.
     run_select_enabled: bool = False
     continuity_enabled: bool = False
     continuity_overlap_frames: int = 0

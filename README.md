@@ -1,4 +1,4 @@
-# MiniMax H3 Motion Director.  [English](README.md) | [简体中文](README_zh.md)
+# BB MiniMax H3 Motion Director
 
 ![Version](https://img.shields.io/badge/version-v1.2.0-2ea44f)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
@@ -6,13 +6,13 @@
 
 **One Director. From a single MiniMax H3 shot to a complete multi-segment video project.**
 
-Here is  tutorial, or you like to read the introduction first? / 下面连结是教学，或者你想先往下看看介绍?
+Here is the tutorial, or you prefer to read the introduction first?
 
-[English](docs/USER_GUIDE.md) | [简体中文](docs/USER_GUIDE_zh.md)
+[User guide](docs/USER_GUIDE.md)
 
-Build `T2V / I2V / FL2V / R2V / V2V / RV2V` shots in one production interface, mix generation methods segment by segment, carry visual and generated-audio context across shots, rerun only the segments that need work, manage reusable assets, preview the pipeline live, refine the result, and export the final video without turning the ComfyUI graph into a wall of nodes.
+Build `T2V / I2V / FL2V / R2V / V2V / RV2V` shots in one production interface, mix generation methods segment by segment, carry visual and generated-audio context across shots, rerun only the segments that need work, manage reusable assets, preview the pipeline live, refine the result, and write one MP4 per clip without turning the ComfyUI graph into a wall of nodes.
 
-> Current version: **v1.2.0** · Registry package: **1.2.0**
+> Current version: **v1.2.0**
 
 <!-- IMAGE SLOT 1
 Place your Mixed + Selective Run screenshot here:
@@ -37,12 +37,37 @@ The screenshot above shows the native **Mixed** timeline: five segments using di
 | **Segment Result reuse** | Reuse a decoded frame from an earlier Mixed segment as a later I2V / FL2V input |
 | **Source-video workflow** | Dedicated V2V / RV2V handling and Source Bridge for standalone source-video boundaries |
 | **Assets** | Common References plus a persistent Material Library for images, audio, video, and prompts |
-| **Sampling** | Built-in sampling or external ComfyUI `SAMPLER + SIGMAS` |
-| **Post-processing** | Global Refine, upscale, optional NVIDIA RTX VSR / Deblur, Face Refine |
-| **Preview & output** | Director Live Preview, Segment / Multi Segment / Final Result views, final video saving |
-| **ComfyUI integration** | External `Director Inputs / Director Assets`, plus `images / audio / fps` outputs |
+| **Sampling** | External ComfyUI `SAMPLER + SIGMAS` (required), plus an optional refine trio |
+| **Post-processing** | Global Refine, upscale, optional NVIDIA RTX VSR / Deblur, Face Refine — applied per segment |
+| **Preview & results** | Director Live Preview, Segment / Multi Segment result views, Director Report |
+| **Output** | One h264 MP4 per clip, written during generation |
 
-Motion Director is an `OUTPUT_NODE`, so it can run as the end of a workflow while still exposing its final frames, audio, and FPS to downstream ComfyUI nodes.
+The Director is an `OUTPUT_NODE` with no image, audio, or FPS sockets: it writes the files itself, so nothing downstream is needed to get a playable video.
+
+---
+
+## Output: one MP4 per clip
+
+Files are written inside the ComfyUI output folder while the timeline is generated, one MP4 per clip.
+
+| Widget | Default | Meaning |
+|---|---|---|
+| `dirname_prefix` | `MiniMaxH3_BB` | Subdirectory inside the output folder |
+| `pix_fmt` | `yuv420p` | h264 pixel format (`yuv420p` / `yuv422p` / `yuv444p`) |
+| `crf` | `23` | h264 quality, 0–51 (lower = better, larger file) |
+
+Rules:
+
+- File names are `clip-XXX.mp4`, numbered from 1 like the timeline prompts (the first clip is
+  `clip-001.mp4`). One MP4 is written per clip.
+- Export mode **all** → every segment in the timeline is written. Export mode **by segment** → only the segments selected for the run are written.
+- Every file carries its audio track (AAC, 44100 Hz). A segment with no audio gets a silent padded track, so there is never a video file without audio.
+- No metadata is written into the files. `faststart` is set and the color properties are bt709.
+- Frames are padded to the node `width` / `height` canvas, so segments with different source sizes share one frame size.
+- Clips are written after the continuity pair-operations, so a rewritten previous tail is still included.
+- Because clips are streamed to disk, the assembly step no longer keeps a second full copy of the whole video in memory.
+
+Known limitation: when **Source Bridge pairs** and **Face Refine** are active together, the run still needs the real combined frames in memory, so streaming is skipped and no files are written for that run. If `av` (pyav) is not installed, the node logs a warning and falls back to the in-memory path.
 
 ---
 
@@ -145,7 +170,7 @@ The same Director also supports six standalone MiniMax H3 task modes.
 | `V2V` | Source Video + Prompt | Regenerate visuals while keeping source motion/content structure |
 | `RV2V` | Source Video + Prompt + references | Source motion plus identity / audio references |
 
-For R2V, each Assets group can contain up to:
+For R2V, each Common References group can contain up to:
 
 ```text
 Picture 1-9
@@ -200,7 +225,7 @@ In Mixed Mode, the Library targets the currently selected segment and only expos
 
 ## Post-processing
 
-The Director can continue beyond first-pass generation instead of requiring a separate post-processing graph for every project.
+The Director can continue beyond first-pass generation instead of requiring a separate post-processing graph for every project. Post-processing is applied per segment, so it works with the per-clip output.
 
 <!-- IMAGE SLOT 5
 Place your Postprocess screenshot here:
@@ -212,7 +237,7 @@ Recommended source: 螢幕擷取畫面 2026-08-19 034623(1).png
 
 ### Global Refine
 
-Global Refine can run a second sampling pass and optionally upscale the segment/result before refinement.
+Global Refine can run a second sampling pass and optionally upscale the segment before refinement.
 
 Available paths include, depending on the installed runtime and models:
 
@@ -234,11 +259,11 @@ Face Refine provides an integrated face-repair path with:
 - mask / stitching controls
 - color matching
 
-If no usable face is detected or Face Refine fails, the assembled result is kept as the fallback.
+If no usable face is detected or Face Refine fails, the segment result is kept as the fallback.
 
 ---
 
-## Results: Segment, Multi Segment, Final Result
+## Results: Segment and Multi Segment
 
 Results are managed inside the Director rather than being reduced to one anonymous output batch.
 
@@ -248,81 +273,39 @@ docs/images/results-final.png
 Recommended source: 螢幕擷取畫面 2026-08-19 035629(1).png
 -->
 
-![MiniMax H3 Motion Director — Final Result](docs/images/results-final.png)
+![MiniMax H3 Motion Director — Results](docs/images/results-final.png)
 
-The Results page has three levels:
+The Results page has two levels:
 
 - **Segment** — inspect one generated segment
-- **Multi Segment** — preview/export a continuous segment range
-- **Final Result** — inspect and save the complete pipeline result
+- **Multi Segment** — preview a continuous segment range
 
-The Final view also exposes video save options and a Director Report containing the actual run configuration, continuity state, sampling information, and post-processing status.
-
-Public node outputs remain simple:
-
-| Output | Type | Description |
-|---|---|---|
-| `images` | `IMAGE` list | Final generated video frames |
-| `audio` | `AUDIO` list | Matching final audio |
-| `fps` | `FLOAT` | Final frame rate |
+The report panel shows the actual run configuration, continuity state, sampling information, post-processing status, seam diagnostics, and the per-clip summary of the files written.
 
 ---
 
-## External Director Inputs / Assets
+## Media inputs
 
-The Director is an all-in-one production interface, but it is not a closed box. Other ComfyUI nodes can still feed prompts and media into standalone modes through the external input architecture.
-
-<!-- IMAGE SLOT 7
-Place your external Inputs / Assets node screenshot here:
-docs/images/external-inputs.png
-Recommended source: 螢幕擷取畫面 2026-08-19 040419(1).png
--->
-
-![MiniMax H3 Motion Director — External Inputs and Assets](docs/images/external-inputs.png)
+There are no external input nodes. Media is referenced by filename from the ComfyUI input folder through the timeline JSON, and the Director resolves it at execution time.
 
 ```text
-MiniMax H3 Motion Director Assets
-        ↓
-MiniMax H3 Motion Director Inputs
-        ↓
-MiniMax H3 Motion Director
+ComfyUI input folder  ->  timeline JSON  ->  Director
 ```
-
-The repository exposes three Director-related nodes:
-
-| Node | Purpose |
-|---|---|
-| `MiniMax H3 Motion Director` | Main UI, execution, continuity, preview, post-processing, and results |
-| `MiniMax H3 Motion Director Inputs` | Dynamic Prompt / image / Assets inputs |
-| `MiniMax H3 Motion Director Assets` | Packages mode-specific media for an input group |
-
-External input shapes by standalone mode:
-
-```text
-T2V   prompt_N
-I2V   image_prompt_N + image_N
-FL2V  fl_prompt_N + fl_assets_N
-R2V   ref_prompt_N + ref_assets_N
-RV2V  rv_prompt_N + rv_assets_N
-V2V   Source Video is managed by Director
-```
-
-Mixed v1 uses its native Director timeline/media UI rather than the external group system.
 
 ---
 
 ## Sampling and performance
 
-Motion Director can use either its internal sampler settings or an external ComfyUI sampling chain.
-
-Connect both:
+Sampling is external: connect both
 
 ```text
 SAMPLER
 SIGMAS
 ```
 
-and the Director uses external sampling. Otherwise it uses its internal sampler, scheduler, step count, Video Sigma Shift, and Audio Sigma Shift settings.
+and the Director uses them. Both inputs are required, and the executed step count is `len(sigmas) - 1`.
+
+The refine stage can use its own trio (`refine_model` / `refine_sampler` / `refine_sigmas`), or fall back to the main sampler and sigmas. When a refine trio is connected, it must be connected as a complete trio.
 
 For longer jobs, **Clear VRAM Between Segments** can reduce memory pressure by releasing models/cache between segment runs. This trades some speed for lower VRAM usage and is intended as a stability option rather than a performance boost.
 
@@ -330,20 +313,12 @@ For longer jobs, **Clear VRAM Between Segments** can reduce memory pressure by r
 
 ## Installation
 
-### ComfyUI-Manager / Comfy Registry
-
-Search for:
-
-```text
-MiniMax H3 Motion Director
-```
-
 ### Manual install
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/j955229/ComfyUI-MiniMax-H3-Motion-Director.git
-cd ComfyUI-MiniMax-H3-Motion-Director
+git clone https://github.com/BruceRol/ComfyUI-MiniMax-H3-BB-Motion-Director.git
+cd ComfyUI-MiniMax-H3-BB-Motion-Director
 python -m pip install -r requirements.txt
 ```
 
@@ -351,13 +326,15 @@ If you use a Windows portable build, run `pip` with the Python executable used b
 
 Restart ComfyUI completely after installation. If an update changes frontend files, restart ComfyUI and hard-refresh the browser.
 
+Saved workflows from the original project do not load as-is: the node class name changed and `sampler` / `sigmas` are now required inputs, so the Director node must be recreated.
+
 ---
 
 ## Requirements / compatibility
 
 Motion Director requires a **recent ComfyUI build with official MiniMax H3 support**, including the official MiniMax H3 conditioning nodes used by the current runtime.
 
-Core Python dependencies are declared in the project package/requirements files. Some post-processing features have additional optional runtime/model requirements, for example:
+Core Python dependencies are declared in the project package/requirements files, including `pyav` for the per-clip MP4 mux. Some features have additional optional runtime/model requirements, for example:
 
 - NVIDIA RTX VSR / Deblur requires the compatible NVIDIA VFX runtime/package and supported NVIDIA hardware
 - Face Refine detector/SAM paths require the corresponding detector/model dependencies selected in the UI
@@ -365,13 +342,13 @@ Core Python dependencies are declared in the project package/requirements files.
 
 If a feature is optional, the Director is designed to keep the usable earlier result when that post-processing stage cannot run.
 
-> Do not load the standalone `ComfyUI-H3-Motion-Context` alongside this project. Motion Context compatibility is integrated into Motion Director.
+> Do not load the standalone `ComfyUI-H3-Motion-Context` alongside this project. Motion Context compatibility is integrated into Motion Director. Only one Motion Director fork can be active at a time, because the MiniMax H3 patches are applied globally.
 
 ---
 
 ## Mixed v1 notes
 
-- Mixed v1 manages its media through the native Director UI instead of external `Director Inputs` groups.
+- Mixed v1 manages its media through the native Director UI.
 - Mixed `Source Video` is local-upload only; Material Library videos are references, not the actual source-video input.
 - Source Bridge is a standalone V2V / RV2V feature and is not used by Mixed v1.
 - Segment Result references are backward-only: a later segment may reuse an earlier result, not a future result.

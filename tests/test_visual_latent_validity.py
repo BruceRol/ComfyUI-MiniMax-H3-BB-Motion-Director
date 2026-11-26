@@ -24,15 +24,12 @@ def _load_module(monkeypatch):
 
     cache_path = types.ModuleType("visual_valid_testpkg.director.cache_path")
     cache_path.cache_root = lambda *args, **kwargs: None
+    cache_path._write_via_temp = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, cache_path.__name__, cache_path)
 
     context_cache = types.ModuleType("visual_valid_testpkg.director.context_cache")
     context_cache.context_fingerprint = lambda *args, **kwargs: {}
     monkeypatch.setitem(sys.modules, context_cache.__name__, context_cache)
-
-    segment_cache = types.ModuleType("visual_valid_testpkg.director.segment_cache")
-    segment_cache._write_via_temp = lambda *args, **kwargs: None
-    monkeypatch.setitem(sys.modules, segment_cache.__name__, segment_cache)
 
     motion_context = types.ModuleType("visual_valid_testpkg.director.motion_context")
     motion_context.select_context_span = lambda requested, available: min(5, int(available))
@@ -88,12 +85,3 @@ def test_prepare_latent_tail_defaults_visual_validity_true_for_old_handoffs(monk
     _tail, tail_handoff = mod.prepare_latent_context_tail(latent, handoff)
 
     assert tail_handoff["visual_latent_valid"] is True
-
-
-def test_executor_facade_marks_and_consumes_visual_invalidity():
-    source = Path("director/executor_core.py").read_text(encoding="utf-8")
-    assert 'updated_handoff["visual_latent_valid"] = valid' in source
-    assert 'tail_latent["visual_latent_valid"] = valid' in source
-    assert 'context_latent.get("visual_latent_valid") is False' in source
-    assert 'call["context_audio_latent"] = context_latent' in source
-    assert 'call["context_latent"] = None' in source

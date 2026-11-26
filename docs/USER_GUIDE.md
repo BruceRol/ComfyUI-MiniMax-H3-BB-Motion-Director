@@ -1,6 +1,6 @@
 # MiniMax H3 Motion Director User Guide
 
-**English** | [简体中文](USER_GUIDE_zh.md)
+**English**
 
 This guide is for users operating **MiniMax H3 Motion Director** for the first time. It focuses on practical use: **what each control does, when to use it, and how to run T2V / I2V / FL2V / R2V / V2V / RV2V / Mixed workflows.**
 
@@ -13,7 +13,7 @@ This guide is for users operating **MiniMax H3 Motion Director** for the first t
 Almost every project follows the same pipeline:
 
 ```text
-Generation mode → Output settings → Segments/assets → Prompt → Generate → Live Preview → Postprocess → Results → Save Video
+Generation mode → Output settings → Segments/assets → Prompt → Generate → Live Preview → Postprocess → Clip Write → Merge
 ```
 
 For a first test, generate a 5–10 second T2V clip:
@@ -24,7 +24,9 @@ For a first test, generate a 5–10 second T2V clip:
 4. Execute the ComfyUI workflow.
 5. Watch the active stage under **Live Preview**.
 6. Once the content is worth keeping, enable **Postprocess**. This avoids spending upscale/refine time on clips you may reroll.
-7. Open **Results → Final Result**, inspect the output and save the video.
+7. Each clip is written as `clip-XXX.mp4` in the output subdirectory as soon as it is final. In
+   Export mode `all` the clips are then merged into `full_video.mp4`; in Export mode `by segment`
+   only the selected clips are written and nothing is merged.
 
 ---
 
@@ -355,14 +357,21 @@ Recommended workflow:
 2. Identify the segments that are not good enough.
 3. Enable **Selective Run**.
 4. Select only those Segment/Groups.
-5. Keep the other cached/source results.
-6. Once the edit is locked, run final Global Refine / Face Refine.
+5. Run again. Only the selected segments are executed, and each one writes its own MP4.
+6. Once the edit is locked, run the final Global Refine / Upscale pass.
+
+Two things changed with per-clip output:
+
+- There is no cross-run segment cache. A selected segment that references an earlier segment
+  forces that producer to be regenerated in the same run, so a rerun is never built on stale
+  frames from a previous run.
+- In Export mode `by segment`, only the selected clips are written and no merge is performed.
 
 This is also why a low-resolution first pass is efficient: spend upscale/refine time only on clips you have decided to keep.
 
 ---
 
-## 14. Postprocess: Global Refine, Upscale and Face Refine
+## 14. Postprocess: Global Refine and Upscale
 
 ![Post-processing](images/tutorial/08-postprocess.webp)
 
@@ -374,19 +383,18 @@ This is also why a low-resolution first pass is efficient: spend upscale/refine 
 | 4 | Upscale | Selects H3 Learned Latent or other available upscale paths |
 | 5 | Output Resolution | Sets the postprocess target size |
 | 6 | NVIDIA RTX Deblur | Optional RTX deblur; requires the corresponding NVIDIA runtime/hardware |
-| 7 | Face Refine master | Enables face refinement |
-| 8 | Detection | Face detector, confidence and target face |
-| 9 | Refine | Face regeneration strength and canvas quality |
-| 10 | Pasteback | Mask, blend and color matching controls |
-| 11 | Advanced Settings | Less commonly changed parameters |
+| 7 | Advanced Settings | Less commonly changed parameters |
+
+> Face Refine has been removed from this version and may return as a separate system. The
+> annotated screenshot still shows its former callouts 7–10.
 
 ### Recommended production order
 
 ```text
-Low-resolution first pass → Check content/motion/composition → Reroll failed segments → Lock the shots → Global Refine / Upscale → Face Refine → Final Result
+Low-resolution first pass → Check content/motion/composition → Reroll failed segments → Lock the shots → Global Refine / Upscale → Clip Write → Merge
 ```
 
-If Global Refine fails, the completed first-pass result is retained. If Face Refine cannot find a usable face or the stage fails, the assembled result remains available instead of invalidating the whole pipeline.
+If Global Refine fails, the completed first-pass result is retained.
 
 ---
 
@@ -397,7 +405,7 @@ If Global Refine fails, the completed first-pass result is retained. If Face Ref
 | # | Area | What it does |
 |---:|---|---|
 | 1 | Live Preview page | Opens Director Live Preview |
-| 2 | General / Global Refine / Face Refine | Switches the stage being observed |
+| 2 | General / Global Refine | Switches the stage being observed |
 | 3 | Preview | Shows intermediate frames for the active stage |
 | 4 | Progress/status | Current Segment, stage, step and overall progress |
 | 5 | Preview Settings | Preview frame count, FPS, max resolution, JPEG quality and refresh interval |
@@ -406,32 +414,56 @@ Live Preview is observational; it does not change the prompt or generation resul
 
 ---
 
-## 16. Results: inspect and save the final video
+## 16. Results: inspect clips and the report
 
 ![Results](images/tutorial/10-results.webp)
 
 | # | Control | What it does |
 |---:|---|---|
 | 1 | Results page | Opens Results |
-| 2 | Segment / Multi Segment / Final Result | Switches between one segment, a continuous range and the complete result |
-| 3 | Player / playback controls | Checks final video and audio |
-| 4 | Save Video panel | Video export settings |
-| 5 | Auto-save final result | Writes the final video automatically when the pipeline completes |
-| 6 | Path | Output directory |
-| 7 | Filename prefix | Prefix for the saved file |
-| 8 | Format | Container/format; `auto` lets the Director choose |
-| 9 | Encoder | Video encoder; `auto` uses automatic selection |
-| 10 | Encoding mode | Encoding strategy |
-| 11 | Save Video | Manually saves the current final result |
-| 12 | Copy report | Copies the current Director Report to the clipboard |
+| 2 | Segment / Multi Segment | Switches between one generated segment and a continuous range |
+| 3 | Segment selector / range | Chooses the segment or the range to inspect |
+| 4 | Player / playback controls | Checks the frames and audio for the current selection |
+| 5 | Report | Read-only execution report, including the **Clip Output** section |
+| 6 | Copy report | Copies the current Director Report to the clipboard |
 
-**Final Result Information** and the **Report body** are read-only information areas. Red callout `12` points to the operable Copy button. The report records the actual execution configuration, continuity, sampling and postprocess status.
+The **Report body** is a read-only information area; red callout `6` points to the operable Copy
+button. The report records the actual execution configuration, continuity, sampling, postprocess
+status, the retention mode, and every file written during the run.
 
-The three result levels are:
+The two result levels are:
 
 - **Segment** — inspect one generated segment.
-- **Multi Segment** — preview/export a continuous segment range.
-- **Final Result** — inspect and save the complete pipeline output.
+- **Multi Segment** — inspect a continuous segment range.
+
+### Output files
+
+The Director is an output node: it writes files directly, there is no separate save panel.
+
+| Setting | What it does |
+|---|---|
+| `dirname_prefix` | Subdirectory name under the ComfyUI output folder |
+| `pix_fmt` | h264 pixel format; `yuv420p` has the best compatibility |
+| `crf` | h264 quality; lower means better quality and larger files |
+
+- Every clip is written as `clip-XXX.mp4`, numbered from 1 like the timeline prompts (the first clip
+  is `clip-001.mp4`), as soon as it is final.
+- Output is h264 MP4 only. There is no metadata, no pingpong, no `trim_to_audio`, and no PNG export.
+- Every clip carries audio; a segment without audio gets a silent padded track.
+- Export mode `all`: every segment is written, then merged into `full_video.mp4` in the same
+  subdirectory. Clip files are deleted only after a successful merge, and a single clip is renamed.
+- Export mode `by segment`: only the selected clips are written, and no merge is performed.
+- The full path of every written file is printed to the ComfyUI console.
+
+### Low RAM retention
+
+In the Performance group:
+
+- **ON** — each clip is written as soon as it is final and only the head/tail continuity windows
+  stay in RAM.
+- **OFF** — every exported chunk stays in RAM until the merge.
+
+Motion Context behaves identically in both modes, and no cache files are written in either mode.
 
 ---
 
@@ -448,7 +480,8 @@ T2V
 → Inspect each segment
 → Selective Run failed segments
 → Postprocess
-→ Final Result
+→ Clip Write
+→ Merge
 ```
 
 ### B. Animate a character image
@@ -543,9 +576,11 @@ R2V / RV2V
 | Reference Video | Reference information; not the same role as Source Video |
 | Segment Result | Static decoded frame from an earlier segment for later I2V/FL2V |
 | Motion Context | Cross-segment motion/context continuity; separate from Segment Result |
-| Selective Run | Reruns only selected segments while keeping other available results |
+| Selective Run | Runs only the selected segments in the current run; a selected segment that references an earlier one forces that producer to be regenerated |
 | Global Refine | Global second-pass sampling/upscale after first-pass generation |
-| Face Refine | Local H3 refinement on detected face regions followed by pasteback |
+| Clip Write | Writes one h264 MP4 per clip (`clip-XXX.mp4`) as soon as the clip is final |
+| Merge | Concatenates the written clips into `full_video.mp4` in Export mode `all` |
+| Low RAM retention | Windowing policy: keep only the head/tail continuity windows in RAM instead of every chunk |
 
 ---
 
@@ -562,6 +597,9 @@ Before a long generation, verify:
 - Audio Drive intervals do not overlap or exceed the segment.
 - Mixed boundary continuity matches the story intent.
 - Selective Run has not accidentally selected or omitted a segment.
-- Expensive upscale/Face Refine is postponed until first-pass content is worth keeping.
+- Expensive upscale is postponed until first-pass content is worth keeping.
+- `sampler` and `sigmas` are connected (external sampling is required; the Director no longer
+  samples internally). `steps` is accepted but ignored — executed steps come from the schedule.
+- `dirname_prefix` points to the subdirectory where the clips and the merged file are written.
 
 That check prevents the most common avoidable reruns in long projects.

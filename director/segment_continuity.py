@@ -46,7 +46,6 @@ import torch
 
 from ..lib.image_prep import cat_frames_variable_size, fit_canvas, fit_long_edge
 from .plan import DirectorPlan, SegmentPlan, wan_align_frame_count
-from .segment_cache import load_segment_cache
 
 log = logging.getLogger("ComfyUI-MiniMax-H3-Motion-Director.director.continuity")
 
@@ -281,23 +280,22 @@ def resolve_prev_segment_output(
     all_segments: list[SegmentPlan],
     seg_index: int,
     completed: dict[int, torch.Tensor],
-    node_id: str | None,
 ) -> torch.Tensor | None:
+    """Continuity handoff reads the previous segment produced by this run only.
+
+    Cross-run disk cache reuse is gone, so a consumer can never be planned without
+    its producer: ``expand_run_selection`` always generates the producer first.
+    """
     prev_idx = seg_index - 1
     if prev_idx < 0:
         return None
     if prev_idx in completed:
         return completed[prev_idx]
-    prev_seg = all_segments[prev_idx]
-    cached = load_segment_cache(node_id, prev_seg, plan)
-    if cached is not None:
-        return cached
     if not plan.continuity_enabled:
         return None
     raise ValueError(
-        f"段间连贯：片段 #{seg_index + 1} 需要上一段 #{prev_idx + 1} 的生成结果。"
-        "请先运行上一段，或开启「全部运行」以生成完整序列；"
-        "若使用「选择运行」，请确保上一段已有有效缓存。"
+        f"Continuity: segment #{seg_index + 1} needs the generated result of earlier "
+        f"segment #{prev_idx + 1}, which was not produced in this run."
     )
 
 
@@ -1536,6 +1534,47 @@ def concat_continuous_chunks(
         fixed[-1] = left
         fixed.append(body)
     return cat_frames_variable_size(fixed)
+
+
+def apply_pair_ops_windows(
+    left_window,
+    right_window,
+    plan: DirectorPlan,
+) -> None:
+    """Run the boundary pair ops on two retained windows, in place.
+
+    Mirrors ``concat_continuous_chunks`` for one boundary.  Every op may return a clone,
+    so each window view is re-assigned right after the op that touched it.  The windows
+    are sized to cover each op's decision region (see ``director/low_ram.py``), so the ops
+    decide exactly as they would on the full chunks.
+
+    Order is the legacy one: left-side ops first, then the right-side ops, then
+    ``_micro_seam_bridge`` on both sides.  The caller must run the Source Bridge write
+    *before* this, because the pair op can overwrite the bridge frame at the left window's
+    last frame.
+    """
+    if not getattr(plan, "continuity_enabled", False):
+        return
+
+    left = _unfreeze_held_tail(left_window.left_view)
+    left_window.set_left_view(left)
+    if CONTINUITY_HOLD_POP_ON_TAIL:
+        left = _break_hold_pop_window(left, from_end=True)
+        left_window.set_left_view(left)
+
+    right = _break_hold_pop_window(right_window.right_view, from_end=False)
+    right_window.set_right_view(right)
+    if float(CONTINUITY_SPIKE_WEIGHT) > 0:
+        right = _ease_opening_spikes(right)
+        right_window.set_right_view(right)
+    right = _soften_body0_toward_prev(right, left_window.left_view)
+    right_window.set_right_view(right)
+    right = _additive_opening_luma(right, left_window.left_view)
+    right_window.set_right_view(right)
+
+    left, right = _micro_seam_bridge(left_window.left_view, right_window.right_view)
+    left_window.set_left_view(left)
+    right_window.set_right_view(right)
 
 
 def apply_cached_segment_continuity(

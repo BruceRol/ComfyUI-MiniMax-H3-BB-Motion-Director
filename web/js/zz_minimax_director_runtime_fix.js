@@ -5,12 +5,12 @@ import {
     directorGroupCount,
     parseDirectorTimeline,
     resolveDirectorTaskKey,
-} from "./minimax_timeline_core.mjs?boot=timeline_core_v1";
+} from "./minimax_timeline_core.mjs?boot=timeline_core_v2";
 import {
     localizedWidgetLabel,
     samplingHeaderText,
     sectionTitle,
-} from "./minimax_director_sections_core.mjs?boot=director_sections_v2";
+} from "./minimax_director_sections_core.mjs?boot=director_sections_v3";
 import {
     generatedAudioContinuationShouldBeInteractive,
     restoreContinuityWidgetRenderer,
@@ -31,8 +31,8 @@ const LABEL_SOURCE_BY_WIDGET = Object.freeze({
     pin_renorm_enabled: "pin_renorm_enabled",
     mmx_pin_renorm_proxy: "mmx_pin_renorm_proxy",
     mmx_global_refine_proxy: "mmx_global_refine_proxy",
-    mmx_face_refine_proxy: "mmx_face_refine_proxy",
     clear_vram_between_segments: "clear_vram_between_segments",
+    low_ram: "low_ram",
 });
 
 function widgetByName(node, name) {

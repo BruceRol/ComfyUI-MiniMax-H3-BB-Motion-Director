@@ -297,22 +297,14 @@ def build_mixed_director_plan(
     plan.mixed_segments = normalized
     plan.mixed_dependency_closure = frozenset(dependency_closure)
     plan.mixed_requested_run_indices = parsed_run_indices
-    plan.mixed_node_id = effective_node_id
     plan.source_overlap_frames = 0
 
     if parsed_run_indices is not None:
-        from .mixed_selection import MixedRunSelection
-
-        plan.run_indices = MixedRunSelection(
-            plan=plan,
-            segments=normalized,
-            requested=set(parsed_run_indices),
-            node_id=effective_node_id,
-        )
+        plan.run_indices = frozenset(expand_run_selection(normalized, parsed_run_indices))
 
     from .mixed_runtime import attach_mixed_result_refs
 
-    attach_mixed_result_refs(plan, node_id=effective_node_id)
+    attach_mixed_result_refs(plan)
     return plan
 
 

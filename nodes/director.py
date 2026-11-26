@@ -11,24 +11,19 @@ from __future__ import annotations
 
 import time
 
+from ..director.execution_report import fmt_seconds
 from ..director.executor_core import execute_director_plan_core
-from ..director.execution_report import append_report_section_lines, fmt_seconds
-from ..director.mixed_runtime import bind_mixed_runtime_node
-from ..director.postprocess_config import normalize_postprocess_config
 from ..director.progress import (
     report_director_audio_preview,
     report_director_complete,
-    report_director_final_ready,
-    report_director_progress,
     report_director_report,
 )
-from ..director.rtx_deblur import apply_rtx_deblur
-from ..director.video_export import FINAL_VIDEO_REGISTRY
 from .director_common import (
-    finalize_director_outputs,
+    director_output_inputs,
+    director_perf_inputs,
+    finalize_director_report,
     prepare_director_plan,
     timeline_required_inputs,
-    director_perf_inputs,
 )
 
 _CATEGORY = "MiniMaxH3"
@@ -62,20 +57,6 @@ def director_timeline_required_inputs() -> dict:
         "global_prompt": ("STRING", gp_meta),
         "total_frames": ("INT", frames_meta),
     }
-
-
-def _append_mixed_dependency_report(plan, report: str) -> str:
-    auto_indices = sorted(getattr(plan, "mixed_auto_run_indices", None) or [])
-    if not auto_indices:
-        return report
-    reasons = getattr(plan, "mixed_auto_run_reasons", None) or {}
-    lines = ["", "[Mixed Selective Run]", "Auto-executed prerequisite segment(s):"]
-    for index in auto_indices:
-        why = reasons.get(int(index)) or reasons.get(str(index)) or []
-        suffix = f" — {' | '.join(str(item) for item in why)}" if why else ""
-        lines.append(f"- Segment {int(index) + 1}{suffix}")
-    lines.append("Only missing/stale prerequisites were added; valid dependency caches were reused.")
-    return (report or "") + "\n" + "\n".join(lines)
 
 
 class BB_MiniMaxH3MotionDirector:
@@ -238,11 +219,10 @@ class BB_MiniMaxH3MotionDirector:
                         "tooltip": "Internal Director post-processing and Output Preview configuration.",
                     },
                 ),
+                **director_output_inputs(),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
-                "prompt": "PROMPT",
-                "extra_pnginfo": "EXTRA_PNGINFO",
             },
         }
 
@@ -277,9 +257,10 @@ class BB_MiniMaxH3MotionDirector:
                 )
         return True
 
-    RETURN_TYPES = ("IMAGE", "AUDIO", "FLOAT", "INT", "IMAGE", "STRING")
-    RETURN_NAMES = ("images", "audio", "fps", "frame_count", "source_images", "report")
-    OUTPUT_IS_LIST = (True, True, False, False, True, False)
+    OUTPUT_NODE = True
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    OUTPUT_IS_LIST = ()
     FUNCTION = "execute"
     CATEGORY = _CATEGORY
     DESCRIPTION = (
@@ -288,6 +269,7 @@ class BB_MiniMaxH3MotionDirector:
         "SAMPLER+SIGMAS (required), and LTXVSeparateAVLatent decode. "
         "Supports t2v / i2v / fl2v / r2v / v2v / rv2v plus Mixed meta-mode. "
         "Media is referenced by filename from the timeline JSON. "
+        "Writes one h264 MP4 per clip (with audio) under the output folder. "
         "Defaults: 0.4MP 16:9 (864×480), 5s / 124 frames @ 24 fps."
     )
 
@@ -319,18 +301,18 @@ class BB_MiniMaxH3MotionDirector:
         refine_sampler=None,
         refine_sigmas=None,
         clear_vram_between_segments=True,
-        export_source_images=False,
+        low_ram=True,
         pin_renorm_enabled=False,
         postprocess_config="",
+        dirname_prefix="",
+        pix_fmt="yuv420p",
+        crf=23,
         prompt=None,
         extra_pnginfo=None,
         **kwargs,
     ):
-        del kwargs
+        del kwargs, prompt, extra_pnginfo
         run_started = time.perf_counter()
-        auto_save_seconds = None
-
-        final_run_id = FINAL_VIDEO_REGISTRY.begin_run(unique_id) if unique_id is not None else None
 
         plan = prepare_director_plan(
             timeline_data=timeline_data,
@@ -346,13 +328,12 @@ class BB_MiniMaxH3MotionDirector:
         )
 
         if bool(getattr(plan, "mixed_mode", False)):
-            bind_mixed_runtime_node(plan, unique_id)
             source_overlap_frames = 0
             # Mixed boundary toggles are per-link requests. The visible node-level
             # Motion/Audio Context switches remain the user-controlled global masters;
             # executor_core combines master AND ContextLink for the actual handoff.
 
-        combined, segment_outputs, segment_audios, report = execute_director_plan_core(
+        summary, segment_outputs, segment_audios, report = execute_director_plan_core(
             plan,
             node_id=unique_id,
             model=model,
@@ -373,178 +354,26 @@ class BB_MiniMaxH3MotionDirector:
             color_reanchor_enabled=color_reanchor_enabled,
             pin_renorm_enabled=pin_renorm_enabled,
             clear_vram_between_segments=clear_vram_between_segments,
+            low_ram=low_ram,
             postprocess_config=postprocess_config,
+            dirname_prefix=dirname_prefix,
+            pix_fmt=pix_fmt,
+            crf=crf,
         )
 
-        if bool(getattr(plan, "mixed_mode", False)):
-            report = _append_mixed_dependency_report(plan, report)
-
-        postprocess = normalize_postprocess_config(postprocess_config)
-        deblur_config = postprocess["global_refine"]
         progress_total = max(
             1,
             len(plan.run_indices) if plan.run_indices is not None else len(plan.segments),
         )
-        deblur_total = max(1, int(combined.shape[0]))
-
-        def _report_deblur_progress(done: int, total: int) -> None:
-            report_director_progress(
-                unique_id,
-                segment_index=max(0, progress_total - 1),
-                segment_total=progress_total,
-                phase="rtx_deblur",
-                phase_value=int(done),
-                phase_max=max(1, int(total)),
-            )
-
-        _report_deblur_progress(0, deblur_total)
-        deblur_outcome = apply_rtx_deblur(
-            deblur_config,
-            images=combined,
-            on_progress=_report_deblur_progress if deblur_config.get("rtx_deblur_enabled") else None,
-        )
-        _report_deblur_progress(deblur_total, deblur_total)
-
-        if deblur_outcome.succeeded:
-            combined = deblur_outcome.images
-            lengths = [int(chunk.shape[0]) for chunk in segment_outputs]
-            if sum(lengths) == int(combined.shape[0]):
-                refined_segments = []
-                cursor = 0
-                for length in lengths:
-                    refined_segments.append(combined[cursor : cursor + length])
-                    cursor += length
-                segment_outputs = refined_segments
-
-        report = append_report_section_lines(
-            report,
-            "RTX Deblur",
-            [
-                f"Enabled: {'ON' if deblur_config.get('rtx_deblur_enabled') else 'OFF'}",
-                f"Quality: {str(deblur_outcome.quality).title()}",
-                f"Frames: {int(deblur_outcome.frames)}",
-                (
-                    f"Resolution: {int(deblur_outcome.width)}x{int(deblur_outcome.height)}"
-                    if deblur_outcome.width and deblur_outcome.height
-                    else "Resolution: n/a"
-                ),
-                f"Status: {deblur_outcome.status}",
-                f"Timing: {fmt_seconds(deblur_outcome.seconds)}",
-                f"Error: {deblur_outcome.error}" if deblur_outcome.error else "",
-                (
-                    "Fallback: PRE_DEBLUR_RESULT"
-                    if deblur_outcome.status in {"FAILED", "UNAVAILABLE"}
-                    else ""
-                ),
-            ],
-        )
-        if deblur_outcome.status in {"FAILED", "UNAVAILABLE"}:
-            report = append_report_section_lines(
-                report,
-                "Warnings",
-                [
-                    f"- RTX Deblur {deblur_outcome.status}; pre-Deblur frames preserved — "
-                    f"{deblur_outcome.error or 'unknown error'}"
-                ],
-            )
-            report = report.replace(
-                "[Final]\nStatus: SUCCESS",
-                "[Final]\nStatus: SUCCESS_WITH_WARNING",
-                1,
-            )
-
-        outputs = finalize_director_outputs(
+        report = finalize_director_report(
             plan,
-            combined,
-            segment_outputs,
             report,
-            export_source_images=export_source_images,
-            segment_audios=segment_audios,
+            clip_count=int(getattr(summary, "clip_count", len(segment_outputs))),
+            extra_lines=[f"End-to-end Total: {fmt_seconds(time.perf_counter() - run_started)}"],
         )
-        pipeline_seconds = time.perf_counter() - run_started
-        if final_run_id is not None:
-            try:
-                save_config = postprocess["save"]
-                _save_started = time.perf_counter()
-                record, auto_result = FINAL_VIDEO_REGISTRY.register_final(
-                    unique_id,
-                    final_run_id,
-                    images=outputs[0],
-                    audio=outputs[1],
-                    fps=outputs[2],
-                    frame_count=outputs[3],
-                    save_config=save_config,
-                    prompt=prompt,
-                    extra_pnginfo=extra_pnginfo,
-                    segment_indices=[
-                        int(getattr(segment, "timeline_index", segment.index))
-                        for segment in (
-                            plan.segments
-                            if plan.export_mode == "all"
-                            else [
-                                plan.segments[index]
-                                for index in sorted(
-                                    plan.run_indices
-                                    if plan.run_indices is not None
-                                    else range(len(plan.segments))
-                                )
-                            ]
-                        )
-                    ],
-                    segment_frame_counts=[
-                        int(segment.frame_count)
-                        for segment in (
-                            plan.segments
-                            if plan.export_mode == "all"
-                            else [
-                                plan.segments[index]
-                                for index in sorted(
-                                    plan.run_indices
-                                    if plan.run_indices is not None
-                                    else range(len(plan.segments))
-                                )
-                            ]
-                        )
-                    ],
-                )
-                if auto_result is not None:
-                    auto_save_seconds = time.perf_counter() - _save_started
-                final_payload = record.info()
-                if auto_result is not None:
-                    final_payload["auto_save"] = auto_result
-                    if auto_result.get("ok", False):
-                        outputs = (*outputs[:-1], outputs[-1] + (
-                            "\n\n[Save Video]\nStatus: AUTO_SAVED"
-                            f"\nPath: {auto_result.get('path') or auto_result.get('filename') or ''}"
-                        ))
-                    else:
-                        outputs = (*outputs[:-1], outputs[-1] + (
-                            "\n\n[Save Video]\nStatus: FAILED (generation result preserved)"
-                            f"\nError: {auto_result.get('error') or 'Unknown save error'}"
-                        ))
-                report_director_final_ready(unique_id, final_payload)
-            except Exception as exc:
-                outputs = (*outputs[:-1], outputs[-1] + (
-                    "\n\n[Save Video]\nStatus: FAILED (generation result preserved)"
-                    f"\nError: {exc}"
-                ))
-                report_director_final_ready(unique_id, {
-                    "run_id": final_run_id,
-                    "ready": False,
-                    "error": str(exc),
-                })
-        timing_lines = [
-            f"RTX Deblur: {fmt_seconds(deblur_outcome.seconds)}",
-            f"Pipeline Total: {fmt_seconds(pipeline_seconds)}",
-        ]
-        if auto_save_seconds is not None:
-            timing_lines.append(f"Video Encode / Auto Save: {fmt_seconds(auto_save_seconds)}")
-            timing_lines.append(f"End-to-end Total: {fmt_seconds(time.perf_counter() - run_started)}")
-        else:
-            timing_lines.append("Video Encode / Auto Save: DISABLED")
-            timing_lines.append("End-to-end Total: n/a (Auto Save disabled)")
-        outputs = (*outputs[:-1], append_report_section_lines(outputs[-1], "Timing", timing_lines))
-        report_director_report(unique_id, outputs[-1])
-        report_director_audio_preview(unique_id, outputs[1])
+        print(report)
+
+        report_director_report(unique_id, report)
+        report_director_audio_preview(unique_id, segment_audios)
         report_director_complete(unique_id, progress_total)
-        return outputs
+        return {"ui": {"report": [report]}, "result": ()}

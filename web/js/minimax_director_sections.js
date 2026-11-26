@@ -5,7 +5,7 @@ import {
     localizedWidgetLabel,
     samplingHeaderText,
     sectionTitle,
-} from "./minimax_director_sections_core.mjs?boot=director_sections_v2";
+} from "./minimax_director_sections_core.mjs?boot=director_sections_v3";
 
 const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
 const SYNC_MS = 250;
@@ -27,8 +27,8 @@ const FIXED_LABEL_WIDGETS = Object.freeze([
     "pin_renorm_enabled",
     "mmx_pin_renorm_proxy",
     "mmx_global_refine_proxy",
-    "mmx_face_refine_proxy",
     "clear_vram_between_segments",
+    "low_ram",
 ]);
 
 function widgetByName(node, name) {
@@ -261,12 +261,11 @@ function drawDirectorSectionFrames(node, ctx) {
             "mmx_postprocess_group",
             "mmx_global_refine_proxy",
             "mmx_global_refine_summary",
-            "mmx_face_refine_proxy",
-            "mmx_face_refine_summary",
         ],
         [
             "bd_grp_perf",
             "clear_vram_between_segments",
+            "low_ram",
         ],
     ];
 
@@ -298,15 +297,6 @@ function syncDirectorSections(node) {
 
     changed = hideWidget(widgetByName(node, "bd_grp_advanced")) || changed;
     changed = hideWidget(widgetByName(node, "bd_grp_experimental")) || changed;
-
-    const sourceImages = widgetByName(node, "export_source_images");
-    if (sourceImages) {
-        if (sourceImages.value !== false) {
-            sourceImages.value = false;
-            changed = true;
-        }
-        changed = hideWidget(sourceImages) || changed;
-    }
 
     changed = syncLocalizedLabels(node, locale, samplingState) || changed;
 

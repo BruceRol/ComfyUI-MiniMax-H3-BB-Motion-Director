@@ -366,8 +366,9 @@ function syncResultSelector(root, { replay = false } = {}) {
     }
     if (state.select.value !== record.selected) state.select.value = record.selected;
 
-    const english = String(root.querySelector('[data-result-tab="final"]')?.textContent || "")
-        .toLowerCase().includes("final");
+    // Locale is read from the report heading in the same results root: the Final
+    // Result tab no longer exists, so it cannot be used as the language probe.
+    const english = reportIsEnglish(root.querySelector("h4"));
     setText(state.label, english ? "Result" : "结果");
 
     if (replay) {

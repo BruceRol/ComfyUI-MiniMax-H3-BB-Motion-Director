@@ -12,20 +12,9 @@ from __future__ import annotations
 import json
 import logging
 
-import torch
-
-from ..director.audio_export import (
-    AUDIO_MODE_GENERATE,
-    build_director_audio_outputs,
-    resolve_audio_mode,
-    source_audio_report_note,
-)
-from ..director.frame_align import pad_or_trim_frames
-from ..director.gen_timeline import is_prompt_batch_timeline, is_video_batch_task_key
+from ..director.execution_report import append_report_section_lines
 from ..director.plan import build_director_plan, count_all_timeline_segments, count_timeline_segments, plan_summary
 from ..director.progress import report_director_planning
-from ..lib.image_prep import fit_canvas, fit_video_long_edge
-from ..lib.video_io import load_timeline_segment
 from ..lib.task_prompts import resolve_task_key, task_type_combo_options
 
 log = logging.getLogger("ComfyUI-MiniMax-H3-Motion-Director")
@@ -93,11 +82,47 @@ def director_perf_inputs() -> dict:
                 "tooltip": "段间清理显存：每段结束后卸载模型并清空 CUDA 缓存。",
             },
         ),
-        "export_source_images": (
+        "low_ram": (
             "BOOLEAN",
             {
-                "default": False,
-                "tooltip": "输出 source_images（时间轴原片帧对比）。默认关以节省内存。",
+                "default": True,
+                "tooltip": (
+                    "Low RAM retention. ON writes each clip as soon as it is final and "
+                    "keeps only the head/tail continuity windows in RAM. OFF keeps every "
+                    "exported chunk in RAM until the merge. Motion Context behaviour is "
+                    "identical in both modes and no cache files are written."
+                ),
+            },
+        ),
+    }
+
+
+def director_output_inputs() -> dict:
+    """Per-clip h264 MP4 output widgets shared by Director nodes."""
+    return {
+        "bd_grp_output": ("BDGROUP", {"default": "输出"}),
+        "dirname_prefix": (
+            "STRING",
+            {
+                "default": "MiniMaxH3_BB",
+                "multiline": False,
+                "tooltip": "输出子目录名（ComfyUI output 目录下），每个片段写入 clip-XXX.mp4（从 1 开始编号，与编辑器一致）。",
+            },
+        ),
+        "pix_fmt": (
+            ["yuv420p", "yuv422p", "yuv444p"],
+            {
+                "default": "yuv420p",
+                "tooltip": "h264 像素格式。yuv420p 兼容性最好。",
+            },
+        ),
+        "crf": (
+            "INT",
+            {
+                "default": 23,
+                "min": 0,
+                "max": 51,
+                "tooltip": "h264 质量（CRF）。越低画质越高、文件越大。",
             },
         ),
     }
@@ -282,176 +307,15 @@ def prepare_director_plan(
     return plan
 
 
-def _fit_source_clip_to_plan(plan, raw_clip: torch.Tensor) -> torch.Tensor:
-    if plan.output_mode == "fixed":
-        return fit_canvas(raw_clip, plan.width, plan.height)
-    return fit_video_long_edge(
-        raw_clip,
-        plan.ref_max_size,
-        stride=int(getattr(plan, "spatial_stride", 32)),
-    )
-
-
-def _mixed_source_images_output(plan, images_out: list[torch.Tensor]) -> list[torch.Tensor]:
-    """Expose each Mixed segment's actual source without inventing a global timeline.
-
-    Source Video segments own a segment-local ``source_clip``. Source-free modes
-    (T2V/R2V, plus I2V/FL2V which have keyframes rather than a temporal source)
-    emit a one-frame gray placeholder so ``source_images`` never pretends the
-    generated result was source footage. Keeping placeholders to one frame also
-    avoids recreating the large blank-video allocations fixed in v1.0.1.
-    """
-    outputs: list[torch.Tensor] = []
-    if not plan.segments:
-        return _empty_source_images_for(images_out)
-
-    for seg in plan.segments:
-        raw = getattr(seg, "source_clip", None)
-        if isinstance(raw, torch.Tensor) and raw.ndim == 4 and int(raw.shape[0]) > 0:
-            fitted = _fit_source_clip_to_plan(plan, raw)
-            target_len = max(1, int(getattr(seg, "end_frame", 0)) - int(getattr(seg, "start_frame", 0)))
-            outputs.append(pad_or_trim_frames(fitted, target_len).cpu().float())
-            continue
-        outputs.append(torch.full((1, max(1, int(plan.height)), max(1, int(plan.width)), 3), 0.5))
-    return outputs
-
-
-def build_source_images_output(
-    plan,
-    images_out: list[torch.Tensor],
-    *,
-    split_outputs: bool,
-) -> list[torch.Tensor]:
-    if bool(getattr(plan, "mixed_mode", False)):
-        return _mixed_source_images_output(plan, images_out)
-
-    if split_outputs:
-        chunks: list[torch.Tensor] = []
-        segment_indices = (
-            sorted(plan.run_indices)
-            if plan.run_indices is not None
-            else list(range(len(plan.segments)))
-        )
-        for seg_index, generated in zip(segment_indices, images_out):
-            seg = plan.segments[seg_index]
-            target_len = int(generated.shape[0])
-            raw = load_timeline_segment(plan.raw, seg.start_frame, seg.end_frame)
-            fitted = _fit_source_clip_to_plan(plan, raw)
-            chunks.append(pad_or_trim_frames(fitted, target_len).cpu().float())
-        return chunks
-
-    target_len = int(images_out[0].shape[0]) if images_out else int(plan.total_frames or 0)
-    raw = load_timeline_segment(plan.raw, 0, target_len)
-    fitted = _fit_source_clip_to_plan(plan, raw)
-    return [pad_or_trim_frames(fitted, target_len).cpu().float()]
-
-
-def _empty_source_images_for(images_out: list[torch.Tensor]) -> list[torch.Tensor]:
-    if not images_out:
-        return [torch.full((1, 1, 1, 3), 0.5)]
-    placeholders: list[torch.Tensor] = []
-    for img in images_out:
-        if isinstance(img, torch.Tensor) and img.ndim == 4:
-            h, w, c = int(img.shape[1]), int(img.shape[2]), int(img.shape[3])
-        else:
-            h, w, c = 1, 1, 3
-        placeholders.append(torch.full((1, h, w, c), 0.5))
-    return placeholders
-
-
-def _ensure_nonempty_image_batches(images_out: list[torch.Tensor], *, label: str) -> list[torch.Tensor]:
-    fixed: list[torch.Tensor] = []
-    for i, img in enumerate(images_out):
-        if not isinstance(img, torch.Tensor) or img.ndim != 4:
-            raise ValueError(f"Director {label}[{i}] is not a valid IMAGE tensor.")
-        if int(img.shape[0]) <= 0:
-            h, w, c = int(img.shape[1]), int(img.shape[2]), int(img.shape[3])
-            log.warning("Director %s[%d] has 0 frames; emitting 1-frame placeholder.", label, i)
-            fixed.append(torch.full((1, max(1, h), max(1, w), max(1, c)), 0.5))
-        else:
-            fixed.append(img)
-    return fixed
-
-
-def finalize_director_outputs(
-    plan,
-    combined,
-    segment_outputs,
-    report,
-    *,
-    export_source_images: bool = False,
-    segment_audios: list | None = None,
-):
-    is_batch = is_prompt_batch_timeline(plan.raw, plan.global_task_key)
-    export_segments = plan.export_mode == "segments"
-    video_batch = is_video_batch_task_key(plan.global_task_key)
-
-    if export_segments or (is_batch and not video_batch):
-        images_out = segment_outputs
-        frame_count = sum(int(s.shape[0]) for s in segment_outputs)
-        if export_segments and len(segment_outputs) > 1:
-            report = (
-                report
-                + f"\n\nExport mode: segments — {len(segment_outputs)} clip(s) on images output."
-            )
-        if plan.run_indices is not None:
-            report = (
-                report
-                + f"\n\nPartial run: output contains {len(segment_outputs)} re-generated clip(s) only."
-            )
+def finalize_director_report(plan, report: str, *, clip_count: int, extra_lines=None) -> str:
+    """Report-only finalize: per-clip MP4 files replace the image/audio outputs."""
+    if plan.export_mode == "segments":
+        report = report + f"\n\nExport mode: segments — {clip_count} clip(s) written."
     else:
-        combined = pad_or_trim_frames(combined, plan.total_frames).cpu().float()
-        images_out = [combined]
-        frame_count = int(combined.shape[0])
-        if video_batch and is_batch and len(segment_outputs) > 1:
-            report = report + f"\n\nExport mode: all — merged {frame_count} frame(s) on images output."
-        if plan.run_indices is not None and video_batch:
-            report = report + f"\n\nPartial run: re-generated {len(segment_outputs)} video group(s)."
+        report = report + f"\n\nExport mode: all — {clip_count} clip(s) written."
+    if plan.run_indices is not None:
+        report = report + f"\n\nPartial run: {clip_count} clip(s) written."
+    if extra_lines:
+        report = append_report_section_lines(report, "Timing", list(extra_lines))
+    return report
 
-    split_for_audio = export_segments or (is_batch and not video_batch)
-    audio_frame_end = frame_count if not split_for_audio else None
-    audio_mode = resolve_audio_mode(plan)
-    use_generated = audio_mode == AUDIO_MODE_GENERATE
-    audio_out, source_fallback = build_director_audio_outputs(
-        plan,
-        images_out,
-        export_segments=split_for_audio,
-        output_frame_end=audio_frame_end,
-        segment_audios=segment_audios if use_generated else None,
-        audio_mode=audio_mode,
-    )
-    report = report + source_audio_report_note(
-        plan,
-        audio_out,
-        export_segments=split_for_audio,
-        output_frame_end=audio_frame_end,
-        used_generated_audio=bool(use_generated and segment_audios),
-        audio_mode=audio_mode,
-        source_fallback=source_fallback,
-    )
-
-    split_source_outputs = export_segments or (is_batch and not video_batch)
-    if export_source_images:
-        try:
-            source_images_out = build_source_images_output(
-                plan,
-                images_out,
-                split_outputs=split_source_outputs,
-            )
-            if bool(getattr(plan, "mixed_mode", False)):
-                report = report + (
-                    "\n\nSource images: Mixed segment-local sources; source-free segments emit "
-                    "one-frame placeholders."
-                )
-        except Exception as exc:
-            log.warning("Source images output failed: %s", exc)
-            source_images_out = images_out
-            report = report + f"\n\nSource images: fallback to generated output ({exc})."
-    else:
-        source_images_out = _empty_source_images_for(images_out)
-
-    images_out = _ensure_nonempty_image_batches(images_out, label="images")
-    source_images_out = _ensure_nonempty_image_batches(source_images_out, label="source_images")
-
-    fps_out = float(plan.frame_rate or 24.0)
-    return images_out, audio_out, fps_out, frame_count, source_images_out, report

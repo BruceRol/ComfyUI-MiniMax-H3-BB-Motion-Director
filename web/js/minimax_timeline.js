@@ -9,10 +9,9 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import {
     PostprocessConfigStore,
-    faceRefineSummary,
     globalRefineSummary,
     mountPostprocessUI,
-} from "./minimax_postprocess_ui.mjs?boot=postprocess_output_v9";
+} from "./minimax_postprocess_ui.mjs?boot=postprocess_output_v10";
 import { mountOutputUI } from "./minimax_output_ui.mjs?boot=live_results_v2";
 import {
     CUSTOM_ASPECT_RATIO,
@@ -365,7 +364,10 @@ const DIRECTOR_WIDGET_LABEL_KEYS = {
     color_reanchor_enabled: "widget.colorReanchorEnabled",
     pin_renorm_enabled: "widget.pinRenormEnabled",
     clear_vram_between_segments: "widget.clearVram",
-    export_source_images: "widget.exportSourceImages",
+    low_ram: "widget.lowRam",
+    dirname_prefix: "widget.dirnamePrefix",
+    pix_fmt: "widget.pixFmt",
+    crf: "widget.crf",
     control_after_generate: "widget.controlAfterGenerate",
     "control after generate": "widget.controlAfterGenerate",
 };
@@ -378,7 +380,10 @@ const DIRECTOR_WIDGET_TOOLTIP_KEYS = {
     color_reanchor_enabled: "widget.tooltip.colorReanchorEnabled",
     pin_renorm_enabled: "widget.tooltip.pinRenormEnabled",
     clear_vram_between_segments: "widget.tooltip.clearVram",
-    export_source_images: "widget.tooltip.exportSourceImages",
+    low_ram: "widget.tooltip.lowRam",
+    dirname_prefix: "widget.tooltip.dirnamePrefix",
+    pix_fmt: "widget.tooltip.pixFmt",
+    crf: "widget.tooltip.crf",
 };
 
 const DIRECTOR_GROUP_LABEL_KEYS = {
@@ -388,6 +393,7 @@ const DIRECTOR_GROUP_LABEL_KEYS = {
     bd_grp_advanced: "widget.grpAdvanced",
     bd_grp_perf: "widget.grpPerf",
     bd_grp_experimental: "widget.grpExperimental",
+    bd_grp_output: "widget.grpOutput",
 };
 
 function applyDirectorWidgetLabels(node) {
@@ -827,10 +833,13 @@ function postprocessProxyState(node, section) {
     const store = getNodePostprocessStore(node);
     const config = store?.get?.();
     const enabled = !!config?.[section]?.enabled;
-    const label = section === "global_refine" ? t("postprocess.global") : t("postprocess.face");
-    const summary = section === "global_refine"
-        ? globalRefineSummary(config, Number(node.widgets?.find((w) => w.name === "width")?.value || 864), Number(node.widgets?.find((w) => w.name === "height")?.value || 480), getLocale())
-        : faceRefineSummary(config, getLocale());
+    const label = t("postprocess.global");
+    const summary = globalRefineSummary(
+        config,
+        Number(node.widgets?.find((w) => w.name === "width")?.value || 864),
+        Number(node.widgets?.find((w) => w.name === "height")?.value || 480),
+        getLocale(),
+    );
     return { enabled, label, summary };
 }
 
@@ -864,8 +873,6 @@ function installDirectorPostprocessUi(node) {
         ["mmx_postprocess_group", null, 26, null, "group"],
         ["mmx_global_refine_proxy", "global_refine", 24, drawPostprocessToggle, "toggle"],
         ["mmx_global_refine_summary", "global_refine", 18, drawPostprocessSummary, "summary"],
-        ["mmx_face_refine_proxy", "face_refine", 24, drawPostprocessToggle, "toggle"],
-        ["mmx_face_refine_summary", "face_refine", 18, drawPostprocessSummary, "summary"],
     ];
     const proxies = specs.map(([name, section, height, draw, kind]) => {
         let widget = node.widgets.find((item) => item.name === name);
@@ -898,7 +905,7 @@ function installDirectorPostprocessUi(node) {
 
 const DIRECTOR_TRANSIENT_WIDGETS = new Set([
     "mmx_postprocess_group", "mmx_global_refine_proxy", "mmx_global_refine_summary",
-    "mmx_face_refine_proxy", "mmx_face_refine_summary", "mmx_pin_renorm_proxy",
+    "mmx_pin_renorm_proxy",
 ]);
 
 function detachDirectorTransientWidgets(node) {
@@ -993,78 +1000,6 @@ function restoreDirectorWidgetState(node, serializedNode) {
     }
 
     return restored > 0;
-}
-
-
-function migrateReorderedDirectorTail(serializedNode, currentWidgets = []) {
-    const values = serializedNode?.widgets_values;
-
-    if (!Array.isArray(values) || !Array.isArray(currentWidgets)) {
-        return false;
-    }
-
-    const serializable = currentWidgets.filter(
-        (widget) => widget?.serialize !== false,
-    );
-
-    const widgetIndex = (name) => (
-        serializable.findIndex(
-            (widget) => widget?.name === name,
-        )
-    );
-
-    const perfIndex = widgetIndex("bd_grp_perf");
-    const clearVramIndex = widgetIndex("clear_vram_between_segments");
-    const exportSourceIndex = widgetIndex("export_source_images");
-    const experimentalIndex = widgetIndex("bd_grp_experimental");
-    const pinRenormIndex = widgetIndex("pin_renorm_enabled");
-    const postprocessIndex = widgetIndex("postprocess_config");
-
-    const indices = [
-        perfIndex,
-        clearVramIndex,
-        exportSourceIndex,
-        experimentalIndex,
-        pinRenormIndex,
-        postprocessIndex,
-    ];
-
-    if (
-        indices.some(
-            (index) => index < 0 || index >= values.length,
-        )
-    ) {
-        return false;
-    }
-
-    const oldValues = values.slice();
-
-    const looksLikeReorderedLayout = (
-        typeof oldValues[perfIndex] === "string"
-        && typeof oldValues[clearVramIndex] === "boolean"
-        && typeof oldValues[exportSourceIndex] === "string"
-        && typeof oldValues[experimentalIndex] === "string"
-        && typeof oldValues[pinRenormIndex] === "boolean"
-        && typeof oldValues[postprocessIndex] === "boolean"
-    );
-
-    if (!looksLikeReorderedLayout) {
-        return false;
-    }
-
-    values[perfIndex] = oldValues[experimentalIndex];
-    values[clearVramIndex] = oldValues[pinRenormIndex];
-    values[exportSourceIndex] = oldValues[postprocessIndex];
-
-    values[experimentalIndex] = oldValues[perfIndex];
-    values[pinRenormIndex] = oldValues[clearVramIndex];
-    values[postprocessIndex] = oldValues[exportSourceIndex];
-
-    console.warn(
-        "[MiniMax H3 Motion Director] migrated legacy reordered Director widget values",
-    );
-
-    return true;
 }
 
 
@@ -1930,7 +1865,7 @@ function moveDirectorDomWidgetToEnd(node) {
     node.widgets.push(widget);
 }
 
-const PERF_WIDGET_ORDER = ["bd_grp_perf", "clear_vram_between_segments", "export_source_images"];
+const PERF_WIDGET_ORDER = ["bd_grp_perf", "clear_vram_between_segments", "low_ram"];
 
 function moveDirectorPerfWidgetsBeforeTimeline(node) {
     const dom = node?._minimaxDomWidget;
@@ -2369,8 +2304,6 @@ class MiniMaxH3MotionDirectorEditor {
             this.postprocessStore,
             {
                 locale: getLocale,
-                fetchApi: (path, options) => api.fetchApi(path, options),
-                nodeId: () => String(this.node?.id ?? ""),
             },
         ));
 
@@ -10223,10 +10156,6 @@ app.registerExtension({
             findDirectorNode(detail?.node_id)?._minimaxEditor?.outputUi?.setAudio?.(detail);
         });
 
-        api.addEventListener("minimax_motion_director_final_ready", ({ detail }) => {
-            findDirectorNode(detail?.node_id)?._minimaxEditor?.outputUi?.setFinalRecord?.(detail);
-        });
-
         api.addEventListener("executing", ({ detail }) => {
             if (detail == null) return;
             const node = findDirectorNode(detail);
@@ -10404,11 +10333,6 @@ app.registerExtension({
             detachDirectorTransientWidgets(this);
 
             migrateColorReanchorWidgetValues(
-                arguments[0],
-                this.widgets || [],
-            );
-
-            migrateReorderedDirectorTail(
                 arguments[0],
                 this.widgets || [],
             );

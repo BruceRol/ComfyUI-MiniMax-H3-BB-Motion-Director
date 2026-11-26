@@ -29,8 +29,8 @@ const COPY = Object.freeze({
             audio_context_enabled: "延续生成音频",
             color_reanchor_enabled: "颜色重锚定",
             mmx_global_refine_proxy: "全局精修",
-            mmx_face_refine_proxy: "人脸精修",
             clear_vram_between_segments: "段间清理显存",
+            low_ram: "低内存保留",
         },
     },
     en: {
@@ -56,8 +56,8 @@ const COPY = Object.freeze({
             audio_context_enabled: "Continue Generated Audio",
             color_reanchor_enabled: "Color Re-anchor",
             mmx_global_refine_proxy: "Global Refine",
-            mmx_face_refine_proxy: "Face Refine",
             clear_vram_between_segments: "Clear VRAM Between Segments",
+            low_ram: "Low RAM Retention",
         },
     },
 });

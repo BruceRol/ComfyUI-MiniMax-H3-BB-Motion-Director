@@ -456,133 +456,6 @@
       }
     },
     {
-      "id": 15,
-      "type": "VHS_VideoCombine",
-      "pos": [
-        3991.740356159548,
-        -548.9870167921558
-      ],
-      "size": [
-        446.0361286833504,
-        584.6867381574168
-      ],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 51
-        },
-        {
-          "name": "audio",
-          "shape": 7,
-          "type": "AUDIO",
-          "link": 52
-        },
-        {
-          "name": "meta_batch",
-          "shape": 7,
-          "type": "VHS_BatchManager",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": null
-        },
-        {
-          "name": "frame_rate",
-          "type": "FLOAT",
-          "widget": {
-            "name": "frame_rate"
-          },
-          "link": 53
-        }
-      ],
-      "outputs": [
-        {
-          "name": "Filenames",
-          "type": "VHS_FILENAMES",
-          "links": []
-        }
-      ],
-      "title": "OUPUT",
-      "properties": {
-        "cnr_id": "comfyui-videohelpersuite",
-        "ver": "4d907bee61e92c2e65af3bd6383a4e4d356126d1",
-        "Node name for S&R": "VHS_VideoCombine"
-      },
-      "widgets_values": {
-        "frame_rate": 8,
-        "loop_count": 0,
-        "filename_prefix": "MiniMaxH3",
-        "format": "video/h264-mp4",
-        "pix_fmt": "yuv420p",
-        "crf": 19,
-        "save_metadata": false,
-        "trim_to_audio": false,
-        "pingpong": false,
-        "save_output": true,
-        "videopreview": {
-          "hidden": false,
-          "paused": false,
-          "params": {
-            "filename": "MiniMaxH3_00002-audio.mp4",
-            "subfolder": "",
-            "type": "output",
-            "format": "video/h264-mp4",
-            "frame_rate": 24,
-            "workflow": "MiniMaxH3_00002.png",
-            "fullpath": "V:\\python\\ComfyUI\\ComfyUI\\output\\MiniMaxH3_00002-audio.mp4",
-            "metadata": {
-              "kind": "video",
-              "width": 864,
-              "height": 480,
-              "duration": 5.166666666666667,
-              "fps": 24,
-              "frame_count": 124
-            }
-          }
-        }
-      },
-      "widgets_values_named": {
-        "frame_rate": 8,
-        "loop_count": 0,
-        "filename_prefix": "MiniMaxH3",
-        "format": "video/h264-mp4",
-        "pix_fmt": "yuv420p",
-        "crf": 19,
-        "save_metadata": false,
-        "trim_to_audio": false,
-        "pingpong": false,
-        "save_output": true,
-        "videopreview": {
-          "hidden": false,
-          "paused": false,
-          "params": {
-            "filename": "MiniMaxH3_00002-audio.mp4",
-            "subfolder": "",
-            "type": "output",
-            "format": "video/h264-mp4",
-            "frame_rate": 24,
-            "workflow": "MiniMaxH3_00002.png",
-            "fullpath": "V:\\python\\ComfyUI\\ComfyUI\\output\\MiniMaxH3_00002-audio.mp4",
-            "metadata": {
-              "kind": "video",
-              "width": 864,
-              "height": 480,
-              "duration": 5.166666666666667,
-              "fps": 24,
-              "frame_count": 124
-            }
-          }
-        }
-      }
-    },
-    {
       "id": 19,
       "type": "BB_MiniMaxH3MotionDirector",
       "pos": [
@@ -646,31 +519,7 @@
           "link": null
         }
       ],
-      "outputs": [
-        {
-          "name": "images",
-          "shape": 6,
-          "type": "IMAGE",
-          "links": [
-            51
-          ]
-        },
-        {
-          "name": "audio",
-          "shape": 6,
-          "type": "AUDIO",
-          "links": [
-            52
-          ]
-        },
-        {
-          "name": "fps",
-          "type": "FLOAT",
-          "links": [
-            53
-          ]
-        }
-      ],
+      "outputs": [],
       "properties": {
         "cnr_id": "minimax-h3-motion-director",
         "ver": "be5c8e4e3054135c7916d12e3b8fc7d9703529eb",
@@ -697,10 +546,14 @@
           "bd_grp_advanced": "Advanced sampling · Sampling: external",
           "bd_grp_perf": "Performance",
           "clear_vram_between_segments": true,
-          "export_source_images": false,
+          "low_ram": true,
           "bd_grp_experimental": "Experimental",
           "pin_renorm_enabled": false,
-          "postprocess_config": "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":0.25,\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"face_refine\":{\"enabled\":false,\"detector\":\"ultralytics\",\"detector_model\":\"\",\"confidence\":0.35,\"select\":\"largest\",\"crop_factor\":2.5,\"canvas_mode\":\"auto_capped_768\",\"canvas_size\":768,\"smooth_method\":\"gaussian\",\"smooth_window\":21,\"size_smooth_window\":51,\"size_mode\":\"adaptive\",\"adaptive\":true,\"base_denoise\":0.45,\"strength_small_face\":0.8,\"strength_large_face\":0.35,\"face_px_small\":30,\"face_px_large\":120,\"mask_mode\":\"rect\",\"paste_region\":\"face_rect\",\"feather\":24,\"colour_match\":true,\"blend\":1,\"undetected_frames\":\"fade\",\"identity_reference\":\"\",\"identity_track\":false,\"identity_threshold\":0.28,\"fallback_detector\":\"none\",\"fallback_head_frac\":0.5,\"gamma\":1,\"denoise_smooth\":9,\"mask_dilation\":24,\"feather_scales_with_crop\":false,\"sam_model\":\"\",\"sam_threshold\":0.93,\"sam_dilation\":0,\"sam_temporal_smooth\":5},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+          "postprocess_config": "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":0.25,\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+          "bd_grp_output": "Output",
+          "dirname_prefix": "MiniMaxH3_BB",
+          "pix_fmt": "yuv420p",
+          "crf": 23,
           "minimax_motion_director_ui": ""
         }
       },
@@ -726,10 +579,14 @@
         "Advanced sampling · Sampling: external",
         "Performance",
         true,
-        false,
+        true,
         "Experimental",
         false,
-        "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":0.25,\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"face_refine\":{\"enabled\":false,\"detector\":\"ultralytics\",\"detector_model\":\"\",\"confidence\":0.35,\"select\":\"largest\",\"crop_factor\":2.5,\"canvas_mode\":\"auto_capped_768\",\"canvas_size\":768,\"smooth_method\":\"gaussian\",\"smooth_window\":21,\"size_smooth_window\":51,\"size_mode\":\"adaptive\",\"adaptive\":true,\"base_denoise\":0.45,\"strength_small_face\":0.8,\"strength_large_face\":0.35,\"face_px_small\":30,\"face_px_large\":120,\"mask_mode\":\"rect\",\"paste_region\":\"face_rect\",\"feather\":24,\"colour_match\":true,\"blend\":1,\"undetected_frames\":\"fade\",\"identity_reference\":\"\",\"identity_track\":false,\"identity_threshold\":0.28,\"fallback_detector\":\"none\",\"fallback_head_frac\":0.5,\"gamma\":1,\"denoise_smooth\":9,\"mask_dilation\":24,\"feather_scales_with_crop\":false,\"sam_model\":\"\",\"sam_threshold\":0.93,\"sam_dilation\":0,\"sam_temporal_smooth\":5},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+        "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":0.25,\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+        "Output",
+        "MiniMaxH3_BB",
+        "yuv420p",
+        23,
         ""
       ],
       "widgets_values_named": {
@@ -754,10 +611,14 @@
         "bd_grp_advanced": "Advanced sampling · Sampling: external",
         "bd_grp_perf": "Performance",
         "clear_vram_between_segments": true,
-        "export_source_images": false,
+        "low_ram": true,
         "bd_grp_experimental": "Experimental",
         "pin_renorm_enabled": false,
-        "postprocess_config": "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":0.25,\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"face_refine\":{\"enabled\":false,\"detector\":\"ultralytics\",\"detector_model\":\"\",\"confidence\":0.35,\"select\":\"largest\",\"crop_factor\":2.5,\"canvas_mode\":\"auto_capped_768\",\"canvas_size\":768,\"smooth_method\":\"gaussian\",\"smooth_window\":21,\"size_smooth_window\":51,\"size_mode\":\"adaptive\",\"adaptive\":true,\"base_denoise\":0.45,\"strength_small_face\":0.8,\"strength_large_face\":0.35,\"face_px_small\":30,\"face_px_large\":120,\"mask_mode\":\"rect\",\"paste_region\":\"face_rect\",\"feather\":24,\"colour_match\":true,\"blend\":1,\"undetected_frames\":\"fade\",\"identity_reference\":\"\",\"identity_track\":false,\"identity_threshold\":0.28,\"fallback_detector\":\"none\",\"fallback_head_frac\":0.5,\"gamma\":1,\"denoise_smooth\":9,\"mask_dilation\":24,\"feather_scales_with_crop\":false,\"sam_model\":\"\",\"sam_threshold\":0.93,\"sam_dilation\":0,\"sam_temporal_smooth\":5},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+        "postprocess_config": "{\"version\":9,\"global_refine\":{\"enabled\":false,\"mode\":\"refine\",\"second_sampling_enabled\":true,\"result_previews_enabled\":false,\"denoise\":0.25,\"steps\":0,\"seed_mode\":\"inherit\",\"seed_offset\":1,\"skip_fl2v\":false,\"upscale_method\":\"lanczos\",\"upscale_model\":\"\",\"latent_upscale_model\":\"\",\"latent_upscale_precision\":\"fp16\",\"latent_upscale_device\":\"cuda\",\"vsr_quality\":\"high\",\"resolution_mode\":\"follow_director\",\"aspect\":\"16:9\",\"megapixels\":1,\"width\":1376,\"height\":768,\"rtx_deblur_enabled\":false,\"rtx_deblur_quality\":\"medium\",\"rtx_deblur_strength\":1,\"passes\":1},\"preview\":{\"enabled\":true,\"preview_frames\":8,\"preview_fps\":12,\"max_resolution\":1024,\"jpeg_quality\":80,\"preview_every\":1},\"save\":{\"auto_save\":false,\"filename_prefix\":\"video/MiniMaxH3_Director\",\"format\":\"auto\",\"codec\":\"auto\",\"encoding\":\"auto\",\"crf\":23}}",
+        "bd_grp_output": "Output",
+        "dirname_prefix": "MiniMaxH3_BB",
+        "pix_fmt": "yuv420p",
+        "crf": 23,
         "minimax_motion_director_ui": ""
       }
     }
@@ -850,30 +711,6 @@
       19,
       5,
       "SIGMAS"
-    ],
-    [
-      51,
-      19,
-      0,
-      15,
-      0,
-      "IMAGE"
-    ],
-    [
-      52,
-      19,
-      1,
-      15,
-      1,
-      "AUDIO"
-    ],
-    [
-      53,
-      19,
-      2,
-      15,
-      4,
-      "FLOAT"
     ]
   ],
   "groups": [

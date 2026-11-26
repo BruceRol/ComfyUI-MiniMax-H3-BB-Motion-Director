@@ -1,8 +1,8 @@
 """v10 postprocess compatibility facade.
 
 The v9 implementation is preserved verbatim in ``postprocess_config_legacy``.
-This facade keeps its public API stable while making Face Refine part of the
-final segment/cache identity.
+This facade keeps its public API stable; Face Refine has been removed from the
+config schema.
 """
 
 from __future__ import annotations
@@ -36,18 +36,12 @@ def serialize_postprocess_config(raw: Any) -> str:
 def postprocess_cache_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
     """Return the pixel/latent-producing postprocess identity.
 
-    Face Refine now runs before segment/cache finalization on normal Motion
-    Context chains, so its settings must invalidate stale segment/context
-    caches. Result previews remain UI-only and are deliberately excluded.
+    Result previews remain UI-only and are deliberately excluded.
     """
     normalized = normalize_postprocess_config(config)
     global_refine = dict(normalized["global_refine"])
-    face_refine = dict(normalized["face_refine"])
     global_refine.pop("result_previews_enabled", None)
-    return {
-        "global_refine": global_refine if global_refine["enabled"] else False,
-        "face_refine": face_refine if face_refine["enabled"] else False,
-    }
+    return {"global_refine": global_refine if global_refine["enabled"] else False}
 
 
 def __getattr__(name: str):

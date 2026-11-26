@@ -6,3 +6,6 @@ imageio-ffmpeg>=0.4
 
 # Smart shot split (智能分割)
 scenedetect>=0.6.4,<0.8
+
+# Per-clip h264 MP4 mux (pyav, same as comfy-core SaveVideo)
+av>=17.0.0

@@ -15,13 +15,22 @@ def build_seam_report_lines(
     *,
     fps: float,
     segment_slots: list[int] | tuple[int, ...] | None = None,
+    segment_lengths: list[int] | tuple[int, ...] | None = None,
 ) -> list[str]:
-    """Format every exported boundary without changing frames or audio."""
+    """Format every exported boundary without changing frames or audio.
+
+    ``segment_lengths`` reports the true clip lengths.  A streaming run passes the retained
+    boundary views, whose ``shape[0]`` is the window size rather than the clip length, so
+    the reported lengths must come from the segments themselves.
+    """
     frames=list(chunks or [])
     audio_items=list(audios or [])
     slots=list(segment_slots if segment_slots is not None else range(len(frames)))
+    lengths=[int(value) for value in (segment_lengths if segment_lengths is not None else [int(f.shape[0]) for f in frames])]
     if len(slots) != len(frames):
         raise ValueError("Seam report segment slot count must match exported chunks.")
+    if len(lengths) != len(frames):
+        raise ValueError("Seam report segment length count must match exported chunks.")
     if len(frames) < 2:
         return ["Status: NOT_APPLICABLE (single exported segment)"]
     lines=[]
@@ -48,7 +57,7 @@ def build_seam_report_lines(
             audio_rate="none"
         lines.append(
             f"{left_label} -> {right_label}: SUCCESS\n"
-            f"  Exported Frames: {int(diag['left_frames'])} -> {int(diag['right_frames'])}\n"
+            f"  Exported Frames: {lengths[i]} -> {lengths[i+1]}\n"
             f"  Mean Abs RGB Jump: {float(diag['mean_abs_rgb_jump']):.6f}\n"
             f"  Luma Jump: {float(diag['luma_jump']):.6f}\n"
             f"  Audio Sample Rate: {audio_rate}\n"

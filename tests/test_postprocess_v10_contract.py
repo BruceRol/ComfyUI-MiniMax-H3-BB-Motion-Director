@@ -5,38 +5,32 @@ from director.postprocess_config import (
 )
 
 
-def test_postprocess_config_version_is_v10_and_migrates_v9_values():
+def test_postprocess_config_version_is_v10_and_face_refine_is_gone():
     assert POSTPROCESS_CONFIG_VERSION == 10
     normalized = normalize_postprocess_config(
         {
             "version": 9,
-            "face_refine": {
-                "enabled": True,
-                "mask_mode": "sam",
-                "sam_model": "sam2_t.pt",
-            },
+            "face_refine": {"enabled": True, "mask_mode": "sam", "sam_model": "sam2_t.pt"},
             "global_refine": {"result_previews_enabled": True},
         }
     )
     assert normalized["version"] == 10
-    assert normalized["face_refine"]["enabled"] is True
-    assert normalized["face_refine"]["sam_model"] == "sam2_t.pt"
+    assert "face_refine" not in normalized
     assert normalized["global_refine"]["result_previews_enabled"] is True
 
 
-def test_face_refine_changes_cache_identity_but_result_preview_does_not():
+def test_result_preview_does_not_change_cache_identity():
     base = {
         "version": 9,
         "global_refine": {"enabled": True, "result_previews_enabled": False},
-        "face_refine": {"enabled": True, "base_denoise": 0.45},
     }
     preview = {
         **base,
         "global_refine": {"enabled": True, "result_previews_enabled": True},
     }
-    changed_face = {
+    changed_refine = {
         **base,
-        "face_refine": {"enabled": True, "base_denoise": 0.55},
+        "global_refine": {"enabled": True, "result_previews_enabled": False, "denoise": 0.55},
     }
     assert postprocess_cache_fingerprint(base) == postprocess_cache_fingerprint(preview)
-    assert postprocess_cache_fingerprint(base) != postprocess_cache_fingerprint(changed_face)
+    assert postprocess_cache_fingerprint(base) != postprocess_cache_fingerprint(changed_refine)

@@ -127,6 +127,34 @@ def bridge_anchors(
     return left_frames[left_offset : left_offset + 1], right_frames[right_offset : right_offset + 1]
 
 
+def bridge_anchors_windows(
+    left_window,
+    right_window,
+    window: SourceBridgeWindow,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Extract generated B-2/B+2 anchors through the retained windows.
+
+    Same offsets as ``bridge_anchors``.  The anchors land inside the window sizes from
+    ``director/low_ram.py``: left tail index ``tail_len - 2`` and right head index 2, so
+    a streaming run reads exactly the same pixels a full-retention run would.
+    """
+    left_offset = window.first_anchor_source_time - int(left_window.seg.start_frame)
+    right_offset = window.last_anchor_source_time - int(right_window.seg.start_frame)
+    first_anchor = left_window.frame_abs(left_offset)
+    last_anchor = right_window.frame_abs(right_offset)
+    if first_anchor is None:
+        raise ValueError(
+            "Source Bridge first anchor is outside the retained left window "
+            f"(frame {left_offset} of segment {int(left_window.seg.index) + 1})."
+        )
+    if last_anchor is None:
+        raise ValueError(
+            "Source Bridge last anchor is outside the retained right window "
+            f"(frame {right_offset} of segment {int(right_window.seg.index) + 1})."
+        )
+    return first_anchor.unsqueeze(0), last_anchor.unsqueeze(0)
+
+
 def _identity(value: Any, depth: int = 0):
     if depth > 8:
         return f"{type(value).__module__}.{type(value).__qualname__}"
@@ -232,3 +260,31 @@ def assemble_source_bridges(
         output[int(right.index)][right_offsets[1]] = bridge.frames[3]
 
     return output
+
+
+def apply_source_bridge_to_windows(left_window, right_window, bridge) -> None:
+    """Write bridge frames 1/2/3 into the retained windows of two adjacent clips.
+
+    Same indices as ``assemble_source_bridges``, but through the window accessors so it
+    works when only the boundary windows are retained.  The bridge writes the last frame
+    of the left window and the first two frames of the right window, both inside the
+    window sizes from ``director/low_ram.py``.
+    """
+    left = left_window.seg
+    right = right_window.seg
+    if int(left.end_frame) != int(right.start_frame):
+        raise ValueError("Source Bridge segments are not nominally adjacent.")
+    if int(bridge.frames.shape[0]) < SOURCE_BRIDGE_FRAME_COUNT:
+        raise ValueError("Source Bridge decode returned fewer than 5 frames.")
+
+    boundary = int(bridge.window.boundary)
+    left_offset = (boundary - 1) - int(left.start_frame)
+    right_offsets = [boundary - int(right.start_frame), boundary + 1 - int(right.start_frame)]
+    if not 0 <= left_offset < int(left.frame_count):
+        raise ValueError("Source Bridge B-1 output frame is unavailable.")
+    if any(offset < 0 or offset >= int(right.frame_count) for offset in right_offsets):
+        raise ValueError("Source Bridge B/B+1 output frames are unavailable.")
+
+    left_window.set_frame_abs(left_offset, bridge.frames[1])
+    right_window.set_frame_abs(right_offsets[0], bridge.frames[2])
+    right_window.set_frame_abs(right_offsets[1], bridge.frames[3])

@@ -6,11 +6,9 @@ const OUTPUT_TEXT = {
     en: {
         live_generation: "Generation",
         live_global: "Global Refine",
-        live_face: "Face Refine",
 
         segment: "Segment",
         multi: "Multi Segment",
-        final: "Final Result",
 
         live_waiting: "Waiting for live preview…",
         result_waiting: "Waiting for generated result…",
@@ -20,7 +18,6 @@ const OUTPUT_TEXT = {
         available_range: "Available generated range",
         range_start: "Start Segment",
         range_end: "End Segment",
-        final_pipeline: "Final pipeline result",
 
         play: "▶ Play",
         pause: "⏸ Pause",
@@ -31,7 +28,7 @@ const OUTPUT_TEXT = {
 
         pipeline_status: "Pipeline Status",
         pipeline_path:
-            "Generation → Global Refine → Assemble → Face Refine → Finalize / Export",
+            "Generation → Global Refine → Assemble → Clip Write → Merge",
 
         preview_settings: "Preview Settings",
         director_preview: "Director Preview",
@@ -43,25 +40,6 @@ const OUTPUT_TEXT = {
         jpeg_quality: "jpeg_quality",
         preview_every: "preview_every",
 
-        save_video: "Save Video",
-        auto_save: "Auto-save Final Result",
-        output_path: "Output path",
-        filename_prefix: "Filename prefix",
-        format: "Format",
-        codec: "Codec",
-        encoding: "Encoding",
-        crf: "CRF",
-        save_button: "Save Video",
-        save_not_ready: "Final Result is not ready",
-        save_ready: "Ready to save",
-        save_working: "Saving…",
-        save_done: "Saved: {path}",
-        save_failed: "Save failed: {error}",
-        encoding_auto: "Auto",
-        encoding_reencode: "Re-encode",
-
-        final_info: "Final Result Info",
-        not_completed: "Not completed",
         report: "Report",
         waiting_report: "Waiting for report…",
 
@@ -76,20 +54,17 @@ const OUTPUT_TEXT = {
 
         generation: "Generation",
         global_refine: "Global Refine",
-        face_refine: "Face Refine",
         assemble: "Assemble",
-        finalize: "Finalize / Export",
+        finalize: "Finalize / Clip Write",
         upscale: "Upscale",
     },
 
     zh: {
         live_generation: "一般",
         live_global: "放大",
-        live_face: "脸部精修",
 
         segment: "分段",
         multi: "多段",
-        final: "最终结果",
 
         live_waiting: "等待实时预览…",
         result_waiting: "等待模型生成成果…",
@@ -99,7 +74,6 @@ const OUTPUT_TEXT = {
         available_range: "当前有效片段范围",
         range_start: "起始段",
         range_end: "结束段",
-        final_pipeline: "最终管线成果",
 
         play: "▶ 播放",
         pause: "⏸ 暂停",
@@ -110,7 +84,7 @@ const OUTPUT_TEXT = {
 
         pipeline_status: "管线状态",
         pipeline_path:
-            "生成 → 全局精修 → 组合 → 人脸精修 → 最终处理 / 导出",
+            "生成 → 全局精修 → 组合 → 写片段 → 合并",
 
         preview_settings: "预览设置",
         director_preview: "Director 预览",
@@ -122,25 +96,6 @@ const OUTPUT_TEXT = {
         jpeg_quality: "JPEG 品质",
         preview_every: "预览间隔",
 
-        save_video: "保存影片",
-        auto_save: "自动保存最终结果",
-        output_path: "路径",
-        filename_prefix: "文件名前缀",
-        format: "格式",
-        codec: "编码器",
-        encoding: "编码模式",
-        crf: "CRF",
-        save_button: "保存影片",
-        save_not_ready: "最终结果尚未完成",
-        save_ready: "可保存",
-        save_working: "正在保存…",
-        save_done: "已保存：{path}",
-        save_failed: "保存失败：{error}",
-        encoding_auto: "自动",
-        encoding_reencode: "重新编码",
-
-        final_info: "最终成果信息",
-        not_completed: "尚未完成",
         report: "报告",
         waiting_report: "等待报告…",
 
@@ -155,9 +110,8 @@ const OUTPUT_TEXT = {
 
         generation: "生成",
         global_refine: "全局精修",
-        face_refine: "人脸精修",
         assemble: "组合",
-        finalize: "最终处理 / 导出",
+        finalize: "最终处理 / 写片段",
         upscale: "放大",
     },
 };
@@ -402,36 +356,6 @@ function ensureStyles() {
     accent-color:#4fff8f
 }
 
-.mmx-save-actions{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) auto;
-    gap:8px;
-    align-items:center;
-    margin-top:7px
-}
-
-.mmx-save-actions button{
-    height:28px;
-    border:1px solid #4b765b;
-    border-radius:5px;
-    background:#193725;
-    color:#77ffa4;
-    padding:0 14px
-}
-
-.mmx-save-actions button:disabled{
-    opacity:.45;
-    cursor:not-allowed
-}
-
-.mmx-save-status.error{
-    color:#ff8a8a
-}
-
-.mmx-save-status.success{
-    color:#72ee9a
-}
-
 .mmx-output-report{
     white-space:pre-wrap;
     max-height:240px;
@@ -510,22 +434,11 @@ function dataUrl(b64, mediaType = "image/jpeg") {
     return `data:${mediaType};base64,${b64 || ""}`;
 }
 
-function optionMarkup(values) {
-    return values
-        .map(
-            (value) =>
-                `<option value="${String(value)}">${String(value)}</option>`,
-        )
-        .join("");
-}
-
 export function mountOutputUI(
     containers,
     store,
     {
         locale = () => "zh",
-        fetchApi = (path, options) => fetch(path, options),
-        nodeId = () => "",
     } = {},
 ) {
     ensureStyles();
@@ -572,12 +485,6 @@ export function mountOutputUI(
             data-live-tab="global_refine"
             data-output-text="live_global"
           >放大</button>
-
-          <button
-            type="button"
-            data-live-tab="face_refine"
-            data-output-text="live_face"
-          >脸部精修</button>
         </div>
 
         <div class="mmx-live-source">
@@ -674,7 +581,7 @@ export function mountOutputUI(
             data-pipeline-status
             data-output-text="pipeline_path"
           >
-            Generation → Global Refine → Assemble → Face Refine → Finalize / Export
+            Generation → Global Refine → Assemble → Clip Write → Merge
           </div>
         </section>
 
@@ -790,12 +697,6 @@ export function mountOutputUI(
             data-result-tab="multi"
             data-output-text="multi"
           >多段</button>
-
-          <button
-            type="button"
-            data-result-tab="final"
-            data-output-text="final"
-          >最终结果</button>
         </div>
 
         <div class="mmx-result-source">
@@ -909,135 +810,6 @@ export function mountOutputUI(
       </section>
 
       <aside class="mmx-output-right">
-        <section
-          class="mmx-output-card"
-          data-save-video-card
-          hidden
-        >
-          <h4 data-output-text="save_video">
-            保存影片
-          </h4>
-
-          <label>
-            <span data-output-text="auto_save">
-              自动保存最终结果
-            </span>
-
-            <input
-              type="checkbox"
-              data-save="auto_save"
-            >
-          </label>
-
-          <label>
-            <span data-output-text="output_path">
-              路径
-            </span>
-
-            <input
-              type="text"
-              data-save="output_path"
-              placeholder="D:/tool/ComfyUI-aki-v1.6/ComfyUI/output/video"
-            >
-          </label>
-
-          <label>
-            <span data-output-text="filename_prefix">
-              文件名前缀
-            </span>
-
-            <input
-              type="text"
-              data-save="filename_prefix"
-            >
-          </label>
-
-          <label>
-            <span data-output-text="format">
-              格式
-            </span>
-
-            <select data-save="format">
-              <option value="auto">auto</option>
-              <option value="mp4">mp4</option>
-            </select>
-          </label>
-
-          <label>
-            <span data-output-text="codec">
-              编码器
-            </span>
-
-            <select data-save="codec">
-              <option value="auto">auto</option>
-              <option value="h264">h264</option>
-            </select>
-          </label>
-
-          <label>
-            <span data-output-text="encoding">
-              编码模式
-            </span>
-
-            <select data-save="encoding">
-              <option
-                value="auto"
-                data-output-text="encoding_auto"
-              >自动</option>
-
-              <option
-                value="re-encode"
-                data-output-text="encoding_reencode"
-              >重新编码</option>
-            </select>
-          </label>
-
-          <label data-crf-row>
-            <span data-output-text="crf">
-              CRF
-            </span>
-
-            <input
-              type="number"
-              min="0"
-              max="51"
-              step="1"
-              data-save="crf"
-            >
-          </label>
-
-          <div class="mmx-save-actions">
-            <span
-              class="mmx-save-status"
-              data-save-status
-              data-output-text="save_not_ready"
-            >
-              最终结果尚未完成
-            </span>
-
-            <button
-              type="button"
-              data-save-button
-              disabled
-              data-output-text="save_button"
-            >
-              保存影片
-            </button>
-          </div>
-        </section>
-
-        <section class="mmx-output-card">
-          <h4 data-output-text="final_info">
-            最终成果信息
-          </h4>
-
-          <div
-            data-final-info
-            data-output-text="not_completed"
-          >
-            尚未完成
-          </div>
-        </section>
 
         <section class="mmx-output-card">
           <h4 data-output-text="report">
@@ -1067,13 +839,11 @@ export function mountOutputUI(
         liveByStage: {
             generation: null,
             global_refine: null,
-            face_refine: null,
         },
 
         liveFrozen: {
             generation: "",
             global_refine: "",
-            face_refine: "",
         },
 
         tab: "segment",
@@ -1082,17 +852,10 @@ export function mountOutputUI(
         multiRangeUserSet: false,
 
         segments: new Map(),
-        final: null,
-        finalRecord: null,
 
         frames: [],
         index: 0,
         playing: false,
-
-        saveStatus: {
-            kind: "not_ready",
-            value: "",
-        },
     };
 
     const liveImage =
@@ -1155,15 +918,6 @@ export function mountOutputUI(
     const playButton =
         resultsRoot.querySelector("[data-result-play]");
 
-    const saveCard =
-        resultsRoot.querySelector("[data-save-video-card]");
-
-    const saveButton =
-        resultsRoot.querySelector("[data-save-button]");
-
-    const saveStatus =
-        resultsRoot.querySelector("[data-save-status]");
-
     const freezeCanvas =
         document.createElement("canvas");
 
@@ -1182,13 +936,6 @@ export function mountOutputUI(
                 .toLowerCase();
 
         if (
-            lower.includes("face")
-            && lower.includes("refine")
-        ) {
-            return "face_refine";
-        }
-
-        if (
             lower.includes("global")
             && lower.includes("refine")
         ) {
@@ -1199,10 +946,6 @@ export function mountOutputUI(
     };
 
     const liveStageText = (key) => {
-        if (key === "face_refine") {
-            return tx("live_face");
-        }
-
         if (key === "global_refine") {
             return tx("live_global");
         }
@@ -1226,13 +969,6 @@ export function mountOutputUI(
                     ? ` · ${tx("upscale")}`
                     : ""
             }`;
-        }
-
-        if (
-            lower.includes("face")
-            && lower.includes("refine")
-        ) {
-            return tx("face_refine");
         }
 
         if (lower.includes("assemble")) {
@@ -1566,10 +1302,6 @@ export function mountOutputUI(
     };
 
     const activeResult = () => {
-        if (state.tab === "final") {
-            return state.final;
-        }
-
         if (state.tab === "segment") {
             return (
                 state.segments.get(
@@ -1805,51 +1537,11 @@ export function mountOutputUI(
             tx("play");
     };
 
-    const renderSaveStatus = () => {
-        const {
-            kind,
-            value,
-        } = state.saveStatus;
-
-        saveStatus.className =
-            `mmx-save-status ${
-                kind === "failed"
-                    ? "error"
-                    : kind === "done"
-                        ? "success"
-                        : ""
-            }`;
-
-        saveStatus.textContent =
-            kind === "ready"
-                ? tx("save_ready")
-                : kind === "working"
-                    ? tx("save_working")
-                    : kind === "done"
-                        ? tx(
-                            "save_done",
-                            {
-                                path: value,
-                            },
-                        )
-                        : kind === "failed"
-                            ? tx(
-                                "save_failed",
-                                {
-                                    error: value,
-                                },
-                            )
-                            : tx(
-                                "save_not_ready",
-                            );
-    };
-
     const setTab = (tab) => {
         if (
             ![
                 "segment",
                 "multi",
-                "final",
             ].includes(tab)
         ) {
             return;
@@ -1886,9 +1578,6 @@ export function mountOutputUI(
 
         if (tab === "multi") syncMultiRangeControls();
 
-        saveCard.hidden =
-            !["multi", "final"].includes(tab);
-
         resultsRoot
             .querySelector(
                 "[data-source-label]",
@@ -1897,9 +1586,7 @@ export function mountOutputUI(
                 tx(
                     tab === "segment"
                         ? "generated_segment"
-                        : tab === "multi"
-                            ? "available_range"
-                            : "final_pipeline",
+                        : "available_range",
                 );
 
         renderFrame();
@@ -2009,36 +1696,6 @@ export function mountOutputUI(
                         value ?? "";
                 }
             });
-
-        resultsRoot
-            .querySelectorAll(
-                "[data-save]",
-            )
-            .forEach((input) => {
-                const value =
-                    config.save[
-                        input.dataset.save
-                    ];
-
-                if (
-                    input.type
-                    === "checkbox"
-                ) {
-                    input.checked =
-                        !!value;
-                } else {
-                    input.value =
-                        value ?? "";
-                }
-            });
-
-        resultsRoot
-            .querySelector(
-                "[data-crf-row]",
-            )
-            .hidden =
-                config.save.encoding
-                !== "re-encode";
     };
 
     liveRoot
@@ -2058,34 +1715,6 @@ export function mountOutputUI(
                             : Number(
                                 input.value,
                             ),
-                    );
-                },
-            );
-        });
-
-    resultsRoot
-        .querySelectorAll(
-            "[data-save]",
-        )
-        .forEach((input) => {
-            input.addEventListener(
-                "change",
-                () => {
-                    const value =
-                        input.type
-                        === "checkbox"
-                            ? input.checked
-                            : input.type
-                                === "number"
-                                ? Number(
-                                    input.value,
-                                )
-                                : input.value;
-
-                    store.patch(
-                        "save",
-                        input.dataset.save,
-                        value,
                     );
                 },
             );
@@ -2160,114 +1789,40 @@ export function mountOutputUI(
             return;
         }
 
-        if (
-            detail.result_kind
-            === "final"
-        ) {
-            state.final =
-                item;
+        state.segments.set(
+            Number(
+                detail.segment_index
+                || 0,
+            ),
+            item,
+        );
 
-            const finalInfo =
-                resultsRoot.querySelector(
-                    "[data-final-info]",
+        segmentSelect.innerHTML =
+            [...state.segments.keys()]
+                .sort(
+                    (a, b) =>
+                        a - b,
+                )
+                .map(
+                    (index) =>
+                        `<option value="${index}">${tx("segment_word")} ${index + 1}</option>`,
+                )
+                .join("");
+
+        const keys =
+            [...state.segments.keys()]
+                .sort(
+                    (a, b) =>
+                        a - b,
                 );
 
-            finalInfo.textContent =
-                `${item.width || "—"}×${item.height || "—"}`
-                + ` · ${item.frames.length} ${tx("frames")}`
-                + ` · ${item.fps || 24} fps`;
-
-            finalInfo.dataset.hasResult =
-                "1";
-        } else {
-            state.segments.set(
-                Number(
-                    detail.segment_index
-                    || 0,
-                ),
-                item,
-            );
-
-            segmentSelect.innerHTML =
-                [...state.segments.keys()]
-                    .sort(
-                        (a, b) =>
-                            a - b,
-                    )
-                    .map(
-                        (index) =>
-                            `<option value="${index}">${tx("segment_word")} ${index + 1}</option>`,
-                    )
-                    .join("");
-
-            const keys =
-                [...state.segments.keys()]
-                    .sort(
-                        (a, b) =>
-                            a - b,
-                    );
-
-            rangeLabel.textContent =
-                keys.length
-                    ? `S${keys[0] + 1} → S${keys.at(-1) + 1}`
-                    : tx("no_valid");
-            syncMultiRangeControls();
-        }
+        rangeLabel.textContent =
+            keys.length
+                ? `S${keys[0] + 1} → S${keys.at(-1) + 1}`
+                : tx("no_valid");
+        syncMultiRangeControls();
 
         renderFrame();
-    };
-
-    const setFinalRecord = (detail = {}) => {
-        state.finalRecord =
-            detail.ready === false
-            || !detail.run_id
-                ? null
-                : {
-                    ...detail,
-                };
-
-        saveButton.disabled =
-            !state.finalRecord;
-
-        const auto =
-            detail.auto_save
-            || detail.auto_save_result;
-
-        if (auto?.ok) {
-            state.saveStatus = {
-                kind: "done",
-                value:
-                    auto.path
-                    || auto.filename
-                    || "",
-            };
-        } else if (
-            auto
-            && auto.ok === false
-        ) {
-            state.saveStatus = {
-                kind: "failed",
-                value:
-                    auto.error
-                    || detail.auto_save_error
-                    || "Unknown error",
-            };
-        } else if (detail.error) {
-            state.saveStatus = {
-                kind: "failed",
-                value: detail.error,
-            };
-        } else {
-            state.saveStatus = {
-                kind:
-                    state.finalRecord
-                        ? "ready"
-                        : "not_ready",
-                value: "",
-            };
-        }
-
-        renderSaveStatus();
     };
 
     const clear = () => {
@@ -2285,13 +1840,11 @@ export function mountOutputUI(
         state.liveByStage = {
             generation: null,
             global_refine: null,
-            face_refine: null,
         };
 
         state.liveFrozen = {
             generation: "",
             global_refine: "",
-            face_refine: "",
         };
 
         state.segments.clear();
@@ -2299,12 +1852,6 @@ export function mountOutputUI(
         state.multiEnd = null;
         state.multiRangeUserSet = false;
         syncMultiRangeControls();
-
-        state.final =
-            null;
-
-        state.finalRecord =
-            null;
 
         state.frames =
             [];
@@ -2322,26 +1869,6 @@ export function mountOutputUI(
 
         volume.disabled =
             true;
-
-        saveButton.disabled =
-            true;
-
-        state.saveStatus = {
-            kind: "not_ready",
-            value: "",
-        };
-
-        renderSaveStatus();
-
-        const finalInfo =
-            resultsRoot.querySelector(
-                "[data-final-info]",
-            );
-
-        delete finalInfo.dataset.hasResult;
-
-        finalInfo.textContent =
-            tx("not_completed");
 
         const report =
             resultsRoot.querySelector(
@@ -2408,14 +1935,12 @@ export function mountOutputUI(
             phase === "global_upscale"
             || phase === "global_refine"
                 ? tx("global_refine")
-                : phase === "face_refine"
-                    ? tx("face_refine")
-                    : phase === "assemble"
-                        ? tx("assemble")
-                        : phase === "finalize"
-                            || phase === "finish"
-                            ? tx("finalize")
-                            : tx("generation");
+                : phase === "assemble"
+                    ? tx("assemble")
+                    : phase === "finalize"
+                        || phase === "finish"
+                        ? tx("finalize")
+                        : tx("generation");
 
         const step =
             detail.phase_max > 1
@@ -2457,95 +1982,6 @@ export function mountOutputUI(
             stop();
         }
     };
-
-    saveButton.addEventListener(
-        "click",
-        async () => {
-            if (
-                !state.finalRecord
-                || saveButton.disabled
-            ) {
-                return;
-            }
-
-            state.saveStatus = {
-                kind: "working",
-                value: "",
-            };
-
-            renderSaveStatus();
-
-            saveButton.disabled =
-                true;
-
-            try {
-                const response =
-                    await fetchApi(
-                        "/minimax/bb/motion-director/save_video",
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type":
-                                    "application/json",
-                            },
-                            body:
-                                JSON.stringify({
-                                    node_id:
-                                        String(
-                                            nodeId()
-                                            || state.finalRecord.node_id
-                                            || "",
-                                        ),
-                                    run_id:
-                                        state.finalRecord.run_id,
-                                    save:
-                                        store.get().save,
-                                    segment_range:
-                                        state.tab === "multi"
-                                            ? {
-                                                start: state.multiStart,
-                                                end: state.multiEnd,
-                                            }
-                                            : null,
-                                }),
-                        },
-                    );
-
-                const result =
-                    await response.json();
-
-                if (
-                    !response.ok
-                    || !result.ok
-                ) {
-                    throw new Error(
-                        result.error
-                        || `HTTP ${response.status}`,
-                    );
-                }
-
-                state.saveStatus = {
-                    kind: "done",
-                    value:
-                        result.path
-                        || result.filename
-                        || "",
-                };
-            } catch (error) {
-                state.saveStatus = {
-                    kind: "failed",
-                    value:
-                        error?.message
-                        || String(error),
-                };
-            } finally {
-                saveButton.disabled =
-                    !state.finalRecord;
-
-                renderSaveStatus();
-            }
-        },
-    );
 
     const updateLocale = () => {
         for (const root of [
@@ -2607,9 +2043,7 @@ export function mountOutputUI(
                 tx(
                     state.tab === "segment"
                         ? "generated_segment"
-                        : state.tab === "multi"
-                            ? "available_range"
-                            : "final_pipeline",
+                        : "available_range",
                 );
 
         for (const select of [segmentSelect, rangeStart, rangeEnd]) {
@@ -2626,67 +2060,12 @@ export function mountOutputUI(
                     : "play",
             );
 
-        renderSaveStatus();
         renderLive();
         renderFrame();
     };
 
-    (async () => {
-        try {
-            const response =
-                await fetchApi(
-                    "/minimax/bb/motion-director/postprocess_capabilities",
-                );
-
-            if (!response?.ok) {
-                return;
-            }
-
-            const values =
-                (await response.json())
-                    ?.video_save
-                || {};
-
-            const current =
-                store.get().save;
-
-            const format =
-                resultsRoot.querySelector(
-                    '[data-save="format"]',
-                );
-
-            const codec =
-                resultsRoot.querySelector(
-                    '[data-save="codec"]',
-                );
-
-            if (values.formats?.length) {
-                format.innerHTML =
-                    optionMarkup(
-                        values.formats,
-                    );
-            }
-
-            if (values.codecs?.length) {
-                codec.innerHTML =
-                    optionMarkup(
-                        values.codecs,
-                    );
-            }
-
-            format.value =
-                current.format;
-
-            codec.value =
-                current.codec;
-        } catch {
-            // Capability discovery is optional.
-        }
-    })();
-
     updateLocale();
     setTab("segment");
-    renderSaveStatus();
     renderLive();
 
     return {
@@ -2699,7 +2078,6 @@ export function mountOutputUI(
         clear,
         setReport,
         setAudio,
-        setFinalRecord,
         setPipelineStatus,
         setTab,
         setLiveStage,
@@ -2749,31 +2127,6 @@ export function mountOutputUI(
 
             playback.destroy();
             unsubscribe();
-
-            const id =
-                String(
-                    nodeId()
-                    || "",
-                );
-
-            if (id) {
-                fetchApi(
-                    "/minimax/bb/motion-director/release_video",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type":
-                                "application/json",
-                        },
-                        body:
-                            JSON.stringify({
-                                node_id: id,
-                            }),
-                    },
-                ).catch?.(
-                    () => {},
-                );
-            }
         },
     };
 }

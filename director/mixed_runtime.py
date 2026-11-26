@@ -1,9 +1,13 @@
-"""Runtime materialization of Mixed Segment Result still references."""
+"""Runtime materialization of Mixed Segment Result still references.
+
+Cross-run cache reuse is gone: a Mixed reference is resolved from the frames the
+executor retained for it during the same run. ``expand_run_selection`` guarantees
+the producer is always generated before its consumer, so the reference is either
+already retained or the run is invalid.
+"""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
 import torch
@@ -31,42 +35,30 @@ def select_result_frame(frames: torch.Tensor, selector: str | int) -> torch.Tens
     return frames[index : index + 1]
 
 
-def _load_matching_cache_any_node(producer, plan) -> torch.Tensor | None:
-    """Find an exact producer cache when planning did not receive the runtime node id."""
-    try:
-        import folder_paths
+def capture_mixed_reference_frames(plan, seg, frames: torch.Tensor) -> None:
+    """Retain the stills later Mixed consumers reference while the producer is in memory.
 
-        from .segment_cache import segment_cache_fingerprint
-
-        expected = segment_cache_fingerprint(producer, plan)
-        base = Path(folder_paths.get_output_directory()) / "minimax_seg_cache"
-        if not base.is_dir():
-            return None
-        index = int(producer.index)
-        meta_name = f"seg_{index:04d}.meta.json"
-        tensor_name = f"seg_{index:04d}.pt"
-        for node_root in base.iterdir():
-            if not node_root.is_dir():
+    Called by the executor at segment capture time, when the full chunk is available.
+    Under the Low-RAM window policy the producer chunk may already be released by the
+    time a consumer samples, so the referenced frames are stored here instead of the
+    whole segment.
+    """
+    if not bool(getattr(plan, "mixed_mode", False)):
+        return
+    store = getattr(plan, "mixed_reference_frames", None)
+    if store is None:
+        store = {}
+        plan.mixed_reference_frames = store
+    stable_id = str(getattr(seg, "stable_id", ""))
+    for consumer in plan.segments:
+        for descriptor in (getattr(consumer, "mixed_result_refs", None) or []):
+            if str(descriptor.get("segmentId") or "").strip() != stable_id:
                 continue
-            meta_path = node_root / meta_name
-            tensor_path = node_root / tensor_name
-            if not meta_path.is_file() or not tensor_path.is_file():
-                continue
-            try:
-                stored = json.loads(meta_path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            if stored != expected:
-                continue
-            try:
-                tensor = torch.load(tensor_path, map_location="cpu", weights_only=True)
-            except Exception:
-                continue
-            if isinstance(tensor, torch.Tensor) and tensor.ndim == 4 and int(tensor.shape[0]) > 0:
-                return tensor
-    except Exception:
-        return None
-    return None
+            frame = descriptor.get("frame", "last")
+            bucket = store.setdefault(int(seg.index), {})
+            key = str(frame)
+            if key not in bucket:
+                bucket[key] = select_result_frame(frames, frame).detach().cpu().float().contiguous()
 
 
 class MixedResultRef:
@@ -80,7 +72,6 @@ class MixedResultRef:
         source_segment_id: str,
         frame: str | int,
         plan,
-        node_id: str | None,
     ) -> None:
         self.index = int(index)
         self.role = str(role)
@@ -88,12 +79,7 @@ class MixedResultRef:
         self.frame = frame
         self.asset_id = f"mixed-result:{self.source_segment_id}:{self.frame}:{self.role}"
         self._plan = plan
-        self._node_id = str(node_id) if node_id is not None else None
         self._resolved: torch.Tensor | None = None
-
-    def bind_node_id(self, node_id: str | None) -> None:
-        if node_id not in (None, ""):
-            self._node_id = str(node_id)
 
     def _source_segment(self):
         for segment in self._plan.segments:
@@ -108,20 +94,15 @@ class MixedResultRef:
         if self._resolved is not None:
             return self._resolved
 
-        from .segment_cache import load_segment_cache
-
         producer = self._source_segment()
-        cached = (
-            load_segment_cache(self._node_id, producer, self._plan)
-            if self._node_id
-            else _load_matching_cache_any_node(producer, self._plan)
-        )
-        if cached is None:
+        store = getattr(self._plan, "mixed_reference_frames", None) or {}
+        retained = store.get(int(producer.index), {}).get(str(self.frame))
+        if retained is None:
             raise ValueError(
                 f"Mixed dependency unavailable: Segment {getattr(producer, 'timeline_index', producer.index) + 1} "
                 f"({self.source_segment_id}) must be generated before it can provide frame {self.frame!r}."
             )
-        self._resolved = select_result_frame(cached, self.frame).detach().cpu().float().contiguous()
+        self._resolved = retained
         return self._resolved
 
 
@@ -160,7 +141,7 @@ def _next_identity_slot(refs) -> int:
     raise ValueError("Mixed identity references exceed MiniMax H3 Picture limit (9).")
 
 
-def attach_mixed_result_refs(plan, *, node_id: str | None) -> None:
+def attach_mixed_result_refs(plan) -> None:
     """Attach SegmentRef-compatible lazy stills to compiled Mixed segments."""
     if not bool(getattr(plan, "mixed_mode", False)):
         return
@@ -206,30 +187,14 @@ def attach_mixed_result_refs(plan, *, node_id: str | None) -> None:
                     source_segment_id=source_id,
                     frame=frame,
                     plan=plan,
-                    node_id=node_id,
                 )
             )
         seg.refs = sorted(seg.refs, key=lambda ref: int(getattr(ref, "index", 0)))
 
 
-def bind_mixed_runtime_node(plan, node_id: str | None) -> None:
-    """Bind the actual Comfy execution node id after planning but before sampling."""
-    if not bool(getattr(plan, "mixed_mode", False)) or node_id in (None, ""):
-        return
-    value = str(node_id)
-    plan.mixed_node_id = value
-    run_selection = getattr(plan, "run_indices", None)
-    if hasattr(run_selection, "node_id"):
-        run_selection.node_id = value
-    for seg in plan.segments:
-        for ref in getattr(seg, "refs", None) or []:
-            if isinstance(ref, MixedResultRef):
-                ref.bind_node_id(value)
-
-
 __all__ = [
     "MixedResultRef",
     "attach_mixed_result_refs",
-    "bind_mixed_runtime_node",
+    "capture_mixed_reference_frames",
     "select_result_frame",
 ]

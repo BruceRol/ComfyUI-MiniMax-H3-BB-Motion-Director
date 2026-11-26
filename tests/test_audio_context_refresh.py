@@ -138,7 +138,7 @@ def test_installer_routes_refresh_to_separate_audio_candidate(monkeypatch):
 def test_root_package_installs_refresh_before_public_nodes_bind_executor():
     source = Path("__init__.py").read_text(encoding="utf-8")
     install_at = source.index("install_audio_context_refresh()")
-    nodes_at = source.index("from .nodes.director_output")
+    nodes_at = source.index("from .nodes.director")
     assert install_at < nodes_at
 
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import {faceRefineVisibility,globalRefineSummary,globalRefineVisibility,normalizePostprocessConfig,setGlobalUpscaleEnabled} from "../minimax_postprocess_ui.mjs";
+import {globalRefineSummary,globalRefineVisibility,normalizePostprocessConfig,setGlobalUpscaleEnabled} from "../minimax_postprocess_ui.mjs";
 
 let cfg=normalizePostprocessConfig({global_refine:{enabled:true,mode:"refine",seed_mode:"inherit",resolution_mode:"follow_director",upscale_method:"lanczos"}});
 assert.equal(cfg.version,9);
@@ -28,13 +28,9 @@ assert.match(uiSource,/architecture is detected from the weights/);
 assert.match(uiSource,/架构会直接从权重自动识别/);
 assert.doesNotMatch(uiSource,/field\("Latent Variant",\s*"global_refine\.latent_upscale_variant"/);
 assert.doesNotMatch(uiSource,/2D \+ Temporal \(recommended\)|2D \+ Temporal（推荐）/);
-assert.match(uiSource,/field\("Face Detector Model",\s*"face_refine\.detector_model"/);
 
-const face=normalizePostprocessConfig({face_refine:{enabled:true,detector:"ultralytics",canvas_mode:"manual",mask_mode:"sam",identity_track:true,fallback_detector:"person_yolov8m-seg.pt"}});
-assert.deepEqual(faceRefineVisibility(face),{detectorModel:true,manualCanvas:true,sam:true,identity:true,fallback:true});
-assert.equal(face.face_refine.smooth_window,21); assert.equal(face.face_refine.size_smooth_window,51);
-assert.equal(face.face_refine.base_denoise,0.45); assert.equal(face.face_refine.feather,24);
-const migrated=normalizePostprocessConfig({version:3,face_refine:{smooth_window:9,size_smooth_window:13,base_denoise:0.22,feather:0.12}});
-assert.equal(migrated.face_refine.smooth_window,21); assert.equal(migrated.face_refine.size_smooth_window,51);
-assert.equal(migrated.face_refine.base_denoise,0.45); assert.equal(migrated.face_refine.feather,24);
+// Face Refine is gone: the config schema no longer carries a face section and
+// legacy saved workflows that mention it are ignored.
+assert.equal("face_refine" in normalizePostprocessConfig({face_refine:{enabled:true}}),false);
+assert.doesNotMatch(uiSource,/face_refine|faceRefine|Face Refine|人脸精修/);
 console.log("postprocess UI state tests passed");

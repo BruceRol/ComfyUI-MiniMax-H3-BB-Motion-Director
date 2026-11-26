@@ -59,7 +59,7 @@ else:
 
     install_audio_drive_support()
 
-    from .nodes.director_output import BB_MiniMaxH3MotionDirector  # noqa: E402
+    from .nodes.director import BB_MiniMaxH3MotionDirector  # noqa: E402
 
     NODE_CLASS_MAPPINGS = {
         "BB_MiniMaxH3MotionDirector": BB_MiniMaxH3MotionDirector,

@@ -16,23 +16,17 @@ import torch
 from PIL import Image
 
 from ..lib.generation_source_policy import is_source_free_generation_task
-from ..lib.image_prep import fit_canvas, fit_video_long_edge
 from ..lib.video_io import (
     load_timeline_segment,
     logical_frame_count,
     resolve_logical_frame_entry,
 )
-from .frame_align import pad_or_trim_frames
 from .plan import DirectorPlan
 from .source_bridge import (
     SOURCE_BRIDGE_TASKS,
     SourceBridgeWindow,
     bridge_window_for_boundary,
 )
-
-
-def needs_source_video(task_key: str) -> bool:
-    return task_key in {"i2v", "fl2v", "v2v", "rv2v"}
 
 
 def is_gen_timeline_plan(plan: DirectorPlan) -> bool:
@@ -216,48 +210,21 @@ def resolve_segment_raw_clip_with_lookahead(
     return load_timeline_segment(plan.raw, start, end)
 
 
-def source_passthrough_chunk(plan: DirectorPlan, seg) -> torch.Tensor:
-    """Scaled source frames for skipped v2v segments with no generation cache yet."""
-    raw_clip = resolve_segment_raw_clip(plan, seg)
-    target_len = raw_clip.shape[0]
-    if plan.output_mode == "fixed":
-        clip = fit_canvas(raw_clip, plan.width, plan.height)
-    else:
-        clip = fit_video_long_edge(
-            raw_clip,
-            plan.ref_max_size,
-            stride=int(getattr(plan, "spatial_stride", 32)),
+def resolve_nominal_segment_frames(
+    in_memory: dict[int, torch.Tensor],
+    *,
+    segment_index: int,
+    expected_frames: int,
+) -> torch.Tensor:
+    """Resolve Source Bridge anchors from the segments generated in this run."""
+    index = int(segment_index)
+    frames = in_memory.get(index)
+    if frames is None or int(frames.shape[0]) != int(expected_frames):
+        raise ValueError(
+            "Source Bridge requires both adjacent segments generated in this run. "
+            "Run the complete sequence, or include the missing adjacent segment in the run selection."
         )
-    return pad_or_trim_frames(clip, target_len).cpu().float()
-
-
-def segment_passthrough_chunk(plan: DirectorPlan, seg) -> torch.Tensor | None:
-    """Fill an unselected segment only when a real source video is available.
-
-    Generated-video tasks must never use their internal placeholder/source
-    conditioning frames as final output. If their generated segment cache is
-    missing, return None so the executor reports the missing cache instead of
-    exporting gray placeholder frames or still source images.
-    """
-    task_key = str(getattr(seg, "task_key", "") or "").lower()
-
-    if task_key in {"t2v", "i2v", "r2v", "fl2v"}:
-        return None
-
-    if seg.source_clip is not None and seg.source_clip.shape[0] > 0:
-        target_len = max(1, seg.frame_count or int(seg.source_clip.shape[0]))
-        clip = seg.source_clip.clone()
-        if clip.shape[0] > target_len:
-            clip = clip[:target_len]
-        return clip.cpu().float()
-
-    if needs_source_video(task_key):
-        try:
-            return source_passthrough_chunk(plan, seg)
-        except Exception:
-            return None
-
-    return None
+    return frames
 
 
 def tensor_frame_to_jpeg_b64(frame: torch.Tensor) -> str:
