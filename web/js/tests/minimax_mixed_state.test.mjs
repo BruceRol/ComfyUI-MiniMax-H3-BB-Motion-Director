@@ -13,15 +13,15 @@ import {
     validateMixedReferences,
 } from "../minimax_mixed_state.mjs";
 
-assert.equal(resolveDirectorTaskKey("mixed — 混合模式(Mixed)"), "mixed");
+assert.equal(resolveDirectorTaskKey("mixed — Mixed"), "mixed");
 
 const standaloneCases = [
-    ["t2v — 文生视频(Text to Video)", "t2v"],
-    ["i2v — 图生视频(Image to Video)", "i2v"],
-    ["fl2v — 首尾帧生视频(First-Last Frame)", "fl2v"],
-    ["r2v — 参考主体生视频(Reference to Video)", "r2v"],
-    ["v2v — 视频转视频(Video to Video)", "v2v"],
-    ["rv2v — 参考素材改视频(Reference Video Edit)", "rv2v"],
+    ["t2v — Text to Video", "t2v"],
+    ["i2v — Image to Video", "i2v"],
+    ["fl2v — First-Last Frame to Video", "fl2v"],
+    ["r2v — Reference to Video", "r2v"],
+    ["v2v — Video to Video", "v2v"],
+    ["rv2v — Reference Video Edit", "rv2v"],
 ];
 for (const [label, key] of standaloneCases) {
     assert.equal(resolveDirectorTaskKey(label), key, `${key} task key changed`);

@@ -154,46 +154,40 @@ def _normalize_shots(raw_shots: list | None, *, frame_rate: float = 24.0) -> lis
 # MiniMax H3 locks first/last via MiniMaxH3ImageToVideo keyframe latents.
 # Prompt text reinforces continuity; avoid MiniMax H3 reference-slot tokens.
 FLF_PROMPT_PREFIX = (
-    "完全保持首尾帧。"
-    "视频第一帧必须与给定首帧画面一致，最后一帧必须与给定尾帧画面一致；"
-    "首尾帧是硬锁定关键帧，不是软参考，禁止改动首尾画面、主体外观与机位。"
+    "Keep the first and last frames exactly. "
+    "The first frame must match the given first frame and the last frame must match the given last frame; "
+    "both are hard-locked keyframes, not soft references: do not change the first/last picture, subject appearance or camera."
 )
 I2V_PROMPT_PREFIX = (
-    "完全保持首帧。"
-    "视频第一帧必须与给定首帧画面一致；首帧是硬锁定关键帧，不是软参考，禁止改动首帧画面与主体外观。"
+    "Keep the first frame exactly. "
+    "The first frame must match the given first frame; it is a hard-locked keyframe, not a soft reference: "
+    "do not change the first picture or the subject appearance."
 )
 L2V_PROMPT_PREFIX = (
-    "完全保持尾帧。"
-    "视频最后一帧必须与给定尾帧画面一致；尾帧是硬锁定关键帧，不是软参考，禁止改动尾帧画面与主体外观。"
+    "Keep the last frame exactly. "
+    "The last frame must match the given last frame; it is a hard-locked keyframe, not a soft reference: "
+    "do not change the last picture or the subject appearance."
 )
 FLF_PROMPT_SUFFIX = (
-    "完全保持首尾帧：开头锁定首帧，结尾锁定尾帧。"
+    "Keep the first and last frames: the opening is locked to the first frame, the ending to the last frame."
 )
 I2V_PROMPT_SUFFIX = (
-    "完全保持首帧：开头锁定首帧。"
+    "Keep the first frame: the opening is locked to the first frame."
 )
 L2V_PROMPT_SUFFIX = (
-    "完全保持尾帧：结尾锁定尾帧。"
+    "Keep the last frame: the ending is locked to the last frame."
 )
 
 # Legacy wraps from earlier builds — strip so re-runs do not stack.
 _LEGACY_FL2V_WRAPS = (
-    "完全保持首尾帧。"
-    "视频开始完全按照image0的构图，不修改，视频结束完全保持image1。"
-    "第一帧必须与image0像素级一致，最后一帧必须与image1像素级一致；"
-    "image0/image1是固定首尾帧，不是参考图，禁止改动首尾构图、主体外观与机位。",
-    "完全保持首帧。"
-    "视频开始完全按照image0的构图，不修改。"
-    "第一帧必须与image0像素级一致；image0是固定首帧，不是参考图，禁止改动首帧构图与主体外观。",
-    "视频开始完全按照image0的构图，不修改，视频结束完全保持image1。",
-    "视频开始完全按照image0的构图，不修改，视频结束完全保持image1的构图。",
-    "视频结束完全保持image1的构图。",
-    "严格要求：第一帧必须与image0一致，最后一帧必须与image1一致；"
-    "中间仅做从image0到image1的自然过渡，不得改变首尾构图与主体外观。",
-    "视频开始完全按照image0的构图，不修改。"
-    "严格要求：第一帧必须与image0一致；后续运动从该首帧自然展开，不得偏离image0的构图与主体外观。",
-    "再次强调：开头锁定image0，结尾锁定image1。",
-    "再次强调：开头锁定image0。",
+    "Keep the first and last frames exactly. The video starts exactly as image0, unchanged, and ends exactly as image1.",
+    "Keep the first frame exactly. The video starts exactly as image0, unchanged.",
+    "The video starts exactly as image0, unchanged, and ends exactly as image1.",
+    "The video ends exactly as image1.",
+    "Strict requirement: the first frame must match image0 and the last frame must match image1; "
+    "only a natural transition from image0 to image1 is allowed, without changing the first/last picture or the subject appearance.",
+    "Reminder: the opening is locked to image0, the ending to image1.",
+    "Reminder: the opening is locked to image0.",
 )
 
 
@@ -213,7 +207,7 @@ def _strip_fl2v_wraps(text: str) -> str:
 
 
 def _sanitize_fl2v_body(text: str) -> str:
-    """Rewrite soft「参考」wording that weakens first/last-frame locking."""
+    """Rewrite soft "reference" wording that weakens first/last-frame locking."""
     if not text:
         return text
     replacements = (
@@ -221,37 +215,20 @@ def _sanitize_fl2v_body(text: str) -> str:
         ("reference image1", "image1"),
         ("Reference image0", "image0"),
         ("Reference image1", "image1"),
-        ("参考图 image0", "image0"),
-        ("参考图 image1", "image1"),
-        ("参考图image0", "image0"),
-        ("参考图image1", "image1"),
-        ("参考 image0", "image0"),
-        ("参考 image1", "image1"),
-        ("参考image0", "image0"),
-        ("参考image1", "image1"),
-        ("以image0为参考", "完全按照image0"),
-        ("以image1为参考", "完全保持image1"),
-        ("把image0当作参考", "完全按照image0"),
-        ("把image1当作参考", "完全保持image1"),
-        ("image0的构图", "image0的画面"),
-        ("image1的构图", "image1的画面"),
-        ("首尾构图", "首尾画面"),
-        ("首帧构图", "首帧画面"),
+        ("image0 composition", "image0 picture"),
+        ("image1 composition", "image1 picture"),
     )
     out = text
     for old, new in replacements:
         out = out.replace(old, new)
     # Drop duplicated lock lines already present in the body (prefix/suffix will re-add).
     for marker in (
-        "完全保持首尾帧。",
-        "完全保持首帧。",
-        "视频开始完全按照image0的画面，不修改，视频结束完全保持image1的画面。",
-        "视频开始完全按照image0的画面，不修改，视频结束完全保持image1。",
-        "视频开始完全按照image0的构图，不修改，视频结束完全保持image1。",
-        "视频开始完全按照image0的画面，不修改。",
-        "视频开始完全按照image0的构图，不修改。",
-        "视频结束完全保持image1的画面。",
-        "视频结束完全保持image1。",
+        "Keep the first and last frames exactly. ",
+        "Keep the first frame exactly. ",
+        "Keep the last frame exactly. ",
+        "The video starts exactly as image0, unchanged, and ends exactly as image1.",
+        "The video starts exactly as image0, unchanged.",
+        "The video ends exactly as image1.",
     ):
         if out.startswith(marker):
             out = out[len(marker) :].strip()
@@ -261,8 +238,8 @@ def _sanitize_fl2v_body(text: str) -> str:
 def fl2v_prompt_body_only(prompt: str) -> str:
     """Strip hard-lock wraps / PE duplicates; keep only the motion body for UI storage."""
     text = _sanitize_fl2v_body(_strip_fl2v_wraps((prompt or "").strip()))
-    if text.startswith("中间过程："):
-        text = text[len("中间过程：") :].strip()
+    if text.startswith("Middle part:"):
+        text = text[len("Middle part:") :].strip()
     return text
 
 
@@ -285,7 +262,7 @@ def reinforce_fl2v_prompt(
     else:
         prefix, suffix = I2V_PROMPT_PREFIX, I2V_PROMPT_SUFFIX
     if text:
-        return f"{prefix}{suffix}中间过程：{text}"
+        return f"{prefix}{suffix}Middle part: {text}"
     return f"{prefix}{suffix}"
 
 
@@ -481,7 +458,7 @@ def _expand_shots(keyframes: list[dict]) -> list[dict[str, Any]]:
     """Only isStartFrame clips produce sampling shots.
 
     Pairing rule:
-    - Start+End on the same clip → 首尾同图 (image0=image1=self)
+    - Start+End on the same clip → self-paired (image0 = image1 = self)
     - Else walk forward until the next Start (exclusive); first End-only is image1
     - Start with no End → i2v; Start+End → fl2v (sample spans both when End-only)
     """
@@ -507,7 +484,7 @@ def _expand_shots(keyframes: list[dict]) -> list[dict[str, Any]]:
                     }
                 )
             else:
-                # Self-paired 首尾同图: sample this clip alone.
+                # Self-paired (image0 = image1 = self): sample this clip alone.
                 shots.append(
                     {
                         "source_index": i,
@@ -589,12 +566,12 @@ def build_fl2v_director_plan(
     if not shots:
         if not keyframes:
             raise ValueError(
-                "fl2v: 请至少添加一组并上传首帧和/或尾帧图片。"
+                "fl2v: add at least one group and upload a first and/or last frame image."
             )
         shots = _expand_shots(keyframes)
         if not shots:
             raise ValueError(
-                "fl2v: 没有可用的组。请添加一组并上传首帧和/或尾帧。"
+                "fl2v: no usable group. Add a group and upload a first and/or last frame."
             )
 
     # runSelection uses shot indices when shots[] is present; else keyframe indices.
@@ -609,8 +586,8 @@ def build_fl2v_director_plan(
         }
         if not selected_plan_indices:
             raise ValueError(
-                "MiniMax H3 Motion Director: 「选择运行」已开启，但未勾选任何首尾帧组。"
-                "请勾选至少一组再执行。"
+                "MiniMax H3 Motion Director: 'Select to run' is enabled but no first/last-frame group is checked. "
+                "Check at least one group before running."
             )
 
     output_block = timeline.get("output") or {}
@@ -661,7 +638,7 @@ def build_fl2v_director_plan(
         start_kf = shot.get("start")
         end_kf = shot.get("end")
         if start_kf is None and end_kf is None:
-            raise ValueError("fl2v: 某一组既无首帧也无尾帧，请至少上传其中一张。")
+            raise ValueError("fl2v: a group has neither a first nor a last frame; upload at least one.")
         start_f = int(shot.get("timeline_start") or 0)
         fc = max(MIN_FL2V_FRAMES, int(shot["frameCount"]))
         user_prompt = (shot.get("prompt") or "").strip() or fallback_prompt
@@ -738,7 +715,7 @@ def build_fl2v_director_plan(
 
     if not segments:
         raise ValueError(
-            "fl2v: 没有可运行的组。请添加一组并上传首帧和/或尾帧。"
+            "fl2v: no group to run. Add a group and upload a first and/or last frame."
         )
 
     source_video = torch.full((len(segments), 16, 16, 3), 0.5, dtype=torch.float32)

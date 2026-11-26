@@ -510,7 +510,7 @@ def execute_director_plan_core(
             "validated and should be disabled."
         )
     if clear_vram_between_segments:
-        reports.append("VRAM: 段间清理显存已开启。")
+        reports.append("VRAM: cleared between segments.")
     if audio_mode == AUDIO_MODE_MUTE:
         reports.append("Audio: muted — skip audio VAE decode, silent AUDIO output.")
     elif audio_mode == AUDIO_MODE_SOURCE:

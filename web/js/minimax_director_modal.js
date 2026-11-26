@@ -58,7 +58,6 @@ function ensureStyles() {
 .mmx-director-launcher button{min-width:0;border:1px solid #555;border-radius:5px;background:#252525;color:#d8dce8;font-size:11px;line-height:1;cursor:pointer;box-sizing:border-box}
 .mmx-director-launcher button:hover{border-color:#4fff8f;background:#2b2b2b;color:#fff}
 .mmx-director-launcher-open{flex:1 1 auto;padding:0 10px;font-weight:600;text-align:left}
-.mmx-director-launcher-lang{flex:0 0 58px;padding:0 7px;text-align:center}
 .mmx-director-page-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;background:rgba(0,0,0,.72)}
 .mmx-director-page-overlay[hidden]{display:none!important}
 .mmx-director-page-shell{position:relative;width:92vw;height:90vh;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);min-width:0;min-height:0;display:flex;flex-direction:column;overflow:visible;border:1px solid #3a3a3a;border-radius:9px;background:#141414;box-shadow:0 20px 70px rgba(0,0,0,.72);color:#e0e0e0;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}
@@ -89,7 +88,6 @@ function ensureStyles() {
 export function createDirectorModal({
     launcherHost,
     translate,
-    toggleLanguage,
     hasInternalDialog,
     onOpen,
     onClose,
@@ -110,12 +108,7 @@ export function createDirectorModal({
     openButton.className = "mmx-director-launcher-open";
     openButton.dataset.a = "open-director";
 
-    const languageButton = document.createElement("button");
-    languageButton.type = "button";
-    languageButton.className = "mmx-director-launcher-lang";
-    languageButton.dataset.a = "lang-toggle";
-
-    launcher.append(openButton, languageButton);
+    launcher.append(openButton);
     launcherHost.replaceChildren(launcher);
 
     const overlay = document.createElement("div");
@@ -190,10 +183,8 @@ export function createDirectorModal({
     let resizeRaf = null;
     let currentPage = "generation";
 
-    const updateLocale = () => {
+    const refreshStrings = () => {
         openButton.textContent = translate("toolbar.openDirector");
-        languageButton.textContent = translate("toolbar.langToggle");
-        languageButton.title = translate("toolbar.langToggleTitle");
         title.textContent = translate("modal.directorTitle");
         closeButton.title = translate("modal.close");
         closeButton.setAttribute("aria-label", translate("modal.close"));
@@ -224,7 +215,6 @@ export function createDirectorModal({
     const api = {
         launcher,
         openButton,
-        languageButton,
         overlay,
         shell,
         content,
@@ -237,7 +227,7 @@ export function createDirectorModal({
         keyHandler: null,
         get isOpen() { return isOpen; },
         get currentPage() { return currentPage; },
-        updateLocale,
+        refreshStrings,
         setPage(page) {
             if (!DIRECTOR_PAGES.includes(page)) return false;
             currentPage = page;
@@ -309,7 +299,6 @@ export function createDirectorModal({
             window.removeEventListener("keydown", api.keyHandler, true);
             window.removeEventListener("resize", scheduleResize);
             openButton.removeEventListener("click", handleOpenClick);
-            languageButton.removeEventListener("click", handleLanguageClick);
             closeButton.removeEventListener("click", handleCloseClick);
             previousButton.removeEventListener("click", handlePreviousPage);
             nextButton.removeEventListener("click", handleNextPage);
@@ -334,10 +323,6 @@ export function createDirectorModal({
     const handleOpenClick = (event) => {
         stopLauncherEvent(event);
         api.open();
-    };
-    const handleLanguageClick = (event) => {
-        stopLauncherEvent(event);
-        toggleLanguage?.();
     };
     const handleCloseClick = (event) => {
         event.preventDefault();
@@ -375,7 +360,6 @@ export function createDirectorModal({
     };
 
     openButton.addEventListener("click", handleOpenClick);
-    languageButton.addEventListener("click", handleLanguageClick);
     closeButton.addEventListener("click", handleCloseClick);
     previousButton.addEventListener("click", handlePreviousPage);
     nextButton.addEventListener("click", handleNextPage);
@@ -386,7 +370,7 @@ export function createDirectorModal({
     overlay.addEventListener("beforeinput", handleEditingEvent);
     window.addEventListener("keydown", api.keyHandler, true);
     window.addEventListener("resize", scheduleResize);
-    updateLocale();
+    refreshStrings();
     api.setPage("generation");
     directorModalByHost.set(launcherHost, api);
     return api;

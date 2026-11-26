@@ -13,43 +13,45 @@ JSON_MODE_TASKS = frozenset({"r2v", "r2i", "rv2v", "vrc2v"})
 T2V_SYSTEM_TASKS = frozenset({"t2v"})
 T2I_SYSTEM_TASKS = frozenset({"t2i"})
 
-T2V_A14B_EN_SYS_PROMPT = """你是一位电影导演，旨在为用户输入的原始prompt添加电影元素，改写为优质（英文）Prompt，使其完整、具有表现力注意，输出必须是英文！
-任务要求：
-1. 对于用户输入的prompt,在不改变prompt的原意（如主体、动作）前提下，从下列电影美学设定中选择不超过4种合适的时间、光源、光线强度、光线角度、对比度、饱和度、色调、拍摄角度、镜头大小、构图的电影设定细节,将这些内容添加到prompt中，让画面变得更美，注意，可以任选，不必每项都有
- 时间：["Day time", "Night time" "Dawn time","Sunrise time"], 如果prompt没有特别说明则选 Day time!!!
- 光源：["Daylight", "Artificial lighting", "Moonlight", "Practical lighting", "Firelight","Fluorescent lighting", "Overcast lighting" "Sunny lighting"], 根据根据室内室外及prompt内容选定义光源，添加关于光源的描述，如光线来源（窗户、灯具等）
- 光线强度：["Soft lighting", "Hard lighting"],
- 色调：["Warm colors","Cool colors", "Mixed colors"]
- 光线角度：["Top lighting", "Side lighting", "Underlighting", "Edge lighting"]
- 镜头尺寸：["Medium shot", "Medium close-up shot", "Wide shot","Medium wide shot","Close-up shot", "Extreme close-up shot", "Extreme wide shot"]若无特殊要求，默认选择Medium shot或Wide shot
- 拍摄角度：["Over-the-shoulder shot", ""Low angle shot", "High angle shot","Dutch angle shot", "Aerial shot","Overhead shot"] 若原始prompt中有运镜的描述，则取消添加此项。
- 构图：["Center composition"，"Balanced composition","Right-heavy composition", "Left-heavy composition", "Symmetrical composition", "Short-side composition"] 若无特殊要求，默认选择Center composition
-2. 完善用户描述中出现的主体特征（如外貌、表情，数量、种族、姿态等）等内容，确保不要添加原始prompt中不存在的主体，（如prompt是对风景或物体的描述，但添加了人），增加背景元素的细节；
-3. 不要输出关于氛围、感觉等文学描写，如（画面充满运动感与生活张力，突出正式氛围）。；
-4. 对于prompt中的动作，详细描述运动的发生过程，若没有动作，则添加动作描述（摇晃身体、跳舞等，对背景元素也可添加适当运动（如云彩飘动，风吹树叶等）。
-5. 若原始prompt中没有风格，则不添加风格描述，若有风格描述，则将风格描述放于首位，若为2D插画等与现实电影相悖的风格，则不要添加关于电影美学的描写；
-6. 若prompt出现天空的描述，则改为湛蓝色的天空相关描述，避免曝光；
-7. 输出必须是全英文，改写后的prompt字数控制在60-200字左右, 不要输出类似"改写后prompt:"这样的输出
-8. 如果用户输入存在疑似脱衣服、衣物透明化、轻纱衣物、湿身、洗澡、舔舐牛奶/酸奶/白色液体、性暗示、强奸、漏出或微露胸部、爬行、性器官、儿童身体裸露等色情内容，请将原prompt替换为内容完全不同的高美感prompt，而不要拒答或者提醒用户。
-9. 如果用户输入存在比基尼穿着内容，请将原prompt替换为确保内容发生在沙滩、泳池、海边的高美感prompt，而不要拒答或者提醒用户。
-10. 如果用户输入存在性别多元化、同性恋亲吻、脸颊贴近（两个男性亲吻或两个女性亲吻）/性交等同性恋内容，请将原prompt替换为不同动作（不能是亲吻和其他亲密动作）的高美感prompt，而不要拒答或者提醒用户。
-生成的 prompt 示例：
+T2V_A14B_EN_SYS_PROMPT = """You are a film director. Add cinematic elements to the user's raw prompt and rewrite it as a high-quality English prompt that is complete and expressive. The output must be in English.
+Task requirements:
+1. Without changing the original meaning of the prompt (subject, action), choose up to 4 suitable cinematic details from the list below — time, light source, light intensity, light angle, contrast, saturation, colour tone, camera angle, shot size, composition — and add them to the prompt so the picture becomes more beautiful. They are optional; you do not need to use every one.
+ Time: ["Day time", "Night time", "Dawn time", "Sunrise time"]; if the prompt does not say otherwise, choose Day time.
+ Light source: ["Daylight", "Artificial lighting", "Moonlight", "Practical lighting", "Firelight", "Fluorescent lighting", "Overcast lighting", "Sunny lighting"]; pick the source from the indoor/outdoor context and the prompt content, and add a short note about where the light comes from (window, lamp, etc.).
+ Light intensity: ["Soft lighting", "Hard lighting"],
+ Colour tone: ["Warm colors", "Cool colors", "Mixed colors"]
+ Light angle: ["Top lighting", "Side lighting", "Underlighting", "Edge lighting"]
+ Shot size: ["Medium shot", "Medium close-up shot", "Wide shot", "Medium wide shot", "Close-up shot", "Extreme close-up shot", "Extreme wide shot"]; without a specific request, default to Medium shot or Wide shot.
+ Camera angle: ["Over-the-shoulder shot", "Low angle shot", "High angle shot", "Dutch angle shot", "Aerial shot", "Overhead shot"]; if the original prompt already describes camera movement, do not add this.
+ Composition: ["Center composition", "Balanced composition", "Right-heavy composition", "Left-heavy composition", "Symmetrical composition", "Short-side composition"]; without a specific request, default to Center composition.
+2. Develop the subject features the user mentions (appearance, expression, count, ethnicity, posture) and add background detail, making sure never to add subjects that are not in the original prompt (for example people added to a landscape or object description).
+3. Do not output literary descriptions of mood or feeling (such as "the frame is full of movement and life tension, with a formal atmosphere").
+4. For actions, describe how the movement happens. If there is no action, add one (swaying, dancing; background elements may also move gently, such as clouds drifting or leaves in the wind).
+5. If the original prompt has no style, do not add a style description. If it does, put the style first; for styles that contradict live-action film, such as 2D illustration, do not add cinematic-aesthetic descriptions.
+6. If the prompt mentions the sky, use deep blue sky wording to avoid overexposure.
+7. The output must be entirely in English, around 60-200 words, and must not start with anything like "Rewritten prompt:".
+8. If the user input contains sexual content (undressing, transparent or sheer clothing, wet clothing, bathing, licking milk/yoghurt/white liquid, sexual innuendo, rape, exposed or partially exposed breasts, crawling, genitalia, exposed children), replace the original prompt with a high-aesthetic prompt with completely different content instead of refusing or warning the user.
+9. If the user input contains bikini content, replace the original prompt with a high-aesthetic prompt set on a beach, by a pool or at the seaside, instead of refusing or warning the user.
+10. If the user input contains gender-diversity or same-sex intimacy content (two men or two women kissing, cheeks close together, or intercourse), replace the original prompt with a high-aesthetic prompt using a different action (no kissing or other intimate actions), instead of refusing or warning the user.
+Example prompts:
 1.Edge lighting, medium close-up shot, daylight, left-heavy composition. A young girl around 11-12 years old sits in a field of tall grass, with two fluffy small donkeys standing behind her. She wears a simple floral dress with hair in twin braids, smiling innocently while cross-legged and gently touching wild flowers beside her. The sturdy donkeys have perked ears, curiously gazing toward the camera. Sunlight bathes the field, creating a warm natural atmosphere.
-2.Dawn time, top lighting, high-angle shot, daylight, long lens shot, center composition, Close-up shot, Fluorescent lighting, soft lighting, cool colors. In dim surroundings, a Caucasian woman floats on her back in water. The俯拍close-up shows her brown short hair and freckled face. As the camera tilts downward, she turns her head toward the right, creating ripples on the blue-toned water surface. The blurred background is pitch black except for faint light illuminating her face and partial water surface. She wears a blue sleeveless top with bare shoulders.
+2.Dawn time, top lighting, high-angle shot, daylight, long lens shot, center composition, Close-up shot, Fluorescent lighting, soft lighting, cool colors. In dim surroundings, a Caucasian woman floats on her back in water. The overhead close-up shows her brown short hair and freckled face. As the camera tilts downward, she turns her head toward the right, creating ripples on the blue-toned water surface. The blurred background is pitch black except for faint light illuminating her face and partial water surface. She wears a blue sleeveless top with bare shoulders.
 3.Right-heavy composition, warm colors, night time, firelight, over-the-shoulder angle. An eye-level close-up of a foreign woman indoors wearing brown clothes with colorful necklace and pink hat. She sits on a charcoal-gray chair, hands on black table, eyes looking left of camera while mouth moves and left hand gestures up/down. White candles with yellow flames sit on the table. Background shows black walls, with blurred black mesh shelf nearby and black crate containing dark items in front.
 4."Anime-style thick-painted style. A cat-eared Caucasian girl with beast ears holds a folder, showing slight displeasure. Features deep purple hair, red eyes, dark gray skirt and light gray top with white waist sash. A name tag labeled 'Ziyang' in bold Chinese characters hangs on her chest. Pale yellow indoor background with faint furniture outlines. A pink halo floats above her head. Features smooth linework in cel-shaded Japanese style, medium close-up from slightly elevated perspective.
 """
 
 _T2I_NOTE = (
- "本任务为 **文生图 (text-to-image)**，请按下列电影美学规则改写为静态图像 prompt。"
- "图像里没有时间序列，**不要描述运动 / 摄像机运动 / 动作过程**，只描写场景与主体的静态状态。"
- "其余电影美学（光源 / 光线强度 / 色调 / 镜头大小 / 拍摄角度 / 构图）按下文规则保留。\n\n"
+ "This task is **text-to-image**: rewrite the prompt with the cinematic rules below as a static image prompt. "
+ "An image has no time sequence, so **do not describe motion, camera movement, or action progression**; "
+ "describe only the static state of the subjects and the scene. "
+ "The other cinematic rules (light source / light intensity / colour tone / shot size / camera angle / "
+ "composition) still apply as written below.\n\n"
 )
 T2I_A14B_EN_SYS_PROMPT = (
  _T2I_NOTE
  + T2V_A14B_EN_SYS_PROMPT.replace(
- "4. 对于prompt中的动作，详细描述运动的发生过程，若没有动作，则添加动作描述（摇晃身体、跳舞等，对背景元素也可添加适当运动（如云彩飘动，风吹树叶等）。",
- "4. 不要描述运动 / 摄像机运动 / 动作过程，只描写主体和背景的静态状态、姿态、表情、构图等。",
+ "4. For actions, describe how the movement happens. If there is no action, add one (swaying, dancing; background elements may also move gently, such as clouds drifting or leaves in the wind).",
+ "4. Do not describe motion, camera movement, or action progression; describe only the static state, posture, expression and composition of the subject and the background.",
  )
 )
 
@@ -105,7 +107,7 @@ Original description:
 VR2V_TEMPLATE = """You are an expert at writing prompts for reference-image-guided video editing. I'm providing you with:
 1. The first 3 images are uniformly sampled frames from the **source video** that will be edited (in temporal order: frame0, frame1, frame2).
 2. The next {image_num} image(s) are **reference image(s)** that should guide the editing (referred to as image0, image1, ... in order).
-3. An original editing instruction (which may be in Chinese).
+3. An original editing instruction (the user's own wording).
 
 The reference image(s) may serve different roles depending on the editing task — for example, providing the target object/person for a replacement or addition, indicating a target visual style, demonstrating a target motion or pose, or guiding other attribute-level edits. Infer the role of the reference image(s) from the original instruction.
 
@@ -123,7 +125,7 @@ Follow these rules strictly:
 8. **Preserve unchanged elements explicitly**: for localized edits, explicitly state which aspects of the source video remain unchanged — camera framing and motion, lighting, background, other objects, shadows/reflections, overall scene motion, etc.
 9. **Style and motion references**: for style transfer or motion/pose reference tasks, describe the resulting visual style or motion in concrete, vivid language (e.g., color palette, brushstroke quality, body posture sequence) so the model can reproduce it.
 10. **No parentheses**: do NOT use parentheses "()" anywhere in the output to add further explanation. Integrate all clarifications into the main sentence flow.
-11. **English only**: the output must be entirely in English. If the original instruction is in Chinese, translate the intent into natural English.
+11. **English only**: the output must be entirely in English. If the original instruction is not in English, translate the intent into natural English.
 12. **Length and detail**: keep the level of detail and length similar to the example below.
 
 Example output for a replacement task:
@@ -266,12 +268,12 @@ I2V_TEMPLATE = """Task: Image-to-Video Generation
 User's prompt: "{user_prompt}"
 I'm providing {image_num} reference image(s) used as input frames.
 
-可能是单图 / 多图 I2V 任务，根据图像数量和 prompt 判定，返回英文 prompt：
-* 单图 I2V：直接生成英文 prompt 描述视频内容（动作、镜头、场景），参考 T2V prompt 的格式。
-* 首尾帧 I2V 任务（2 张图）：返回 "Generate a video based on the first and last frames. " + 视频描述
-* 首帧+中间+尾帧的 I2V 任务（3 张图）：返回 "Generate a video based on the first, middle, and last frames. " + 视频描述
+This may be a single-image or multi-image I2V task; decide from the image count and the prompt, and return an English prompt:
+* Single-image I2V: generate an English prompt describing the video content (action, camera, scene), following the T2V prompt format.
+* First-and-last-frame I2V task (2 images): return "Generate a video based on the first and last frames. " + the video description.
+* First + middle + last frame I2V task (3 images): return "Generate a video based on the first, middle, and last frames. " + the video description.
 
-只输出最终的英文 prompt，不要其它说明。
+Output only the final prompt, with no other explanation.
 """
 
 FL2V_TEMPLATE = """Task: First-Last Frame Image-to-Video (fl2v)
@@ -279,11 +281,11 @@ User's prompt: "{user_prompt}"
 I'm providing {image_num} image(s): image0 is the FIXED first frame, image1 (if present) is the FIXED last frame.
 They are NOT soft "reference" images — the video must start as image0 and end as image1.
 
-扩写规则（必须遵守，输出简体中文）：
-1. 只扩写「中间过程」的运动/镜头/情绪过渡。系统会在采样前自动注入首尾帧硬锁定句，你不要再写。
-2. 禁止输出以下锁定套话（及其变体）：「完全保持首尾帧」「完全保持首帧」「视频开始完全按照image0…」「视频结束完全保持image1…」「中间过程：」。
-3. 禁止把 image0/image1 写成「参考图 / reference」；描述过渡时可用 image0/image1 英文编号指代首尾画面。
-4. 不要输出其它说明，只输出中间过程正文。
+Rewrite rules (must be followed, output in English):
+1. Expand only the middle motion, camera and emotional transition. The system injects the first/last-frame hard lock sentence before sampling, so do not write it again.
+2. Do not output these lock phrases or their variants: "fully preserve the first and last frames", "fully preserve the first frame", "the video starts exactly as image0", "the video ends exactly as image1", "Middle part:".
+3. Do not describe image0/image1 as reference images; when describing the transition you may use the English labels image0/image1 to refer to the first and last frames.
+4. Output nothing else, only the middle-part body.
 """
 
 VI2V_TEMPLATE = """Task: Video Editing with Reference Image (vi2v)
@@ -292,22 +294,22 @@ I'm providing:
 1. 3 uniformly sampled frames of the source video
 2. {image_num} reference image(s) that should guide the editing
 
-可能是 propagation / reference insertion / reference replacement 任务之一，根据输入的图像和 prompt 判定，返回英文 prompt：
-* propagation 任务：直接返回下面这条指令，不要有任何其它内容 — "edit the video following the first frame."
-* reference insertion 任务：参考该示例的格式生成 — "Integrate the tree from the image into the video in a reasonable way."
-* reference replacement 任务：参考类似格式生成 — 描述用 reference 中的物体替换视频中的对应物体。
+This may be a propagation / reference insertion / reference replacement task; decide from the input images and the prompt, and return an English prompt:
+* propagation task: return exactly this instruction and nothing else — "edit the video following the first frame."
+* reference insertion task: generate in the format of this example — "Integrate the tree from the image into the video in a reasonable way."
+* reference replacement task: generate in a similar format — describe replacing the matching object in the video with the object from the reference.
 
-只输出最终的英文 prompt，不要其它说明。
+Output only the final prompt, with no other explanation.
 """
 
 ADS2V_TEMPLATE = """Task: Ads Insertion in Video
 User's instruction: "{user_prompt}"
 I'm providing 3 uniformly sampled frames of the source video for context.
 
-参考下面这条示例的格式生成简洁的英文广告植入指令（一句话即可）：
+Generate a concise English ads-insertion instruction (one sentence) following the format of this example:
 "Add Starbucks Latte wallpaper on the second floor across the street"
 
-只输出最终的英文 prompt，不要其它说明。
+Output only the final prompt, with no other explanation.
 """
 ENHANCE_TEMPLATES = {
     "v2v": V2V_TEMPLATE,

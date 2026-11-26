@@ -22,11 +22,8 @@ Object.defineProperty(globalThis, "localStorage", {
 window.confirm = () => true;
 
 const { api } = await import("../../../scripts/api.js");
-const { setLocale } = await import("../minimax_i18n.js");
 const { mountMixedUI } = await import("../minimax_mixed_ui.mjs");
 const { pickMixedMaterial } = await import("../minimax_mixed_material_picker.mjs");
-
-setLocale("zh");
 
 let pickerCalls = 0;
 const editor = {
@@ -85,10 +82,7 @@ assert.doesNotMatch(mixedStyle, /\.mmx-mixed-cards\{[^}]*overflow:auto/,
 
 const addButton = controller.root.querySelector('[data-mmx-i18n="mixed.addSegment"]');
 assert.ok(addButton, "Mixed controls must expose stable i18n keys");
-assert.equal(addButton.textContent, "添加片段");
-setLocale("en");
-await new Promise((resolve) => setTimeout(resolve, 0));
-assert.equal(addButton.textContent, "Add Segment", "Mixed text must update with the existing locale toggle");
+assert.equal(addButton.textContent, "Add Segment", "Mixed strings must be English-only");
 
 const libraryButton = controller.root.querySelector('[data-mmx-action="library-image"]');
 assert.ok(libraryButton, "R2V picture controls must expose the existing Material Library action");

@@ -12,7 +12,6 @@ def test_postprocess_ui_uses_scanned_h3_latent_model_dropdown():
     assert 'fill("global_refine.latent_upscale_model", caps.latent_upscale_models)' in source
     assert 'h3LatentModels.length === 1' in source
     assert "select or enter its filename" not in source
-    assert "选择或填写文件名" not in source
 
 
 def test_postprocess_ui_does_not_expose_manual_2d_3d_variant_selector():
@@ -20,5 +19,4 @@ def test_postprocess_ui_does_not_expose_manual_2d_3d_variant_selector():
     assert 'field("Latent Variant", "global_refine.latent_upscale_variant"' not in source
     assert '"global_refine.latent_upscale_variant":' not in source
     assert "2D + Temporal (recommended)" not in source
-    assert "2D + Temporal（推荐）" not in source
     assert "String(global.latent_upscale_variant" not in source

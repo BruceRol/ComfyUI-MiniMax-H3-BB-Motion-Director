@@ -33,7 +33,7 @@ def timeline_required_inputs() -> dict:
                 "tooltip": "Synced from in-node UI (global mode).",
             },
         ),
-        "bd_grp_sample": ("BDGROUP", {"default": "采样设置"}),
+        "bd_grp_sample": ("BDGROUP", {"default": "Sampling settings"}),
         "cfg": (
             "FLOAT",
             {"default": 1.0, "min": 0.0, "max": 30.0, "step": 0.01, "tooltip": "CFG for KSampler."},
@@ -74,12 +74,12 @@ def timeline_required_inputs() -> dict:
 def director_perf_inputs() -> dict:
     """Performance widgets shared by Director nodes."""
     return {
-        "bd_grp_perf": ("BDGROUP", {"default": "性能"}),
+        "bd_grp_perf": ("BDGROUP", {"default": "Performance"}),
         "clear_vram_between_segments": (
             "BOOLEAN",
             {
                 "default": True,
-                "tooltip": "段间清理显存：每段结束后卸载模型并清空 CUDA 缓存。",
+                "tooltip": "Clear VRAM between segments: unload the model and empty the CUDA cache after each segment.",
             },
         ),
         "low_ram": (
@@ -100,20 +100,20 @@ def director_perf_inputs() -> dict:
 def director_output_inputs() -> dict:
     """Per-clip h264 MP4 output widgets shared by Director nodes."""
     return {
-        "bd_grp_output": ("BDGROUP", {"default": "输出"}),
+        "bd_grp_output": ("BDGROUP", {"default": "Output"}),
         "dirname_prefix": (
             "STRING",
             {
                 "default": "MiniMaxH3_BB",
                 "multiline": False,
-                "tooltip": "输出子目录名（ComfyUI output 目录下），每个片段写入 clip-XXX.mp4（从 1 开始编号，与编辑器一致）。",
+                "tooltip": "Output subdirectory (under the ComfyUI output folder). Each clip is written as clip-XXX.mp4, numbered from 1 to match the editor.",
             },
         ),
         "pix_fmt": (
             ["yuv420p", "yuv422p", "yuv444p"],
             {
                 "default": "yuv420p",
-                "tooltip": "h264 像素格式。yuv420p 兼容性最好。",
+                "tooltip": "h264 pixel format. yuv420p has the best compatibility.",
             },
         ),
         "crf": (
@@ -122,7 +122,7 @@ def director_output_inputs() -> dict:
                 "default": 23,
                 "min": 0,
                 "max": 51,
-                "tooltip": "h264 质量（CRF）。越低画质越高、文件越大。",
+                "tooltip": "h264 quality (CRF). Lower is higher quality and larger files.",
             },
         ),
     }

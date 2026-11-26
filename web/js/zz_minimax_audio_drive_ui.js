@@ -1,5 +1,4 @@
 import { app } from "../../scripts/app.js";
-import { getLocale } from "./minimax_i18n.js";
 import {
     allKnownReferenceAssets,
     effectiveReferenceAssets,
@@ -32,7 +31,7 @@ const PANEL_CLASS = "mmx-audio-role-panel";
 const CARD_BOUND = "mmxAudioRoleBound";
 
 function words() {
-    if (getLocale() === "en") return {
+    return {
         reference: "Normal reference",
         audioDrive: "Original Audio Drive",
         timeline: "Drive timeline",
@@ -53,28 +52,6 @@ function words() {
         overrun: "A drive block exceeds this segment. Move it earlier or shorten it in the editor.",
         decodeFail: "Unable to decode this audio for editing.",
         common: "Common",
-    };
-    return {
-        reference: "普通参考",
-        audioDrive: "原音驱动",
-        timeline: "驱动时间轴",
-        edit: "编辑音频",
-        editorTitle: "编辑音频",
-        play: "播放",
-        pause: "暂停",
-        undo: "上一步",
-        redo: "下一步",
-        cut: "裁切",
-        reset: "重置",
-        cancel: "取消",
-        done: "完成",
-        trimStart: "裁切开始",
-        trimEnd: "裁切结束",
-        effective: "有效长度",
-        overlap: "驱动时间发生重叠，请拖动音频块到空闲时间范围。",
-        overrun: "驱动音频超出片段，请向前拖动或在编辑器中剪短。",
-        decodeFail: "无法解码这条音频，不能打开编辑器。",
-        common: "共用",
     };
 }
 

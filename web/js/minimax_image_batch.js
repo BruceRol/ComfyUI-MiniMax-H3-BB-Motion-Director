@@ -56,7 +56,7 @@ import {
     createR2vCommonPopover,
     renderR2vCommonSections,
 } from "./minimax_r2v_common_popover.mjs";
-import { t } from "./minimax_i18n.js";
+import { t } from "./minimax_i18n.js?boot=i18n_en_v2";
 
 const _players = new WeakMap();
 /** r2v picture grid: 9 slots in 3×3; reveal 3 → 6 → 9. */
@@ -195,7 +195,7 @@ function applyBatchSegmentDuration(editor, index, rawSec) {
     return editor.timeline.segments[index] || null;
 }
 
-/** Flush visible 秒数 inputs into segments before a full card re-render. */
+/** Flush visible duration inputs into segments before a full card re-render. */
 function flushBatchDurationInputs(editor) {
     const list = editor?.batchList;
     if (!list) return;
@@ -466,13 +466,13 @@ export function mountImageBatchPanel(root) {
     panel.dataset.r = "batch-panel";
     panel.innerHTML = `
         <div class="bd-batch-toolbar">
-            <button type="button" class="bd-btn bd-btn-primary" data-a="batch-add" data-i18n="batch.addPromptGroup">+ 添加提示词组</button>
-            <button type="button" class="bd-btn bd-batch-run-select hidden" data-a="batch-run-select" data-i18n="toolbar.runSelect" data-i18n-title="tooltip.batchRunSelect">选择运行</button>
+            <button type="button" class="bd-btn bd-btn-primary" data-a="batch-add" data-i18n="batch.addPromptGroup">+ Add prompt group</button>
+            <button type="button" class="bd-btn bd-batch-run-select hidden" data-a="batch-run-select" data-i18n="toolbar.runSelect" data-i18n-title="tooltip.batchRunSelect">Select to run</button>
             <label class="bd-batch-run-all hidden" data-r="batch-run-all-wrap" data-i18n-title="tooltip.runSelectAll">
                 <input type="checkbox" data-r="batch-run-all-cb">
-                <span data-i18n="toolbar.selectAll">全选</span>
+                <span data-i18n="toolbar.selectAll">Select all</span>
             </label>
-            <span class="bd-meta" data-r="batch-hint" data-i18n="batch.hint.defaultImage">每组生成 1 张图片</span>
+            <span class="bd-meta" data-r="batch-hint" data-i18n="batch.hint.defaultImage">One image per group</span>
         </div>
         <div class="bd-batch-i2v-notice" data-r="batch-i2v-notice"></div>
         <div class="bd-batch-list" data-r="batch-list"></div>`;

@@ -7,26 +7,26 @@
 
 /** Shared helpers for MiniMax H3 Motion Director generation tasks. */
 
-import { t } from "./minimax_i18n.js";
+import { t } from "./minimax_i18n.js?boot=i18n_en_v2";
 
 /** MiniMax H3 canvas snap (official nodes use 32). */
 export const MINIMAX_CANVAS_MULTIPLE = 32;
 
-/** ResolutionSelector aspect presets (UI labels in Chinese; ratios match official node). */
+/** ResolutionSelector aspect presets (canonical English labels; ratios match official node). */
 export const RESOLUTION_ASPECTS = [
-    ["1:1 (方形)", 1, 1],
-    ["2:3 (竖版照片)", 2, 3],
-    ["3:2 (横版照片)", 3, 2],
-    ["3:4 (竖版标准)", 3, 4],
-    ["4:3 (标准)", 4, 3],
-    ["9:16 (竖屏)", 9, 16],
-    ["16:9 (宽屏)", 16, 9],
-    ["21:9 (超宽)", 21, 9],
+    ["1:1 (Square)", 1, 1],
+    ["2:3 (Portrait photo)", 2, 3],
+    ["3:2 (Landscape photo)", 3, 2],
+    ["3:4 (Portrait standard)", 3, 4],
+    ["4:3 (Standard)", 4, 3],
+    ["9:16 (Portrait)", 9, 16],
+    ["16:9 (Widescreen)", 16, 9],
+    ["21:9 (Ultrawide)", 21, 9],
 ];
 
-export const DEFAULT_ASPECT_RATIO = "16:9 (宽屏)";
+export const DEFAULT_ASPECT_RATIO = "16:9 (Widescreen)";
 /** Manual width × height (not in official ResolutionSelector). */
-export const CUSTOM_ASPECT_RATIO = "自定义";
+export const CUSTOM_ASPECT_RATIO = "Custom";
 /** Official MiniMax template default: 0.4 MP → 864×480 at 16:9 (multiple=32) */
 export const DEFAULT_MEGAPIXELS = 0.4;
 export const MIN_MEGAPIXELS = 0.1;
@@ -57,24 +57,9 @@ export function parseMegapixelsInput(raw) {
     return Math.min(MAX_MEGAPIXELS, n);
 }
 
-/** Map legacy English labels → current Chinese labels. */
-const ASPECT_RATIO_ALIASES = {
-    "1:1 (Square)": "1:1 (方形)",
-    "2:3 (Portrait Photo)": "2:3 (竖版照片)",
-    "3:2 (Photo)": "3:2 (横版照片)",
-    "3:4 (Portrait Standard)": "3:4 (竖版标准)",
-    "4:3 (Standard)": "4:3 (标准)",
-    "9:16 (Portrait Widescreen)": "9:16 (竖屏)",
-    "16:9 (Widescreen)": "16:9 (宽屏)",
-    "21:9 (Ultrawide)": "21:9 (超宽)",
-    "自定义 (Custom)": CUSTOM_ASPECT_RATIO,
-    Custom: CUSTOM_ASPECT_RATIO,
-};
-
 export function normalizeAspectRatioLabel(aspectRatio) {
     const v = String(aspectRatio || "").trim();
     if (!v) return DEFAULT_ASPECT_RATIO;
-    if (ASPECT_RATIO_ALIASES[v]) return ASPECT_RATIO_ALIASES[v];
     if (RESOLUTION_ASPECTS.some(([label]) => label === v)) return v;
     if (isCustomAspectRatio(v)) return CUSTOM_ASPECT_RATIO;
     // Fallback: match by ratio prefix e.g. "16:9"
@@ -84,8 +69,7 @@ export function normalizeAspectRatioLabel(aspectRatio) {
 }
 
 export function isCustomAspectRatio(aspectRatio) {
-    const v = String(aspectRatio || "").trim();
-    return v === CUSTOM_ASPECT_RATIO || v === "Custom" || v === "自定义 (Custom)" || v.startsWith("自定义");
+    return String(aspectRatio || "").trim() === CUSTOM_ASPECT_RATIO;
 }
 
 /**
@@ -93,7 +77,7 @@ export function isCustomAspectRatio(aspectRatio) {
  * max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17
  * where a = duration seconds (UI stores 1 decimal place, matching official workflows).
  *
- * Note for t2v/i2v UI: group "秒数" is the user intent; the toolbar tag Xs (Yf) and
+ * Note for t2v/i2v UI: the group "seconds" field is the user intent; the toolbar tag Xs (Yf) and
  * output preview seconds use aligned frames (Yf / fps). Play length can differ slightly
  * from the typed seconds (e.g. 7 → 175f ≈ 7.3s) — that is snap, not an 8s hard cap.
  */
@@ -231,7 +215,7 @@ export const MAX_GEN_FRAMES = 512;
 /** MiniMax H3 ReferenceToVideo supports up to 9 reference images. */
 export const MAX_REFERENCE_IMAGES = 9;
 
-/** User-facing slot label: index 0 → Picture/图片 1. */
+/** User-facing slot label: index 0 → Picture 1. */
 export function refImageLabel(index) {
     return t("slot.picture", { n: Number(index) + 1 });
 }
@@ -244,7 +228,7 @@ export function refImagePromptTag(index) {
 /** Official MiniMaxH3ReferenceToVideo supports up to 3 standalone reference audios. */
 export const MAX_REFERENCE_AUDIOS = 3;
 
-/** User-facing slot label: index 0 → Audio/音频 1. */
+/** User-facing slot label: index 0 → Audio 1. */
 export function refAudioLabel(index) {
     return t("slot.audio", { n: Number(index) + 1 });
 }
@@ -257,7 +241,7 @@ export function refAudioPromptTag(index) {
 /** Official MiniMaxH3ReferenceToVideo supports up to 3 reference videos. */
 export const MAX_REFERENCE_VIDEOS = 3;
 
-/** User-facing slot label: index 0 → Video/视频 1. */
+/** User-facing slot label: index 0 → Video 1. */
 export function refVideoLabel(index) {
     return t("slot.video", { n: Number(index) + 1 });
 }

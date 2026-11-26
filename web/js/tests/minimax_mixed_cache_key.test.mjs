@@ -5,7 +5,7 @@ const timeline = fs.readFileSync(new URL("../minimax_timeline.js", import.meta.u
 const runtimeFix = fs.readFileSync(new URL("../zz_minimax_director_runtime_fix.js", import.meta.url), "utf8");
 const mixedUi = fs.readFileSync(new URL("../minimax_mixed_ui.mjs", import.meta.url), "utf8");
 
-const MIXED_UI_KEY = "./minimax_mixed_ui.mjs?boot=mixed_issue16_v2";
+const MIXED_UI_KEY = "./minimax_mixed_ui.mjs?boot=mixed_issue16_v3";
 const INTERACTIONS_KEY = "./minimax_mixed_interactions.mjs?boot=issue16_v2";
 
 function mixedUiImportKey(source) {

@@ -1,64 +1,6 @@
-import { getLocale, onLocaleChange } from "./minimax_i18n.js";
+// MiniMax H3 Motion Director — Mixed timeline UI strings (English only).
 
-const ZH = Object.freeze({
-    "mixed.addSegment": "添加片段",
-    "mixed.runSelect": "选择运行",
-    "mixed.segment": "片段 {n}",
-    "mixed.mode": "生成模式",
-    "mixed.prompt": "提示词",
-    "mixed.duration": "时长（秒）",
-    "mixed.duplicate": "复制",
-    "mixed.delete": "删除",
-    "mixed.moveLeft": "左移",
-    "mixed.moveRight": "右移",
-    "mixed.upload": "上传",
-    "mixed.library": "素材库",
-    "mixed.segmentResult": "片段结果",
-    "mixed.resultAdvanced": "高级选择",
-    "mixed.resultSource": "来源",
-    "mixed.resultLast": "最后一帧",
-    "mixed.resultFrameIndex": "帧索引",
-    "mixed.resultSummaryLast": "片段 {n} · 最后一帧",
-    "mixed.resultSummaryFrame": "片段 {n} · 帧索引 {frame}",
-    "mixed.remove": "移除",
-    "mixed.none": "未选择",
-    "mixed.startFrame": "首帧",
-    "mixed.firstFrame": "首帧",
-    "mixed.lastFrame": "尾帧",
-    "mixed.identity": "身份参考图",
-    "mixed.referenceVideo": "参考视频",
-    "mixed.referenceAudio": "参考音频",
-    "mixed.sourceVideo": "源视频",
-    "mixed.uploadSourceVideo": "上传源视频",
-    "mixed.expandMore": "展开更多（+{n}）",
-    "mixed.collapse": "收起",
-    "mixed.sourceStart": "起始秒",
-    "mixed.sourceEnd": "结束秒",
-    "mixed.sourceHint": "源视频只接受当前片段单独上传；素材库视频只用于参考视频。",
-    "mixed.continuity": "与上一片段连续",
-    "mixed.visualContext": "画面连续性",
-    "mixed.audioContext": "声音连续性",
-    "mixed.rootNoContinuity": "第一个片段没有上一片段。",
-    "mixed.chooseSegment": "选择来源片段",
-    "mixed.frame": "帧",
-    "mixed.frameLast": "最后一帧",
-    "mixed.noEarlierSegment": "前面没有可引用的片段。",
-    "mixed.referenceMissing": "引用的片段不存在或已经被移到当前片段之后。",
-    "mixed.deleteReferenced": "该片段正被其他片段引用。删除后这些引用会变为缺失，仍要删除吗？",
-    "mixed.deleteConfirm": "确定删除这个片段吗？",
-    "mixed.uploading": "正在上传 {name}…",
-    "mixed.uploadingProgress": "正在上传 {name}… {percent}%",
-    "mixed.preparingMaterial": "正在准备素材库项目：{name}…",
-    "mixed.ready": "就绪",
-    "mixed.error": "错误：{message}",
-    "mixed.mode.t2v": "T2V",
-    "mixed.mode.i2v": "I2V",
-    "mixed.mode.fl2v": "FL2V",
-    "mixed.mode.r2v": "R2V",
-    "mixed.mode.source_video": "源视频",
-});
-
-const EN = Object.freeze({
+const STRINGS = Object.freeze({
     "mixed.addSegment": "Add Segment",
     "mixed.runSelect": "Selective Run",
     "mixed.segment": "Segment {n}",
@@ -121,10 +63,5 @@ function format(text, vars = {}) {
 }
 
 export function mt(key, vars = {}) {
-    const table = getLocale() === "en" ? EN : ZH;
-    return format(table[key] ?? EN[key] ?? key, vars);
-}
-
-export function onMixedLocaleChange(fn) {
-    return onLocaleChange(fn);
+    return format(STRINGS[key] ?? key, vars);
 }

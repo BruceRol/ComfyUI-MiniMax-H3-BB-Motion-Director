@@ -79,7 +79,6 @@ const uiSource = readFileSync(new URL("../zz_minimax_audio_drive_ui.js", import.
 
 test("audio UI exposes only Normal reference and Original Audio Drive", () => {
     assert.equal(uiSource.includes("AUDIO_ROLE_DIALOGUE_DRIVE"), false);
-    assert.equal(uiSource.includes("对白驱动"), false);
     assert.equal(uiSource.includes("Dialogue Drive"), false);
     assert.equal(uiSource.includes("minimax_audio_roles_core.mjs"), true);
     assert.equal(uiSource.includes("[AUDIO_ROLE_AUDIO_DRIVE, w.audioDrive]"), true);

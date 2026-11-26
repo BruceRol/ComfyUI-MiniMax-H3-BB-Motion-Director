@@ -141,7 +141,7 @@ def _align_audio_channels(wave: torch.Tensor, channels: int) -> torch.Tensor:
 
 
 def _segment_frame_counts_for_audio(plan, n_audios: int, total_frames: int) -> list[int]:
-    """Per-segment frame lengths used to stitch generated audio under「全部导出」."""
+    """Per-segment frame lengths used to stitch generated audio in "Export all" mode."""
     segs = list(getattr(plan, "segments", None) or [])
     if len(segs) == n_audios:
         counts = []
@@ -226,8 +226,8 @@ def build_director_audio_outputs(
 
     # Prefer model audio only in generate mode.
     if mode == AUDIO_MODE_GENERATE and segment_audios:
-        # 「全部导出」合并画面时 images_out 只有 1 条，必须把各组音频按时间轴拼接，
-        # 否则只会用第 1 组音频并静音填充后半段（第二组及之后无声）。
+        # In "Export all" the picture has a single output, so each group's audio must be
+        # stitched along the timeline; otherwise only group 1 is used and the rest is silent.
         if len(images_out) == 1 and len(segment_audios) > 1:
             n_frames = int(getattr(images_out[0], "shape", [0])[0] or 0)
             if n_frames <= 0:
@@ -284,7 +284,7 @@ def build_director_audio_outputs(
                 )
                 # Soft fallback: silent only (do not substitute model audio).
                 log.warning(
-                    "声音=使用原声，但片段 #%s 无源音轨（%s）；已回退为静音。",
+                    "Audio = source audio, but segment #%s has no source audio track (%s); fell back to silence.",
                     seg.index + 1, hint,
                 )
                 extracted = None
@@ -307,7 +307,7 @@ def build_director_audio_outputs(
         hint = diagnose_source_audio_failure(timeline, 0, end, fps)
         # Soft fallback after a successful video run: silent only (no model audio).
         log.warning(
-            "声音=使用原声，但源视频无音轨（%s）；已回退为静音。",
+            "Audio = source audio, but the source video has no audio track (%s); fell back to silence.",
             hint,
         )
         extracted = None

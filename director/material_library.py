@@ -23,10 +23,10 @@ _INPUT_SUBDIR = "minimax_material_library"
 _SAFE_EXT = re.compile(r"^\.[A-Za-z0-9]{1,10}$")
 
 DEFAULT_CATEGORIES: dict[str, tuple[str, ...]] = {
-    "image": ("人物", "场景", "道具", "其他"),
-    "audio": ("音色", "台词", "音效", "音乐", "其他"),
-    "video": ("人物", "场景", "动作", "镜头", "其他"),
-    "prompt": ("人物", "场景", "动作", "运镜", "风格", "对白", "其他"),
+    "image": ("Character", "Scene", "Prop", "Other"),
+    "audio": ("Voice", "Dialogue", "SFX", "Music", "Other"),
+    "video": ("Character", "Scene", "Motion", "Camera", "Other"),
+    "prompt": ("Character", "Scene", "Motion", "Camera", "Style", "Dialogue", "Other"),
 }
 
 ALLOWED_EXTENSIONS: dict[str, set[str]] = {
@@ -93,7 +93,7 @@ def _normalize_kind(value: Any) -> str:
     return kind
 
 
-def _normalize_title(value: Any, fallback: str = "未命名素材") -> str:
+def _normalize_title(value: Any, fallback: str = "Untitled material") -> str:
     title = str(value or "").replace("\x00", "").strip()
     if not title:
         title = fallback
@@ -150,7 +150,7 @@ def _categories_for(data: dict[str, Any], kind: str) -> list[str]:
 
 
 def _normalize_category(data: dict[str, Any], kind: str, value: Any) -> str:
-    category = str(value or "").strip() or "其他"
+    category = str(value or "").strip() or "Other"
     if category not in _categories_for(data, kind):
         raise MaterialLibraryError("Unsupported material category.")
     return category
@@ -280,7 +280,7 @@ class MaterialLibraryStore:
                 "id": f"mat_{uuid.uuid4().hex}",
                 "type": kind,
                 "category": cat,
-                "title": _normalize_title(title, "未命名 Prompt"),
+                "title": _normalize_title(title, "Untitled prompt"),
                 "content": text,
                 "created_at": now,
                 "updated_at": now,
@@ -309,7 +309,7 @@ class MaterialLibraryStore:
                 "id": identity,
                 "type": normalized_kind,
                 "category": cat,
-                "title": _normalize_title(title, Path(original_name).stem or "未命名素材"),
+                "title": _normalize_title(title, Path(original_name).stem or "Untitled material"),
                 "relative_file": destination.relative_to(library_root().resolve()).as_posix(),
                 "original_name": original_name,
                 "mime_type": str(mime_type or mimetypes.guess_type(original_name)[0] or "application/octet-stream"),
@@ -345,7 +345,7 @@ class MaterialLibraryStore:
                 raise MaterialLibraryError("Material not found.")
             kind = _normalize_kind(found.get("type"))
             if "title" in patch:
-                found["title"] = _normalize_title(patch.get("title"), found.get("title") or "未命名素材")
+                found["title"] = _normalize_title(patch.get("title"), found.get("title") or "Untitled material")
             if "category" in patch:
                 found["category"] = _normalize_category(data, kind, patch.get("category"))
             if "content" in patch:

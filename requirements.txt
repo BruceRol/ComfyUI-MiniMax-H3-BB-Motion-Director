@@ -1,10 +1,10 @@
 # Source-video decode for v2v / timeline loading
 opencv-python-headless>=4.8
 
-# Source-audio extract for v2v/rv2v「使用原声」
+# Source-audio extract for v2v / rv2v (use the original audio)
 imageio-ffmpeg>=0.4
 
-# Smart shot split (智能分割)
+# Smart shot split (scene detection)
 scenedetect>=0.6.4,<0.8
 
 # Per-clip h264 MP4 mux (pyav, same as comfy-core SaveVideo)

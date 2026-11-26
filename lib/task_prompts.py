@@ -17,60 +17,63 @@ class TaskPromptSpec:
     key: str
     label: str
     system_prompt: str
-    description_zh: str
+    description: str
 
 
 TASK_PROMPT_SPECS: tuple[TaskPromptSpec, ...] = (
     TaskPromptSpec(
         "default",
-        "默认通用",
+        "Default (general)",
         "",
-        "MiniMax H3 使用 Qwen3-VL 自由提示词，无需 T5 系统前缀。",
+        "MiniMax H3 uses freeform Qwen3-VL prompts, no T5 system prefix.",
     ),
     TaskPromptSpec(
         "t2v",
-        "文生视频(Text to Video)",
+        "Text to Video",
         "",
-        "文生音视频；无首帧/参考图。",
+        "Text to video+audio; no first frame / reference images.",
     ),
     TaskPromptSpec(
         "i2v",
-        "图生视频(Image to Video)",
+        "Image to Video",
         "",
-        "首帧图生音视频（ImageToVideo + first_frame）。",
+        "First-frame image to video+audio (ImageToVideo + first_frame).",
     ),
     TaskPromptSpec(
         "fl2v",
-        "首尾帧生视频(First-Last Frame)",
+        "First-Last Frame to Video",
         "",
-        "首帧+尾帧约束（ImageToVideo + first_frame + last_frame）。",
+        "First frame + last frame constraint (ImageToVideo + first_frame + last_frame).",
     ),
     TaskPromptSpec(
         "r2v",
-        "参考主体生视频(Reference to Video)",
+        "Reference to Video",
         "",
-        "分组参考改视频（类似首尾帧分组）：每组可上传图片1–9、音频1–3、视频1–3；"
-        "提示词用 <Picture N> / <Video K> / <Audio J>。源视频时间轴剪辑请用 v2v/rv2v。",
+        "Grouped references to video (like first/last-frame groups): each group takes "
+        "Picture 1-9, Audio 1-3, Video 1-3; prompts use <Picture N> / <Video K> / <Audio J>. "
+        "For source-video timeline editing use v2v/rv2v.",
     ),
     TaskPromptSpec(
         "v2v",
-        "视频转视频(Video to Video)",
+        "Video to Video",
         "",
-        "上传源视频后按时间轴分段编辑；每段源画面作为 <Video 1> 送入 ReferenceToVideo（无参考图槽）。",
+        "Upload a source video and edit it segment by segment on the timeline; each segment's "
+        "source frames go to ReferenceToVideo as <Video 1> (no reference image slots).",
     ),
     TaskPromptSpec(
         "rv2v",
-        "参考素材改视频(Reference Video Edit)",
+        "Reference Video Edit",
         "",
-        "源视频时间轴编辑，可选参考图（图片1–9）与参考音频（音频1–3）；"
-        "每段源画面为 <Video 1>，参考图用 <Picture N>，参考音频用 <Audio J>；无参考素材时等同 v2v。",
+        "Source-video timeline editing with optional reference images (Picture 1-9) and "
+        "reference audio (Audio 1-3); each segment's source frames are <Video 1>, reference "
+        "images are <Picture N>, reference audio is <Audio J>; without assets it behaves like v2v.",
     ),
     TaskPromptSpec(
         "mixed",
-        "混合模式(Mixed)",
+        "Mixed",
         "",
-        "同一时间线逐段选择 T2V / I2V / FL2V / R2V / Source Video。"
-        "Mixed 是 Director 元模式，每段执行前会编译成现有 H3 后端任务。",
+        "Per-segment choice of T2V / I2V / FL2V / R2V / Source Video on one timeline. "
+        "Mixed is a Director meta-mode: each segment is compiled to an existing H3 backend task before execution.",
     ),
 )
 
@@ -92,9 +95,10 @@ def task_type_combo_options() -> tuple[list[str], dict]:
     return options, {
         "default": task_type_option_label(default_spec),
         "tooltip": (
-            "MiniMax H3 Director 支持 t2v / i2v / fl2v / r2v / v2v / rv2v / mixed。"
-            "Mixed 为逐段元模式；其 Segment 会编译成现有 H3 task，不会把 mixed 送进模型。"
-            "提示词直接送入 MiniMaxH3ImageToVideo 或 MiniMaxH3ReferenceToVideo（内部 tokenize）。"
+            "MiniMax H3 Director supports t2v / i2v / fl2v / r2v / v2v / rv2v / mixed. "
+            "Mixed is the per-segment meta-mode; its segments compile to existing H3 tasks and "
+            "mixed is never sent to the model. Prompts go straight to MiniMaxH3ImageToVideo or "
+            "MiniMaxH3ReferenceToVideo (tokenized internally)."
         ),
     }
 

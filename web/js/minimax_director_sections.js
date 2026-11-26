@@ -1,11 +1,10 @@
 import { app } from "../../scripts/app.js";
-import { getLocale } from "./minimax_i18n.js";
 import { getSamplingConnectionState } from "./minimax_sampling_ui.js";
 import {
     localizedWidgetLabel,
     samplingHeaderText,
     sectionTitle,
-} from "./minimax_director_sections_core.mjs?boot=director_sections_v3";
+} from "./minimax_director_sections_core.mjs?boot=director_sections_v4";
 
 const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
 const SYNC_MS = 250;
@@ -138,52 +137,50 @@ function ensureGapBefore(node, headerName, gapName) {
     return true;
 }
 
-function syncLocalizedLabels(node, locale, samplingState) {
+function syncLocalizedLabels(node, samplingState) {
     let changed = false;
 
     changed = setHeaderLabel(
         widgetByName(node, "bd_grp_sample"),
-        samplingHeaderText(locale, samplingState),
+        samplingHeaderText(samplingState),
     ) || changed;
     changed = setHeaderLabel(
         widgetByName(node, "bd_grp_motion"),
-        sectionTitle(locale, "bd_grp_motion"),
+        sectionTitle("bd_grp_motion"),
     ) || changed;
     changed = setHeaderLabel(
         widgetByName(node, "mmx_postprocess_group"),
-        sectionTitle(locale, "mmx_postprocess_group"),
+        sectionTitle("mmx_postprocess_group"),
     ) || changed;
     changed = setHeaderLabel(
         widgetByName(node, "bd_grp_perf"),
-        sectionTitle(locale, "bd_grp_perf"),
+        sectionTitle("bd_grp_perf"),
     ) || changed;
 
     for (const name of FIXED_LABEL_WIDGETS) {
         changed = setWidgetLabel(
             widgetByName(node, name),
-            localizedWidgetLabel(locale, name),
+            localizedWidgetLabel(name),
         ) || changed;
     }
 
     const seed = widgetByName(node, "seed");
     for (const linked of seed?.linkedWidgets || []) {
         const linkedName = String(linked?.name || linked?.label || "").toLowerCase();
-        if (!/control[_\s]?after[_\s]?generate|生成后定制/.test(linkedName)) continue;
+        if (!/control[_\s]?after[_\s]?generate/.test(linkedName)) continue;
         changed = setWidgetLabel(
             linked,
-            localizedWidgetLabel(locale, "control_after_generate"),
+            localizedWidgetLabel("control_after_generate"),
         ) || changed;
     }
 
-    // The Chinese launcher label in the existing i18n table is "打开 Director".
-    // Keep the node surface single-language without changing the shared modal title.
     for (const widget of node?.widgets || []) {
         const candidates = [widget?.label, widget?.value, widget?.name]
             .map((value) => String(value || ""));
-        if (!candidates.some((value) => value === "打开 Director" || value === "Open Director" || value === "打开导演台")) {
+        if (!candidates.some((value) => value === "Open Director")) {
             continue;
         }
-        const label = locale === "en" ? "Open Director" : "打开导演台";
+        const label = "Open Director";
         changed = setWidgetLabel(widget, label) || changed;
         if (typeof widget.value === "string" && widget.value !== label) {
             widget.value = label;
@@ -291,20 +288,19 @@ function drawDirectorSectionFrames(node, ctx) {
 function syncDirectorSections(node) {
     if (!node || !Array.isArray(node.widgets)) return;
 
-    const locale = getLocale() === "en" ? "en" : "zh";
     const samplingState = getSamplingConnectionState(node.inputs || []);
     let changed = false;
 
     changed = hideWidget(widgetByName(node, "bd_grp_advanced")) || changed;
     changed = hideWidget(widgetByName(node, "bd_grp_experimental")) || changed;
 
-    changed = syncLocalizedLabels(node, locale, samplingState) || changed;
+    changed = syncLocalizedLabels(node, samplingState) || changed;
 
     for (const [headerName, gapName] of GAP_BEFORE) {
         ensureGapBefore(node, headerName, gapName);
     }
 
-    const signature = `${locale}|${samplingState}`;
+    const signature = samplingState;
     if (node._mmxSectionSignature !== signature) {
         node._mmxSectionSignature = signature;
         changed = true;

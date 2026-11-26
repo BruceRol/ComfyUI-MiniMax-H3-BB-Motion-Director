@@ -1,5 +1,4 @@
 import { app } from "../../scripts/app.js";
-import { getLocale } from "./minimax_i18n.js";
 import { getSamplingConnectionState } from "./minimax_sampling_ui.js";
 import {
     directorGroupCount,
@@ -10,14 +9,14 @@ import {
     localizedWidgetLabel,
     samplingHeaderText,
     sectionTitle,
-} from "./minimax_director_sections_core.mjs?boot=director_sections_v3";
+} from "./minimax_director_sections_core.mjs?boot=director_sections_v4";
 import {
     generatedAudioContinuationShouldBeInteractive,
     restoreContinuityWidgetRenderer,
 } from "./minimax_director_runtime_fix_core.mjs?boot=continuity_runtime_fix_v5";
 import {
     enforceStandaloneSplitPointVisibility,
-} from "./minimax_mixed_ui.mjs?boot=mixed_issue16_v2";
+} from "./minimax_mixed_ui.mjs?boot=mixed_issue16_v3";
 
 const DIRECTOR_CLASS = "BB_MiniMaxH3MotionDirector";
 
@@ -120,13 +119,12 @@ function syncGeneratedAudioContinuation(node) {
 }
 
 function syncLocalizedLabels(node) {
-    const locale = getLocale() === "en" ? "en" : "zh";
     const samplingState = getSamplingConnectionState(node?.inputs || []);
     let changed = false;
 
     changed = setHeaderLabel(
         widgetByName(node, "bd_grp_sample"),
-        samplingHeaderText(locale, samplingState),
+        samplingHeaderText(samplingState),
     ) || changed;
 
     for (const sectionId of [
@@ -136,24 +134,24 @@ function syncLocalizedLabels(node) {
     ]) {
         changed = setHeaderLabel(
             widgetByName(node, sectionId),
-            sectionTitle(locale, sectionId),
+            sectionTitle(sectionId),
         ) || changed;
     }
 
     for (const [widgetName, sourceName] of Object.entries(LABEL_SOURCE_BY_WIDGET)) {
         changed = setWidgetLabel(
             widgetByName(node, widgetName),
-            localizedWidgetLabel(locale, sourceName),
+            localizedWidgetLabel(sourceName),
         ) || changed;
     }
 
     const seed = widgetByName(node, "seed");
     for (const linked of seed?.linkedWidgets || []) {
         const raw = String(linked?.name || linked?.label || "").toLowerCase();
-        if (!/control[_\s]?after[_\s]?generate|生成后定制/.test(raw)) continue;
+        if (!/control[_\s]?after[_\s]?generate/.test(raw)) continue;
         changed = setWidgetLabel(
             linked,
-            localizedWidgetLabel(locale, "control_after_generate"),
+            localizedWidgetLabel("control_after_generate"),
         ) || changed;
     }
 
@@ -166,7 +164,7 @@ function syncOutputUi(node) {
     let changed = false;
 
     const syncGlobalRefineVisibleText = () => {
-        const label = getLocale() === "en" ? "Global Refine" : "全局精修";
+        const label = "Global Refine";
         let localChanged = false;
         const tab = outputUi.liveRoot?.querySelector?.('[data-live-tab="global_refine"]');
         if (tab && tab.textContent !== label) {
@@ -177,9 +175,7 @@ function syncOutputUi(node) {
             const element = outputUi.liveRoot?.querySelector?.(selector);
             if (!element) continue;
             const text = String(element.textContent || "");
-            const next = text
-                .replace(/^放大(?=\s*·|$)/, label)
-                .replace(/^Global Refine(?=\s*·|$)/, label);
+            const next = text.replace(/^Global Refine(?=\s*·|$)/, label);
             if (next !== text) {
                 element.textContent = next;
                 localChanged = true;
@@ -189,17 +185,6 @@ function syncOutputUi(node) {
     };
 
     changed = syncGlobalRefineVisibleText() || changed;
-
-    if (!outputUi._mmxGlobalRefineLocalePatched && typeof outputUi.updateLocale === "function") {
-        const updateLocale = outputUi.updateLocale.bind(outputUi);
-        outputUi.updateLocale = function (...args) {
-            const result = updateLocale(...args);
-            syncGlobalRefineVisibleText();
-            return result;
-        };
-        outputUi._mmxGlobalRefineLocalePatched = true;
-        changed = true;
-    }
 
     if (!outputUi._mmxGlobalRefinePreviewPatched && typeof outputUi.consumePreview === "function") {
         const consumePreview = outputUi.consumePreview.bind(outputUi);
@@ -231,9 +216,8 @@ function syncOutputUi(node) {
             }
             const target = outputUi.liveRoot?.querySelector?.("[data-pipeline-status]");
             if (!target) return setPipelineStatus(detail);
-            const zh = getLocale() !== "en";
-            const segmentWord = zh ? "片段" : "Segment";
-            const frameWord = zh ? "帧" : "Frame";
+            const segmentWord = "Segment";
+            const frameWord = "Frame";
             const segment = detail.timeline_segment || detail.segment || 1;
             const total = detail.timeline_segment_total || detail.segment_total || 1;
             const progress = Number(detail.phase_max) > 1

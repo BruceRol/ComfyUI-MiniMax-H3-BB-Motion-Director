@@ -22,11 +22,9 @@ import torch
 from PIL import Image
 
 from ..lib.prompt_enhance_templates import (
-    DETAILED_MIN_APPEARANCE_HAN,
-    DETAILED_MIN_TOTAL_HAN,
-    OUTPUT_LANGUAGE_EN,
+    DETAILED_MIN_APPEARANCE_CHARS,
+    DETAILED_MIN_TOTAL_CHARS,
     normalize_character_feature_enhance,
-    normalize_output_language,
 )
 
 log = logging.getLogger("ComfyUI-MiniMax-H3-Motion-Director.director")
@@ -186,7 +184,7 @@ def filter_vision_for_user_slots(
 
 def is_replace_task_prompt(text: str) -> bool:
     """True when user prompt looks like reference-driven replacement."""
-    return bool(re.search(r"替换|换成|改为|换为", text or ""))
+    return bool(re.search(r"\b(replace|swap|substitute|change)\b", text or "", re.IGNORECASE))
 
 
 def reorder_vision_refs_first(
@@ -205,7 +203,7 @@ def reorder_vision_refs_first(
 
 
 def _has_image_tag(text: str, index: int) -> bool:
-    """True if imageN appears (incl. image1中 / image1 中的 — \\b misses CJK suffixes)."""
+    """True when imageN appears in the text."""
     return bool(re.search(rf"(?<![@\w])image{index}(?!\d)", text or "", re.IGNORECASE))
 
 
@@ -214,29 +212,19 @@ def _normalize_reference_tags(text: str) -> str:
     t = (text or "").strip()
     if not t:
         return t
-    # image1 中的image1中 → image1 中的
+    # "image1 from image1" -> "image1"
     t = re.sub(
-        r"(image(\d))\s*中的\s*\1\s*中",
-        r"\1 中的",
+        r"(image(\d))\s*(?:from|of)\s+\1\s*(?:the)?\s*",
+        r"\1 ",
         t,
         flags=re.IGNORECASE,
     )
-    # image1 中的 image1 → image1 中的
-    t = re.sub(
-        r"(image(\d))\s*中的\s+\1(?!\d)",
-        r"\1 中的",
-        t,
-        flags=re.IGNORECASE,
-    )
-    # image1中的 → image1 中的
-    t = re.sub(r"(image(\d))中的", r"\1 中的", t, flags=re.IGNORECASE)
-    t = re.sub(r"中的的+", "中的", t)
     t = re.sub(r"\s{2,}", " ", t)
     return t.strip()
 
 
 def ensure_user_reference_tags(text: str, user_slots: list[int]) -> str:
-    """Re-inject imageN tags when LLM drops them from enhanced output."""
+    """Re-inject imageN tags when the LLM drops them from the enhanced output."""
     if not text or not user_slots:
         return text
     result = _normalize_reference_tags(text)
@@ -246,18 +234,17 @@ def ensure_user_reference_tags(text: str, user_slots: list[int]) -> str:
         tag = f"image{index}"
         injected = False
         for pattern, repl in (
-            (r"(将[^，。；\n]{0,80}?替换(?:为|成))", rf"\1 {tag} 中的"),
-            (r"(换成)", rf"\1 {tag} 中的"),
-            (r"(改为)", rf"\1 {tag} 中的"),
-            (r"(使用)", rf"\1 {tag} 中的"),
+            (r"(\breplace[sd]?\b[^,.;\n]{0,80}?\bwith\b)", rf"\1 {tag}"),
+            (r"(\bsubstitute[sd]?\b[^,.;\n]{0,80}?\bwith\b)", rf"\1 {tag}"),
+            (r"(\busing\b)", rf"\1 {tag}"),
         ):
-            new_text, count = re.subn(pattern, repl, result, count=1)
+            new_text, count = re.subn(pattern, repl, result, count=1, flags=re.IGNORECASE)
             if count:
                 result = new_text
                 injected = True
                 break
         if not injected:
-            result = f"参考 {tag}，{result}"
+            result = f"Reference {tag}: {result}"
         log.info("Enhanced prompt missing %s — re-injected reference tag", tag)
     return _normalize_reference_tags(result)
 
@@ -266,38 +253,32 @@ def build_replace_source_target_directive(
     user_slots: list[int],
     *,
     source_count: int = 0,
-    output_language: str = OUTPUT_LANGUAGE_EN,
 ) -> str:
-    """Split edit instruction: frame = subject to replace, imageN = replacement target."""
+    """Split the edit instruction: frame = subject to replace, imageN = replacement target."""
     if not user_slots or source_count <= 0:
         return ""
-    slots_txt = "、".join(f"image{s}" for s in user_slots)
-    if normalize_output_language(output_language) == "zh":
-        return (
-            "【替换任务 — 双源分工，严禁对调】\n"
-            "扩写句式须为：「将视频中[源视频待替换对象特征]替换为 imageN 中的[参考图目标特征]…」\n"
-            f"① **「将视频中…」至「替换为」之前**：只描述 frame0/frame1 源视频附件里**当前**待替换对象"
-            "的真实可见特征（现行服饰、发型、姿态等）；**必须**来自源视频帧附件，"
-            "**禁止**把 imageN 参考图附件里的外观写进这句。\n"
-            f"② **「替换为 {slots_txt} 中的…」之后**：只描述 Vision 中对应 imageN 参考图附件里"
-            "真实可见的外观（目标替换结果）；**必须**来自参考图附件，"
-            "**禁止**把 frame 源视频里待替换对象的外观写进 imageN 句。\n"
-            "写每句前先看对应附件：frame 与 imageN 外观不同时，两句分别写对，不得混用、对调或臆造。\n\n"
-        )
+    slots_txt = ", ".join(f"image{s}" for s in user_slots)
+    frames_txt = ", ".join(f"frame{i}" for i in range(source_count))
     return (
-        "[Replace task — dual sources]\n"
-        f"Before 'replace with imageN': describe subject in source frames (frame0…) only.\n"
-        f"After 'from imageN': describe target from reference image {slots_txt} only. Never swap.\n\n"
+        "[Replace task — two sources, never swap them]\n"
+        "The sentence must read: \"In the video, [current appearance of the subject to replace] is "
+        "replaced by [target appearance] from imageN ...\"\n"
+        f"1. Before 'replaced by': describe only what is actually visible in the source video frame "
+        f"attachments ({frames_txt}) — the current clothing, hair and pose. Never write the reference "
+        "image appearance in this clause.\n"
+        f"2. After 'from {slots_txt}': describe only the appearance visible in the matching reference "
+        "image attachment (the replacement target). Never write the source frame subject in this clause.\n"
+        "Check each attachment before writing: when the frame subject and the reference target differ, "
+        "describe each in its own clause; never mix, swap or invent them.\n\n"
     )
 
 
 def build_replace_structured_json_directive(
     ref_slots: list[int],
     *,
-    output_language: str = OUTPUT_LANGUAGE_EN,
     character_feature_enhance: bool = False,
 ) -> str:
-    """Force split JSON fields so Python assembles 将视频中…/imageN… without swap."""
+    """Force split JSON fields so Python assembles the replace clause without swapping them."""
     if not ref_slots:
         return ""
     feature_enhance = normalize_character_feature_enhance(character_feature_enhance)
@@ -307,43 +288,30 @@ def build_replace_structured_json_directive(
             f'  "image{slot}_target": "ONLY the visible appearance from reference image{slot} attachment"'
         )
     keys_block = ",\n".join(keys_lines)
-    if normalize_output_language(output_language) == "zh":
-        target_hint = (
-            "须大段逐项描写，总汉字≥300"
-            if feature_enhance
-            else "简洁准确即可"
-        )
-        return (
-            "【替换扩写 — 分字段 JSON，禁止输出 rewritten_text】\n"
-            "先逐张查看 Vision 附件（banner 中 frame=源视频，imageN=参考图），再填写 JSON。\n"
-            "仅返回一个 JSON 对象，键名固定：\n"
-            '  "frame_subject": "ONLY 源视频 frame 附件里待替换对象的可见外观（发型/服饰/场景），'
-            "禁止写参考图外观\",\n"
-            f"{keys_block}（{target_hint}；禁止写 frame 源视频外观）,\n"
-            '  "preservation": "一句保留镜头/背景/光影/运镜",\n'
-            '  "scene_detail": "可选，目标成片的场景与氛围（勿重复 frame_subject）"\n'
-            "规则：frame_subject 必须来自 frame 图；imageN_target 必须来自 imageN 图；"
-            "两者外观不同则分别写对，严禁对调。不要 rewritten_text 字段。\n\n"
-        )
+    target_hint = (
+        f"long itemized description, at least {DETAILED_MIN_TOTAL_CHARS} characters"
+        if feature_enhance
+        else "short and accurate"
+    )
     return (
         "[Replace — structured JSON only, NO rewritten_text]\n"
-        "Look at each vision attachment (frame* = source video, imageN = reference).\n"
-        "Return one JSON object:\n"
-        '  "frame_subject": "appearance TO REPLACE from frame attachments ONLY",\n'
-        f"{keys_block},\n"
-        '  "preservation": "one sentence on unchanged camera/background",\n'
-        '  "scene_detail": "optional target scene description"\n'
-        "Never swap frame vs imageN appearances. Do not include rewritten_text.\n\n"
+        "Look at every vision attachment first (frame* = source video, imageN = reference), then fill the JSON.\n"
+        "Return exactly one JSON object with these fixed keys:\n"
+        '  "frame_subject": "ONLY the visible appearance of the subject to replace in the source video frame attachments",\n'
+        f"{keys_block} ({target_hint}; never describe the frame subject here),\n"
+        '  "preservation": "one sentence on the camera, background, lighting and motion that stay unchanged",\n'
+        '  "scene_detail": "optional scene and atmosphere of the target video (do not repeat frame_subject)"\n'
+        "Rules: frame_subject must come from the frame attachments, imageN_target from the imageN "
+        "attachment. When the two appearances differ, describe each one correctly; never swap them. "
+        "Do not include a rewritten_text field.\n\n"
     )
 
 
 def assemble_replace_rv2v_prompt(
     data: dict,
     ref_slots: list[int],
-    *,
-    output_language: str = OUTPUT_LANGUAGE_EN,
 ) -> str:
-    """Build final replace prompt from structured JSON (guaranteed clause order)."""
+    """Build the final replace prompt from the structured JSON (guaranteed clause order)."""
     if not data or not ref_slots:
         return ""
     frame = str(data.get("frame_subject") or data.get("frame_appearance") or "").strip()
@@ -358,21 +326,11 @@ def assemble_replace_rv2v_prompt(
     ).strip()
     if not frame or not target:
         return ""
-    zh = normalize_output_language(output_language) == "zh"
-    if zh:
-        core = f"将视频中{frame}替换为 image{slot} 中的{target}"
-        if preserve:
-            core += f"，{preserve}"
-        if scene:
-            core += f"。{scene}"
-    else:
-        core = (
-            f"Replace {frame} in the video with {target} from image{slot}"
-        )
-        if preserve:
-            core += f", {preserve}"
-        if scene:
-            core += f". {scene}"
+    core = f"Replace {frame} in the video with {target} from image{slot}"
+    if preserve:
+        core += f", {preserve}"
+    if scene:
+        core += f". {scene}"
     return _normalize_reference_tags(core)
 
 
@@ -381,87 +339,58 @@ def build_vision_attachment_banner(
     source_count: int = 0,
     ref_slots: list[int] | None = None,
     ref_video_count: int = 0,
-    output_language: str = OUTPUT_LANGUAGE_EN,
 ) -> str:
-    """Short banner matching actual vision array order: frames first, then refs (official)."""
+    """Short banner matching the actual vision array order: frames first, then refs (official)."""
     ref_slots = list(ref_slots or [])
     if source_count <= 0 and not ref_slots and ref_video_count <= 0:
         return ""
-    lines: list[str] = []
+    lines: list[str] = ["=== Vision attachments (same order as the image array below) ==="]
     pos = 1
-    zh = normalize_output_language(output_language) == "zh"
-    if zh:
-        lines.append("=== Vision 附件（顺序与下方图片数组一致，扩写前先看图）===")
-        for i in range(source_count):
-            lines.append(
-                f"第{pos}张 = frame{i} 源视频帧 → 只用于 JSON 的 frame_subject /「将视频中…」"
-            )
-            pos += 1
-        for slot in ref_slots:
-            lines.append(
-                f"第{pos}张 = image{slot} 参考图 → 只用于 JSON 的 image{slot}_target /「image{slot} 中的…」"
-            )
-            pos += 1
-        for _ in range(ref_video_count):
-            lines.append(f"第{pos}张 = 参考视频帧（非 image 编号）")
-            pos += 1
-    else:
-        lines.append("=== Vision attachments (same order as image array below) ===")
-        for i in range(source_count):
-            lines.append(f"#{pos} = frame{i} source video → frame_subject / 'in the video' clause")
-            pos += 1
-        for slot in ref_slots:
-            lines.append(f"#{pos} = image{slot} reference → image{slot}_target / 'from image{slot}'")
-            pos += 1
-        for _ in range(ref_video_count):
-            lines.append(f"#{pos} = reference video frame")
-            pos += 1
+    for i in range(source_count):
+        lines.append(f"#{pos} = frame{i} source video → frame_subject / 'in the video' clause")
+        pos += 1
+    for slot in ref_slots:
+        lines.append(f"#{pos} = image{slot} reference → image{slot}_target / 'from image{slot}'")
+        pos += 1
+    for _ in range(ref_video_count):
+        lines.append(f"#{pos} = reference video frame (no imageN number)")
+        pos += 1
     return "\n".join(lines) + "\n\n"
 
 
 def build_user_image_directive(
     user_slots: list[int],
-    output_language: str,
     *,
     character_feature_enhance: bool = False,
 ) -> str:
     if not user_slots:
         return ""
     feature_enhance = normalize_character_feature_enhance(character_feature_enhance)
-    if normalize_output_language(output_language) == "zh":
-        if len(user_slots) == 1:
-            s = user_slots[0]
-            detail_hint = (
-                f"须大段展开 image{s} 参考图可见外观（单独≥{DETAILED_MIN_APPEARANCE_HAN}汉字、"
-                f"全文≥{DETAILED_MIN_TOTAL_HAN}汉字），逐项写清，但每项须在参考图中可见。"
-                if feature_enhance
-                else "外观须与参考图附件一致，禁止张冠李戴或臆造。"
-            )
-            return (
-                f"【用户指定 @image{s} — 写 image{s} 前先看参考图附件】\n"
-                f"扩写须保留 image{s}；「image{s} 中的…」后**仅**写 image{s} 参考图真实外观；{detail_hint}\n"
-                f"写 image{s} 前对照参考图确认：① 短发还是长发 ② 上衣款式与颜色（实验服/衬衫/长袍等）"
-                f" ③ 现代还是古风场景。**是什么写什么**，禁止默认汉服绿袍。\n"
-                f"禁止：把 frame 源视频特征写到 image{s}；禁止「星辰大海」「温润如玉」等无图依据的文学句。\n"
-                f"「将视频中…」只写 frame 待替换对象。输出写 image{s}（不要 @ 前缀）。\n\n"
-            )
-        joined = "、".join(f"@image{s}" for s in user_slots)
-        return (
-            f"【用户指定 {joined}】\n"
-            f"每个 imageN 须保留编号，并写出对应参考图真实可见的外观特征，禁止张冠李戴或臆造。\n"
-            f"输出使用 image0/image1…，不要写 @ 前缀，不要出现 slot 一词。\n\n"
-        )
     if len(user_slots) == 1:
         s = user_slots[0]
-        return (
-            f"[User specified @image{s}]\n"
-            f"Use image{s} only; appearance details must come from that reference, "
-            f"not from other images. Output image{s} without @ prefix.\n\n"
+        detail_hint = (
+            f"Expand the appearance visible in reference image{s} at length (at least "
+            f"{DETAILED_MIN_APPEARANCE_CHARS} characters on its own, {DETAILED_MIN_TOTAL_CHARS} "
+            "characters in total), item by item, and only list features actually visible in that image."
+            if feature_enhance
+            else "The appearance must match the reference attachment; never mix subjects or invent details."
         )
-    joined = ", ".join(f"@image{s}" for s in user_slots)
+        return (
+            f"[User specified image{s} — look at the reference attachment before writing image{s}]\n"
+            f"Keep image{s} in the output; after 'from image{s}' write ONLY the real appearance of "
+            f"reference image{s}. {detail_hint}\n"
+            f"Before writing image{s}, confirm from the reference: 1) short or long hair, "
+            f"2) the actual top garment and colour (lab coat / shirt / robe), 3) modern or historical setting. "
+            "Describe what is actually there; never default to historical costume.\n"
+            f"Never write source-video frame features into image{s}, and never use wording without visual evidence.\n"
+            f"'In the video ...' describes only the frame subject. Output image{s} without the @ prefix.\n\n"
+        )
+    joined = ", ".join(f"image{s}" for s in user_slots)
     return (
         f"[User specified {joined}]\n"
-        f"Describe each imageN using only its own reference image.\n\n"
+        "Keep every imageN number and describe each one using only its own reference image; "
+        "never mix subjects or invent details.\n"
+        "Output image0/image1…, without the @ prefix and without the word slot.\n\n"
     )
 
 
@@ -475,86 +404,45 @@ def build_vision_slot_preamble(
     ref_slots: list[int] | None = None,
     ref_video_count: int = 0,
     ref_images_first: bool = False,
-    output_language: str = OUTPUT_LANGUAGE_EN,
 ) -> str:
-    """Explain vision attachment order vs MiniMax H3 image0–4 slots for the LLM."""
+    """Explain the vision attachment order against the MiniMax H3 image0–4 slots for the LLM."""
     ref_slots = list(ref_slots or [])
     if source_count <= 0 and not ref_slots and ref_video_count <= 0:
         return ""
-    lines: list[str] = []
+    lines: list[str] = ["Vision attachment → index map (MUST follow in the output):"]
     pos = 1
-    if normalize_output_language(output_language) == "zh":
-        lines.append("【Vision 附件 → 编号映射（扩写必须遵守）】")
-        if ref_images_first:
-            for slot in ref_slots:
-                lines.append(
-                    f"- 附件第 {pos} 张 = 参考图 image{slot}"
-                    f"（写「image{slot} 中的…」时**只看这张**，逐条对照发型/服饰/颜色）"
-                )
-                pos += 1
-            for i in range(source_count):
-                lines.append(
-                    f"- 附件第 {pos} 张 = 源视频帧 frame{i}（仅用于「将视频中[待替换对象]」）"
-                )
-                pos += 1
-        else:
-            for i in range(source_count):
-                lines.append(f"- 附件第 {pos} 张 = 源视频帧 frame{i}（禁止称为 image0/image1）")
-                pos += 1
-            for slot in ref_slots:
-                lines.append(
-                    f"- 附件第 {pos} 张 = 参考图 image{slot}"
-                    f"（扩写中必须写 image{slot}，不是其他编号）"
-                )
-                pos += 1
-        for _ in range(ref_video_count):
-            lines.append(f"- 附件第 {pos} 张 = 参考视频帧（不是 image 编号）")
+    if ref_images_first:
+        for slot in ref_slots:
+            lines.append(
+                f"- Attachment #{pos} = reference image image{slot} "
+                f"(use ONLY for the 'from image{slot}' appearance, checked against hair/clothing/colour)"
+            )
             pos += 1
-        if ref_slots and source_count > 0:
+        for i in range(source_count):
             lines.append(
-                "替换分工：frame →「将视频中…」；"
-                f"image{ref_slots[0]}"
-                + (f"、image{ref_slots[1]}" if len(ref_slots) > 1 else "")
-                + " 参考图 →「imageN 中的…」。"
-                "参考图与 frame 外观不同时不得混用；写 imageN 禁止套用古风模板。"
+                f"- Attachment #{pos} = source video frame{i} "
+                f"(use ONLY for 'in the video [subject to replace]')"
             )
-        elif ref_slots:
-            lines.append(
-                f"重要：参考图编号为 image{ref_slots[0]}"
-                + (f"、image{ref_slots[1]}" if len(ref_slots) > 1 else "")
-                + "…，与附件顺序无关。"
-                "源视频帧只能叫 frame0/frame1…，绝不能占用 image0。"
-            )
+            pos += 1
     else:
-        lines.append("Vision attachment → index map (MUST follow in output):")
-        if ref_images_first:
-            for slot in ref_slots:
-                lines.append(
-                    f"- Attachment #{pos} = reference image image{slot} "
-                    f"(for 'from image{slot}' appearance ONLY)"
-                )
-                pos += 1
-            for i in range(source_count):
-                lines.append(f"- Attachment #{pos} = source video frame{i}")
-                pos += 1
-        else:
-            for i in range(source_count):
-                lines.append(f"- Attachment #{pos} = source video frame{i} (NOT image0/image1)")
-                pos += 1
-            for slot in ref_slots:
-                lines.append(
-                    f"- Attachment #{pos} = reference image image{slot} "
-                    f"(write exactly image{slot} in prompt)"
-                )
-                pos += 1
-        for _ in range(ref_video_count):
-            lines.append(f"- Attachment #{pos} = reference video frame (not imageN)")
+        for i in range(source_count):
+            lines.append(f"- Attachment #{pos} = source video frame{i} (NOT image0/image1)")
             pos += 1
-        if ref_slots:
+        for slot in ref_slots:
             lines.append(
-                f"CRITICAL: use image{ref_slots[0]} etc.; "
-                "source frames are frame0/frame1 only — never image0."
+                f"- Attachment #{pos} = reference image image{slot} "
+                f"(write exactly image{slot} in the prompt)"
             )
+            pos += 1
+    for _ in range(ref_video_count):
+        lines.append(f"- Attachment #{pos} = reference video frame (not an imageN number)")
+        pos += 1
+    if ref_slots:
+        lines.append(
+            f"CRITICAL: use image{ref_slots[0]}"
+            + (f", image{ref_slots[1]}" if len(ref_slots) > 1 else "")
+            + " etc.; source frames are frame0/frame1 only — never image0."
+        )
     return "\n".join(lines) + "\n\n"
 
 

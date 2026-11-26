@@ -32,7 +32,7 @@ def test_low_ram_is_wired_in_the_frontend_performance_group():
     assert 'low_ram: "low_ram"' in runtime_fix
 
     for key in ("widget.lowRam", "widget.tooltip.lowRam"):
-        assert i18n.count(f'"{key}"') == 2, f"{key} must exist in both the zh and en tables"
+        assert i18n.count(f'"{key}"') == 1, f"{key} must exist once in the English-only table"
 
 
 def test_experimental_group_widget_index_shifts_with_the_new_perf_widget():
@@ -40,5 +40,5 @@ def test_experimental_group_widget_index_shifts_with_the_new_perf_widget():
     # clear_vram_between_segments moves the Experimental group header from 21 to 22.
     sampling = Path("web/js/minimax_sampling_ui.js").read_text(encoding="utf-8")
     layout = sampling.split("DIRECTOR_GROUP_WIDGET_LAYOUT", 1)[1].split("]);", 1)[0]
-    for expected in ('[2, "采样设置"]', '[12, "Motion Context"]', '[18, "高级采样"]', '[19, "性能"]', '[22, "Experimental"]'):
+    for expected in ('[2, "Sampling settings"]', '[12, "Motion Context"]', '[18, "Advanced sampling"]', '[19, "Performance"]', '[22, "Experimental"]'):
         assert expected in layout

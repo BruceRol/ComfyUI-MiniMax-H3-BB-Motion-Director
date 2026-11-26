@@ -17,7 +17,7 @@ Build `T2V / I2V / FL2V / R2V / V2V / RV2V` shots in one production interface, m
 <!-- IMAGE SLOT 1
 Place your Mixed + Selective Run screenshot here:
 docs/images/hero-mixed-selective-run.png
-Recommended source: 螢幕擷取畫面 2026-08-19 041546.png
+Recommended source: screenshot 2026-08-19 041546.png
 -->
 
 ![MiniMax H3 Motion Director — Mixed Mode](docs/images/hero-mixed-selective-run.png)
@@ -38,7 +38,7 @@ The screenshot above shows the native **Mixed** timeline: five segments using di
 | **Source-video workflow** | Dedicated V2V / RV2V handling and Source Bridge for standalone source-video boundaries |
 | **Assets** | Common References plus a persistent Material Library for images, audio, video, and prompts |
 | **Sampling** | External ComfyUI `SAMPLER + SIGMAS` (required), plus an optional refine trio |
-| **Post-processing** | Global Refine, upscale, optional NVIDIA RTX VSR / Deblur, Face Refine — applied per segment |
+| **Post-processing** | Global Refine, upscale, optional NVIDIA RTX VSR / Deblur — applied per segment |
 | **Preview & results** | Director Live Preview, Segment / Multi Segment result views, Director Report |
 | **Output** | One h264 MP4 per clip, written during generation |
 
@@ -67,7 +67,8 @@ Rules:
 - Clips are written after the continuity pair-operations, so a rewritten previous tail is still included.
 - Because clips are streamed to disk, the assembly step no longer keeps a second full copy of the whole video in memory.
 
-Known limitation: when **Source Bridge pairs** and **Face Refine** are active together, the run still needs the real combined frames in memory, so streaming is skipped and no files are written for that run. If `av` (pyav) is not installed, the node logs a warning and falls back to the in-memory path.
+Known limitation: writing clips needs `av` (pyav). If it is not installed the node reports the
+missing dependency at startup and cannot write MP4 files.
 
 ---
 
@@ -189,7 +190,7 @@ Common References are project-level media that many standalone segments can shar
 <!-- IMAGE SLOT 3
 Place your Common References screenshot here:
 docs/images/common-references.png
-Recommended source: 螢幕擷取畫面 2026-08-19 040543(1).png
+Recommended source: screenshot 2026-08-19 040543(1).png
 -->
 
 ![MiniMax H3 Motion Director — Common References](docs/images/common-references.png)
@@ -214,7 +215,7 @@ Images can be organized into categories such as characters, scenes, props, or ot
 <!-- IMAGE SLOT 4
 Place your Material Library screenshot here:
 docs/images/material-library.png
-Recommended source: 螢幕擷取畫面 2026-08-19 035702(1).png
+Recommended source: screenshot 2026-08-19 035702(1).png
 -->
 
 ![MiniMax H3 Motion Director — Material Library](docs/images/material-library.png)
@@ -230,7 +231,7 @@ The Director can continue beyond first-pass generation instead of requiring a se
 <!-- IMAGE SLOT 5
 Place your Postprocess screenshot here:
 docs/images/postprocess.png
-Recommended source: 螢幕擷取畫面 2026-08-19 034623(1).png
+Recommended source: screenshot 2026-08-19 034623(1).png
 -->
 
 ![MiniMax H3 Motion Director — Postprocess](docs/images/postprocess.png)
@@ -249,17 +250,7 @@ Available paths include, depending on the installed runtime and models:
 
 If Global Refine fails, the Director keeps the first-pass result instead of discarding the completed generation.
 
-### Face Refine
-
-Face Refine provides an integrated face-repair path with:
-
-- face detection and tracking
-- crop-based H3 regeneration
-- adaptive refine strength
-- mask / stitching controls
-- color matching
-
-If no usable face is detected or Face Refine fails, the segment result is kept as the fallback.
+> Face Refine has been removed from this version and may return as a separate system.
 
 ---
 
@@ -270,7 +261,7 @@ Results are managed inside the Director rather than being reduced to one anonymo
 <!-- IMAGE SLOT 6
 Place your Results screenshot here:
 docs/images/results-final.png
-Recommended source: 螢幕擷取畫面 2026-08-19 035629(1).png
+Recommended source: screenshot 2026-08-19 035629(1).png
 -->
 
 ![MiniMax H3 Motion Director — Results](docs/images/results-final.png)
@@ -326,7 +317,9 @@ If you use a Windows portable build, run `pip` with the Python executable used b
 
 Restart ComfyUI completely after installation. If an update changes frontend files, restart ComfyUI and hard-refresh the browser.
 
-Saved workflows from the original project do not load as-is: the node class name changed and `sampler` / `sigmas` are now required inputs, so the Director node must be recreated.
+Saved workflows from the original project do not load as-is: the node class name changed,
+`sampler` / `sigmas` are now required inputs, and the task and aspect-ratio labels are English-only,
+so the Director node must be recreated.
 
 ---
 
@@ -337,7 +330,6 @@ Motion Director requires a **recent ComfyUI build with official MiniMax H3 suppo
 Core Python dependencies are declared in the project package/requirements files, including `pyav` for the per-clip MP4 mux. Some features have additional optional runtime/model requirements, for example:
 
 - NVIDIA RTX VSR / Deblur requires the compatible NVIDIA VFX runtime/package and supported NVIDIA hardware
-- Face Refine detector/SAM paths require the corresponding detector/model dependencies selected in the UI
 - Upscale Model mode requires a compatible ComfyUI upscale model
 
 If a feature is optional, the Director is designed to keep the usable earlier result when that post-processing stage cannot run.

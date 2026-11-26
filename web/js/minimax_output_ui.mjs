@@ -3,117 +3,59 @@ import { ResultPlaybackController } from "./minimax_output_player.mjs";
 const STYLE_ID = "mmx-output-styles";
 
 const OUTPUT_TEXT = {
-    en: {
-        live_generation: "Generation",
-        live_global: "Global Refine",
+    live_generation: "Generation",
+    live_global: "Global Refine",
 
-        segment: "Segment",
-        multi: "Multi Segment",
+    segment: "Segment",
+    multi: "Multi Segment",
 
-        live_waiting: "Waiting for live preview…",
-        result_waiting: "Waiting for generated result…",
-        idle: "Idle",
+    live_waiting: "Waiting for live preview…",
+    result_waiting: "Waiting for generated result…",
+    idle: "Idle",
 
-        generated_segment: "Generated Segment",
-        available_range: "Available generated range",
-        range_start: "Start Segment",
-        range_end: "End Segment",
+    generated_segment: "Generated Segment",
+    available_range: "Available generated range",
+    range_start: "Start Segment",
+    range_end: "End Segment",
 
-        play: "▶ Play",
-        pause: "⏸ Pause",
-        volume: "Volume",
+    play: "▶ Play",
+    pause: "⏸ Pause",
+    volume: "Volume",
 
-        current_run: "Current Run · Idle",
-        task_detail: "Task / Segment / Stage / Step",
+    current_run: "Current Run · Idle",
+    task_detail: "Task / Segment / Stage / Step",
 
-        pipeline_status: "Pipeline Status",
-        pipeline_path:
-            "Generation → Global Refine → Assemble → Clip Write → Merge",
+    pipeline_status: "Pipeline Status",
+    pipeline_path:
+        "Generation → Global Refine → Assemble → Clip Write → Merge",
 
-        preview_settings: "Preview Settings",
-        director_preview: "Director Preview",
-        suppressed: "ComfyUI Default Preview: SUPPRESSED",
+    preview_settings: "Preview Settings",
+    director_preview: "Director Preview",
+    suppressed: "ComfyUI Default Preview: SUPPRESSED",
 
-        preview_frames: "preview_frames",
-        preview_fps: "preview_fps",
-        max_resolution: "max_resolution",
-        jpeg_quality: "jpeg_quality",
-        preview_every: "preview_every",
+    preview_frames: "preview_frames",
+    preview_fps: "preview_fps",
+    max_resolution: "max_resolution",
+    jpeg_quality: "jpeg_quality",
+    preview_every: "preview_every",
 
-        report: "Report",
-        waiting_report: "Waiting for report…",
+    report: "Report",
+    waiting_report: "Waiting for report…",
 
-        overall_progress: "Overall Progress",
-        stage_progress: "Current Stage Progress",
+    overall_progress: "Overall Progress",
+    stage_progress: "Current Stage Progress",
 
-        no_valid: "No valid segments",
-        frame: "Frame",
-        frames: "frames",
-        step: "Step",
-        segment_word: "Segment",
+    no_valid: "No valid segments",
+    frame: "Frame",
+    frames: "frames",
+    step: "Step",
+    segment_word: "Segment",
 
-        generation: "Generation",
-        global_refine: "Global Refine",
-        assemble: "Assemble",
-        finalize: "Finalize / Clip Write",
-        upscale: "Upscale",
-    },
-
-    zh: {
-        live_generation: "一般",
-        live_global: "放大",
-
-        segment: "分段",
-        multi: "多段",
-
-        live_waiting: "等待实时预览…",
-        result_waiting: "等待模型生成成果…",
-        idle: "待命",
-
-        generated_segment: "已生成片段",
-        available_range: "当前有效片段范围",
-        range_start: "起始段",
-        range_end: "结束段",
-
-        play: "▶ 播放",
-        pause: "⏸ 暂停",
-        volume: "音量",
-
-        current_run: "当前运行 · 待命",
-        task_detail: "任务 / 片段 / 阶段 / 步数",
-
-        pipeline_status: "管线状态",
-        pipeline_path:
-            "生成 → 全局精修 → 组合 → 写片段 → 合并",
-
-        preview_settings: "预览设置",
-        director_preview: "Director 预览",
-        suppressed: "ComfyUI 默认采样预览：已抑制",
-
-        preview_frames: "预览帧数",
-        preview_fps: "预览帧率",
-        max_resolution: "最大分辨率",
-        jpeg_quality: "JPEG 品质",
-        preview_every: "预览间隔",
-
-        report: "报告",
-        waiting_report: "等待报告…",
-
-        overall_progress: "总体进度",
-        stage_progress: "当前阶段进度",
-
-        no_valid: "没有有效片段",
-        frame: "帧",
-        frames: "帧",
-        step: "步",
-        segment_word: "片段",
-
-        generation: "生成",
-        global_refine: "全局精修",
-        assemble: "组合",
-        finalize: "最终处理 / 写片段",
-        upscale: "放大",
-    },
+    generation: "Generation",
+    global_refine: "Global Refine",
+    assemble: "Assemble",
+    finalize: "Finalize / Clip Write",
+    upscale: "Upscale",
 };
 
 function ensureStyles() {
@@ -437,9 +379,6 @@ function dataUrl(b64, mediaType = "image/jpeg") {
 export function mountOutputUI(
     containers,
     store,
-    {
-        locale = () => "zh",
-    } = {},
 ) {
     ensureStyles();
 
@@ -454,7 +393,7 @@ export function mountOutputUI(
 
     const tx = (key, values = {}) => {
         let text =
-            OUTPUT_TEXT[locale() === "en" ? "en" : "zh"][key]
+            OUTPUT_TEXT[key]
             || key;
 
         for (const [name, value] of Object.entries(values)) {
@@ -478,13 +417,13 @@ export function mountOutputUI(
             data-live-tab="generation"
             class="active"
             data-output-text="live_generation"
-          >一般</button>
+          >Generation</button>
 
           <button
             type="button"
             data-live-tab="global_refine"
             data-output-text="live_global"
-          >放大</button>
+          >Global Refine</button>
         </div>
 
         <div class="mmx-live-source">
@@ -508,13 +447,13 @@ export function mountOutputUI(
           <div
             class="mmx-live-empty"
             data-output-text="live_waiting"
-          >等待实时预览…</div>
+          >Waiting for live preview…</div>
 
           <div
             class="mmx-live-badge"
             data-live-badge
             data-output-text="idle"
-          >待命</div>
+          >Idle</div>
         </div>
 
         <div
@@ -532,13 +471,13 @@ export function mountOutputUI(
             class="bd-run-title"
             data-r="run-title"
             data-output-text="current_run"
-          >当前运行 · 待命</div>
+          >Current Run · Idle</div>
 
           <div
             class="bd-run-detail"
             data-r="run-detail"
             data-output-text="task_detail"
-          >任务 / 片段 / 阶段 / 步数</div>
+          >Task / Segment / Stage / Step</div>
 
           <div
             class="bd-run-select-bar hidden"
@@ -690,20 +629,20 @@ export function mountOutputUI(
             data-result-tab="segment"
             class="active"
             data-output-text="segment"
-          >分段</button>
+          >Segment</button>
 
           <button
             type="button"
             data-result-tab="multi"
             data-output-text="multi"
-          >多段</button>
+          >Multi Segment</button>
         </div>
 
         <div class="mmx-result-source">
           <span
             data-source-label
             data-output-text="generated_segment"
-          >已生成片段</span>
+          >Generated Segment</span>
 
           <select
             data-segment-select
@@ -715,12 +654,12 @@ export function mountOutputUI(
             hidden
           >
             <label>
-              <span data-output-text="range_start">起始段</span>
+              <span data-output-text="range_start">Start Segment</span>
               <select data-range-start></select>
             </label>
             <span>→</span>
             <label>
-              <span data-output-text="range_end">结束段</span>
+              <span data-output-text="range_end">End Segment</span>
               <select data-range-end></select>
             </label>
           </div>
@@ -748,13 +687,13 @@ export function mountOutputUI(
           <div
             class="mmx-result-empty"
             data-output-text="result_waiting"
-          >等待模型生成成果…</div>
+          >Waiting for generated result…</div>
 
           <div
             class="mmx-result-badge"
             data-result-badge
             data-output-text="idle"
-          >待命</div>
+          >Idle</div>
         </div>
 
         <audio
@@ -767,7 +706,7 @@ export function mountOutputUI(
             type="button"
             data-result-play
             data-output-text="play"
-          >▶ 播放</button>
+          >▶ Play</button>
 
           <input
             type="range"
@@ -783,12 +722,12 @@ export function mountOutputUI(
           </span>
 
           <span data-result-frame>
-            帧 0 / 0
+            Frame 0 / 0
           </span>
 
           <label>
             <span data-output-text="volume">
-              音量
+              Volume
             </span>
 
             <input
@@ -813,7 +752,7 @@ export function mountOutputUI(
 
         <section class="mmx-output-card">
           <h4 data-output-text="report">
-            报告
+            Report
           </h4>
 
           <div
@@ -821,7 +760,7 @@ export function mountOutputUI(
             data-report
             data-output-text="waiting_report"
           >
-            等待报告…
+            Waiting for report…
           </div>
         </section>
       </aside>
@@ -1983,7 +1922,7 @@ export function mountOutputUI(
         }
     };
 
-    const updateLocale = () => {
+    const refreshLabels = () => {
         for (const root of [
             liveRoot,
             resultsRoot,
@@ -2012,11 +1951,7 @@ export function mountOutputUI(
 
                     if (
                         key
-                        && OUTPUT_TEXT[
-                            locale() === "en"
-                                ? "en"
-                                : "zh"
-                        ][key]
+                        && OUTPUT_TEXT[key]
                     ) {
                         element.textContent =
                             tx(key);
@@ -2064,7 +1999,7 @@ export function mountOutputUI(
         renderFrame();
     };
 
-    updateLocale();
+    refreshLabels();
     setTab("segment");
     renderLive();
 
@@ -2082,7 +2017,6 @@ export function mountOutputUI(
         setTab,
         setLiveStage,
         setPageVisibility,
-        updateLocale,
 
         runStatusEl:
             liveRoot.querySelector(

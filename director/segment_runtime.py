@@ -236,4 +236,4 @@ def tensor_frame_to_jpeg_b64(frame: torch.Tensor) -> str:
 
 
 def frames_label(seg) -> str:
-    return f"帧 {seg.start_frame}–{seg.end_frame} ({seg.frame_count}f)"
+    return f"Frames {seg.start_frame}–{seg.end_frame} ({seg.frame_count}f)"

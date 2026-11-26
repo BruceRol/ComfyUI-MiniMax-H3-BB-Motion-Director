@@ -44,10 +44,10 @@ const DIRECTOR_GROUP_INPUT_NAMES = new Set([
 // Indices include the seed control slot created by control_after_generate, which is
 // a real widget value between seed and frame_rate.
 const DIRECTOR_GROUP_WIDGET_LAYOUT = Object.freeze([
-    [2, "采样设置"],
+    [2, "Sampling settings"],
     [12, "Motion Context"],
-    [18, "高级采样"],
-    [19, "性能"],
+    [18, "Advanced sampling"],
+    [19, "Performance"],
     [22, "Experimental"],
 ]);
 

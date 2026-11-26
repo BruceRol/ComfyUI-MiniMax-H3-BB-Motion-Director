@@ -31,14 +31,12 @@ from ..director.prompt_enhance_media import (
     prepare_llm_vision_images,
 )
 from .prompt_enhance_templates import (
-    DETAILED_MIN_TOTAL_HAN,
-    OUTPUT_LANGUAGE_EN,
+    DETAILED_MIN_TOTAL_CHARS,
     build_character_detail_directive,
     build_detailed_retry_suffix,
-    count_han_chars,
+    count_chars,
     format_enhance_user_content,
     is_character_feature_enhance_enabled,
-    normalize_output_language,
     resolve_enhance_system_prompt,
     resolve_enhance_template,
     patch_rv2v_vision_intro,
@@ -53,11 +51,11 @@ DEFAULT_ZHIPU_URL = "https://open.bigmodel.cn/api/paas/v4"
 DEFAULT_ZHIPU_MODEL = "glm-4.6v-flash"
 DEFAULT_OPENAI_COMPAT_URL = "http://127.0.0.1:8080/v1"
 API_FORMAT_OLLAMA = "Ollama"
-API_FORMAT_ZHIPU = "智谱 GLM"
+API_FORMAT_ZHIPU = "Zhipu GLM"
 API_FORMAT_OPENAI_COMPAT = "OpenAI Compatible"
 _LEGACY_OPENAI_FORMAT = "OpenAI / vLLM"
 DEFAULT_API_FORMAT = API_FORMAT_OLLAMA
-OPENAI_COMPAT_MODE_STANDARD = "标准"
+OPENAI_COMPAT_MODE_STANDARD = "Standard"
 OPENAI_COMPAT_MODE_LLAMA_SWAP = "llama-swap"
 DEFAULT_OPENAI_COMPAT_MODE = OPENAI_COMPAT_MODE_STANDARD
 # Prefer current MiniMax H3 names while retaining legacy fallbacks for existing setups.
@@ -227,8 +225,8 @@ def _prepare_zhipu_images(model: str, images: list[str]) -> tuple[list[str], str
         return [], None
     if zhipu_legacy_4v_flash(model):
         return [], (
-            "智谱 glm-4v-flash 不支持 Base64 图片。"
-            "带参考图/视频帧扩写请改用 glm-4.6v-flash 或 glm-4.5v-flash。"
+            "Zhipu glm-4v-flash does not support Base64 images. "
+            "For enhance with reference images or video frames use glm-4.6v-flash or glm-4.5v-flash."
         )
     if zhipu_legacy_4v_flash(model) is False and "4v-plus" in (model or "").lower():
         return images[:5], None
@@ -239,12 +237,13 @@ def _format_zhipu_http_error(status: int, body: str, *, model: str) -> str:
     if status == 400 and "1210" in body and "messages.content.type" in body:
         if not zhipu_supports_vision(model):
             return (
-                f"HTTP {status}: 智谱模型 {model} 为纯文本模型，不支持附带图片。"
-                "带参考图/视频帧扩写请改用 glm-4.6v-flash；纯文本扩写可用 glm-4-flash-250414。"
+                f"HTTP {status}: the Zhipu model {model} is a text-only model and does not accept images. "
+                "For enhance with reference images or video frames use glm-4.6v-flash; "
+                "text-only enhance can use glm-4-flash-250414."
             )
         return (
-            f"HTTP {status}: 智谱消息格式错误（{body[:200]}）。"
-            "请确认使用支持视觉的模型（如 glm-4.6v-flash）。"
+            f"HTTP {status}: Zhipu message format error ({body[:200]}). "
+            "Check that a vision-capable model is used (for example glm-4.6v-flash)."
         )
     return f"HTTP {status}: {body[:500]}"
 
@@ -371,7 +370,6 @@ def _sanitize_enhanced_prompt(text: str) -> str:
         return t
     t = re.sub(r"@image(\d)(?!\d)", r"image\1", t, flags=re.IGNORECASE)
     t = re.sub(r"reference\s+image(\d)(?!\d)", r"image\1", t, flags=re.IGNORECASE)
-    t = re.sub(r"参考\s*slot\s*", "参考图 ", t, flags=re.IGNORECASE)
     t = re.sub(r"\bslot\s*image(\d)\b", r"image\1", t, flags=re.IGNORECASE)
     t = re.sub(r"image(\d)\s*slot\b", r"image\1", t, flags=re.IGNORECASE)
     t = re.sub(r"\bslot\b", "", t, flags=re.IGNORECASE)
@@ -591,7 +589,6 @@ def enhance_prompt_sync(
     images_b64: list[str] | None = None,
     image_num: int | None = None,
     custom_template: str = "",
-    output_language: str = OUTPUT_LANGUAGE_EN,
     character_feature_enhance: bool | str | None = None,
     character_detail_level: str | None = None,
     vision_source_count: int | None = None,
@@ -611,7 +608,7 @@ def enhance_prompt_sync(
     endpoint = llm_chat_endpoint(base_url, api_format)
 
     if api_format == API_FORMAT_ZHIPU and not resolve_api_key(api_format, api_key):
-        return None, "智谱 API Key 未配置（请在面板填写或设置环境变量）"
+        return None, "Zhipu API key is not configured (fill in the panel or set the environment variable)"
 
     src_count = vision_source_count if vision_source_count is not None else 0
     slots = list(ref_slots or [])
@@ -649,7 +646,6 @@ def enhance_prompt_sync(
     template = resolve_enhance_template(
         task_key,
         custom_template=custom_template,
-        output_language=output_language,
     )
     if (
         task_key in ("rv2v", "vrc2v")
@@ -662,7 +658,6 @@ def enhance_prompt_sync(
             source_count=src_count,
             ref_slots=slots,
             ref_images_first=False,
-            output_language=output_language,
         )
     ref_count = image_num if image_num is not None else max(1, len(vision_images or images_b64 or []))
     if directive_slots and slots:
@@ -679,11 +674,9 @@ def enhance_prompt_sync(
             source_count=src_count,
             ref_slots=slots,
             ref_video_count=vision_ref_video_count,
-            output_language=output_language,
         )
     detail_directive = build_character_detail_directive(
         feature_enhance,
-        output_language=output_language,
         task_key=task_key,
     )
     if detail_directive:
@@ -691,19 +684,16 @@ def enhance_prompt_sync(
     if use_replace_structured:
         preamble += build_replace_structured_json_directive(
             directive_slots,
-            output_language=output_language,
             character_feature_enhance=feature_enhance,
         )
     elif replace_task and src_count > 0 and directive_slots:
         preamble += build_replace_source_target_directive(
             directive_slots,
             source_count=src_count,
-            output_language=output_language,
         )
     if directive_slots and not use_replace_structured:
         preamble += build_user_image_directive(
             directive_slots,
-            output_language,
             character_feature_enhance=feature_enhance,
         )
     if vision_images and (src_count > 0 or slots):
@@ -712,7 +702,6 @@ def enhance_prompt_sync(
             ref_slots=slots,
             ref_video_count=vision_ref_video_count,
             ref_images_first=False,
-            output_language=output_language,
         )
     if preamble:
         formatted = preamble + formatted
@@ -720,9 +709,9 @@ def enhance_prompt_sync(
     detailed_mode = feature_enhance and bool(detail_directive)
     if detailed_mode:
         log.info(
-            "Prompt enhance character feature enhance (%s): min_han=%d",
+            "Prompt enhance character feature enhance (%s): min_chars=%d",
             task_key,
-            DETAILED_MIN_TOTAL_HAN,
+            DETAILED_MIN_TOTAL_CHARS,
         )
 
     if api_format == API_FORMAT_OLLAMA and "qwen" in model.lower() and not detailed_mode:
@@ -731,28 +720,23 @@ def enhance_prompt_sync(
     system_prompt = resolve_enhance_system_prompt(
         task_key,
         custom_template=custom_template,
-        output_language=output_language,
     )
-    if normalize_output_language(output_language) == "zh":
-        if replace_task and src_count > 0 and slots:
-            system_prompt += (
-                " 替换任务：「将视频中…」只写源视频 frame 附件里待替换对象的现行外观；"
-                "「imageN 中的…」只写参考图 imageN 附件里的目标外观；二者禁止对调。"
-            )
-        elif directive_slots or feature_enhance:
-            system_prompt += (
-                " 扩写正文须为简体中文；保留 image0、image1、frame0 等英文编号。"
-                "若用户指定 @imageN：「将视频中…」只写 frame 待替换对象；"
-                "「imageN 中的…」只写参考图目标外观；禁止对调混用。"
-            )
-        if detailed_mode:
-            system_prompt += (
-                f" 角色特征增强已开启：imageN 外观须逐条可对照参考图，总汉字≥{DETAILED_MIN_TOTAL_HAN}；"
-                "参考图是什么风格写什么风格，禁止文学臆造。"
-            )
-    elif detailed_mode:
+    if replace_task and src_count > 0 and slots:
         system_prompt += (
-            " Character feature enhance: long character appearance from reference image is required."
+            " Replace task: the 'in the video' clause describes only the subject to replace from the "
+            "source frame attachments; the 'from imageN' clause describes only the target appearance "
+            "from the reference image attachment. Never swap them."
+        )
+    elif directive_slots:
+        system_prompt += (
+            " Keep the image0/image1/frame0 numbering from the user prompt; describe each reference "
+            "image using only its own attachment and never mix or swap subjects."
+        )
+    if detailed_mode:
+        system_prompt += (
+            f" Character feature enhance is on: the imageN appearance must be itemized against the "
+            f"reference image, at least {DETAILED_MIN_TOTAL_CHARS} characters, and match the style of "
+            "the reference; no invented literary wording."
         )
 
     def _run_chat(
@@ -851,9 +835,9 @@ def enhance_prompt_sync(
             if last[1] and _is_ollama_context_error(last[1]):
                 return None, (
                     f"{last[1]} "
-                    f"（已自动放大 num_ctx 并压缩 Vision 图片仍不足；"
-                    f"可设环境变量 MINIMAX_H3_PE_OLLAMA_NUM_CTX=65536，"
-                    f"或减少参考图/源视频帧，或换更小 Vision 模型）"
+                    "(num_ctx was already increased and the vision images compressed without enough "
+                    "room; you can set the environment variable MINIMAX_H3_PE_OLLAMA_NUM_CTX=65536, "
+                    "reduce the reference images or source video frames, or use a smaller vision model)"
                 )
             return last
         num_ctx = DEFAULT_OLLAMA_NUM_CTX if api_format == API_FORMAT_OLLAMA else 0
@@ -870,7 +854,7 @@ def enhance_prompt_sync(
 
     chat_prompt = formatted
     last_err: str | None = None
-    last_han = 0
+    last_chars = 0
     max_passes = 3 if detailed_mode else (2 if use_replace_structured else 1)
     num_predict = 4096 if (detailed_mode or use_replace_structured) else None
     for enhance_pass in range(max_passes):
@@ -897,7 +881,6 @@ def enhance_prompt_sync(
                 parsed = assemble_replace_rv2v_prompt(
                     structured,
                     directive_slots,
-                    output_language=output_language,
                 )
                 if parsed:
                     log.info("Prompt enhance: assembled replace prompt from structured JSON")
@@ -915,44 +898,43 @@ def enhance_prompt_sync(
             if use_replace_structured and enhance_pass + 1 < max_passes:
                 chat_prompt = (
                     formatted
-                    + "\n\n【错误】必须返回 JSON，含 frame_subject 与 image"
-                    f"{directive_slots[0]}_target，禁止 rewritten_text。"
-                    "frame_subject 只写 frame 图；imageN_target 只写 imageN 图，禁止对调。"
+                    + "\n\n[Error] You must return JSON containing frame_subject and image"
+                    f"{directive_slots[0]}_target, with no rewritten_text. "
+                    "frame_subject describes only the frame attachment; imageN_target describes only "
+                    "the imageN attachment. Never swap them."
                 )
                 continue
             if not (raw or "").strip():
                 hint = (
-                    "LLM 返回内容为空。"
-                    "若使用 qwen3 等思考模型，请升级 Ollama 或换用 glm-4-flash / qwen2.5 等非思考模型。"
+                    "The LLM returned an empty response. "
+                    "If you use a thinking model such as qwen3, upgrade Ollama or switch to a "
+                    "non-thinking model such as glm-4-flash or qwen2.5."
                 )
                 return None, hint
-            return None, f"LLM 返回无法解析（前 120 字）：{(raw or '')[:120]}"
+            return None, f"LLM response could not be parsed (first 120 chars): {(raw or '')[:120]}"
 
         parsed = ensure_user_reference_tags(parsed, user_slots or directive_slots)
-        han = count_han_chars(parsed)
-        last_han = han
+        chars = count_chars(parsed)
+        last_chars = chars
         if detailed_mode:
-            log.info("Prompt enhance result (%s pass %d): %d han", task_key, enhance_pass + 1, han)
+            log.info("Prompt enhance result (%s pass %d): %d chars", task_key, enhance_pass + 1, chars)
 
-        if detailed_mode and han < DETAILED_MIN_TOTAL_HAN and enhance_pass + 1 < max_passes:
+        if detailed_mode and chars < DETAILED_MIN_TOTAL_CHARS and enhance_pass + 1 < max_passes:
             log.warning(
-                "Detailed enhance too short (%d < %d han), retrying (pass %d/%d)",
-                han,
-                DETAILED_MIN_TOTAL_HAN,
+                "Detailed enhance too short (%d < %d chars), retrying (pass %d/%d)",
+                chars,
+                DETAILED_MIN_TOTAL_CHARS,
                 enhance_pass + 1,
                 max_passes,
             )
-            chat_prompt = formatted + build_detailed_retry_suffix(
-                current_han=han,
-                output_language=output_language,
-            )
+            chat_prompt = formatted + build_detailed_retry_suffix(current_chars=chars)
             continue
 
-        if detailed_mode and han < DETAILED_MIN_TOTAL_HAN:
+        if detailed_mode and chars < DETAILED_MIN_TOTAL_CHARS:
             log.warning(
-                "Detailed enhance still below target (%d < %d han)",
-                han,
-                DETAILED_MIN_TOTAL_HAN,
+                "Detailed enhance still below target (%d < %d chars)",
+                chars,
+                DETAILED_MIN_TOTAL_CHARS,
             )
         if (
             unload_after
@@ -969,7 +951,7 @@ def enhance_prompt_sync(
                 log.warning("llama-swap unload failed after enhance: %s", unload_err)
         return parsed, None
 
-    return None, last_err or f"LLM enhance failed (last {last_han} han)"
+    return None, last_err or f"LLM enhance failed (last output {last_chars} characters)"
 
 
 async def list_llm_models(

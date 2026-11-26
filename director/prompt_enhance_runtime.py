@@ -14,7 +14,6 @@ from dataclasses import dataclass
 
 import torch
 
-from ..lib.prompt_enhance_templates import OUTPUT_LANGUAGE_EN, OUTPUT_LANGUAGE_ZH
 from ..lib.prompt_enhancer import (
     DEFAULT_API_FORMAT,
     DEFAULT_OLLAMA_MODEL,
@@ -41,7 +40,6 @@ class PromptEnhanceSettings:
     api_key: str = ""
     unload_after: bool = False
     custom_template: str = ""
-    output_language: str = OUTPUT_LANGUAGE_ZH
     character_feature_enhance: bool = False
 
     @classmethod
@@ -56,7 +54,6 @@ class PromptEnhanceSettings:
         llm_model=DEFAULT_OLLAMA_MODEL,
         llm_unload_after=False,
         llm_custom_template="",
-        llm_output_language=OUTPUT_LANGUAGE_ZH,
         llm_character_feature_enhance=False,
     ) -> PromptEnhanceSettings:
         from ..lib.prompt_enhance_templates import normalize_character_feature_enhance
@@ -72,7 +69,6 @@ class PromptEnhanceSettings:
             api_key=str(llm_api_key or "").strip(),
             unload_after=bool(llm_unload_after),
             custom_template=str(llm_custom_template or ""),
-            output_language=str(llm_output_language or OUTPUT_LANGUAGE_ZH),
             character_feature_enhance=feature_enhance,
         )
 
@@ -127,7 +123,6 @@ def maybe_enhance_segment_prompt(
         images_b64=images_b64,
         image_num=ref_count,
         custom_template=settings.custom_template,
-        output_language=settings.output_language,
         character_feature_enhance=settings.character_feature_enhance,
         vision_source_count=source_count if images_b64 else None,
         ref_slots=ref_slots if ref_slots else None,

@@ -399,7 +399,7 @@ def build_gen_director_plan(
     elif edit_mode not in ("global", "segment"):
         edit_mode = "global"
 
-    task_type = global_block.get("taskType") or global_task_type or "t2v — 文生视频(Text to Video)"
+    task_type = global_block.get("taskType") or global_task_type or "t2v — Text to Video"
     task_key = resolve_task_key(task_type)
     if not is_gen_task_key(task_key):
         raise ValueError(f"Task {task_key} is not supported on the generation timeline.")
@@ -618,7 +618,7 @@ def build_gen_director_plan(
         if seg_task_key in ("r2v", "r2i") and not has_r2v_material:
             log.warning(
                 "gen segment #%d task=%s has no reference media — will behave like "
-                "t2v/t2i. Upload 图片/音频/视频 on this material card.",
+                "t2v/t2i. Upload picture/audio/video on this material card.",
                 idx + 1,
                 seg_task_key,
             )

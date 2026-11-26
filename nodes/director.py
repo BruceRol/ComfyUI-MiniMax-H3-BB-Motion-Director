@@ -167,7 +167,7 @@ class BB_MiniMaxH3MotionDirector:
                         ),
                     },
                 ),
-                "bd_grp_advanced": ("BDGROUP", {"default": "高级采样"}),
+                "bd_grp_advanced": ("BDGROUP", {"default": "Advanced sampling"}),
                 "refine_model": (
                     "MODEL",
                     {

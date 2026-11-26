@@ -20,7 +20,7 @@ import {
     SEMANTIC_REFERENCE_RE,
     semanticReferenceToken,
 } from "./minimax_reference_assets.mjs";
-import { t } from "./minimax_i18n.js";
+import { t } from "./minimax_i18n.js?boot=i18n_en_v2";
 import {
     activateMentionItem,
     computeMentionMenuPosition,
@@ -173,9 +173,9 @@ function normalizeCaretToTextNode(root) {
     const offset = current.startOffset;
     const previous = container.childNodes?.[offset - 1];
 
-    // 浏览器经常把 caret 放成：
+    // Browsers often place the caret as:
     // <div contenteditable> ... TextNode | </div>
-    // 把它重新锚定到前一个真实文字节点末尾。
+    // Re-anchor it to the end of the previous real text node.
     if (previous?.nodeType === Node.TEXT_NODE) {
         const range = document.createRange();
         range.setStart(previous, previous.data.length);
@@ -185,7 +185,7 @@ function normalizeCaretToTextNode(root) {
         return range;
     }
 
-    // 如果当前位置根本没有文字节点，主动建立一个稳定的 caret host。
+    // If there is no text node at this position, create a stable caret host.
     const textNode = document.createTextNode("");
     const reference = container.childNodes?.[offset] || null;
     container.insertBefore(textNode, reference);

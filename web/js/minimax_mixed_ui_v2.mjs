@@ -11,7 +11,7 @@ import {
 } from "./minimax_mixed_state.mjs?boot=mixed_native_v6";
 import { inputRelativePath, materializeMaterial } from "./minimax_material_library_api.mjs";
 import { pickMixedMaterial } from "./minimax_mixed_material_picker.mjs";
-import { mt, onMixedLocaleChange } from "./minimax_mixed_i18n.mjs";
+import { mt } from "./minimax_mixed_i18n.mjs?boot=mixed_i18n_en_v2";
 import { renderMixedNativeModeCard } from "./minimax_mixed_native_inputs.mjs?boot=mixed_native_v6";
 
 const STYLE_ID = "mmx-bb-mixed-mode-integrated-styles";
@@ -52,7 +52,7 @@ function setI18n(element, key, vars = {}) {
     return element;
 }
 
-function refreshLocale(root) {
+function refreshStrings(root) {
     for (const element of root.querySelectorAll?.("[data-mmx-i18n]") || []) {
         let vars = {};
         try { vars = JSON.parse(element.dataset.mmxI18nVars || "{}"); } catch { vars = {}; }
@@ -913,18 +913,15 @@ export function mountMixedUI({ host, editor, initialState, onChange }) {
         statusEl.className = "bd-meta mmx-mixed-status";
         statusEl.textContent = mt("mixed.ready");
         editorPanel.appendChild(statusEl);
-        refreshLocale(root);
-        // Counts include dynamic values, so refresh them after generic locale pass.
+        refreshStrings(root);
+        // Counts include dynamic values, so refresh them after the generic string pass.
         const identityTitle = root.querySelector('.mmx-mixed-media-head b[data-mmx-i18n="mixed.identity"]');
         if (identityTitle) identityTitle.textContent = `${mt("mixed.identity")} (${identityTotal(selectedSegment())}/9)`;
     }
 
-    const localeUnsub = onMixedLocaleChange(() => {
-        if (destroyed) return;
-        refreshLocale(root);
-        const identityTitle = root.querySelector('.mmx-mixed-media-head b[data-mmx-i18n="mixed.identity"]');
-        if (identityTitle) identityTitle.textContent = `${mt("mixed.identity")} (${identityTotal(selectedSegment())}/9)`;
-    });
+    refreshStrings(root);
+    const identityTitle = root.querySelector('.mmx-mixed-media-head b[data-mmx-i18n="mixed.identity"]');
+    if (identityTitle) identityTitle.textContent = `${mt("mixed.identity")} (${identityTotal(selectedSegment())}/9)`;
 
     draw();
     const controller = {
@@ -939,11 +936,10 @@ export function mountMixedUI({ host, editor, initialState, onChange }) {
             selectedIndex = Math.min(selectedIndex, state.segments.length - 1);
             draw();
         },
-        updateLocale() { refreshLocale(root); },
+        refreshStrings() { refreshStrings(root); },
         destroy() {
             if (destroyed) return;
             destroyed = true;
-            localeUnsub?.();
             root.remove();
         },
     };

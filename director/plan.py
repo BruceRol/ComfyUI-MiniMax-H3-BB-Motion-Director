@@ -95,7 +95,7 @@ class SegmentPlan:
     reference_video_start_frame: int = 0
     negative_prompt: str = ""
     source_clip: torch.Tensor | None = None
-    # When external groups filter by「选择运行」, plan.index is the compact run
+    # When external groups filter by "Select to run", plan.index is the compact run
     # order (0..N-1) while ui_index keeps the Director timeline card index.
     ui_index: int | None = None
     # Semantic asset identity → official per-segment prompt tag.
@@ -492,7 +492,8 @@ def _parse_run_selection(timeline: dict, segment_count: int) -> frozenset[int] |
     indices = {int(i) for i in raw if 0 <= int(i) < segment_count}
     if not indices:
         raise ValueError(
-            "MiniMax H3 Motion Director: 「选择运行」已开启但未勾选任何片段/提示词组。请至少勾选一组再执行。"
+            "MiniMax H3 Motion Director: 'Select to run' is enabled but no segment/prompt group is checked. "
+            "Check at least one group before running."
         )
     if len(indices) >= segment_count:
         return None
@@ -563,7 +564,7 @@ def build_director_plan(
     if edit_mode not in ("global", "segment"):
         edit_mode = "global"
 
-    task_type = global_block.get("taskType") or global_task_type or "v2v — 视频转视频(Video to Video)"
+    task_type = global_block.get("taskType") or global_task_type or "v2v — Video to Video"
     prompt = global_block.get("prompt") or global_prompt or ""
     global_refs = _load_refs(global_block.get("refs") or [])
     global_ref_audios = _load_ref_audios(
@@ -697,7 +698,7 @@ def build_director_plan(
         if _ref_video_has_file(seg.reference_video_meta):
             continue
         raise ValueError(
-            f"ads2v (广告植入) segment #{seg.index + 1} requires a reference video. "
+            f"ads2v (ad insertion) segment #{seg.index + 1} requires a reference video. "
             "Upload the content-to-insert clip for this segment in the Director node UI."
         )
 
@@ -823,11 +824,11 @@ def plan_summary(plan: DirectorPlan) -> str:
     mode = str(plan.raw.get("timelineMode") or "")
     if mode in ("gen_blank", "gen_image", "prompt_batch", "image_batch", "fl2v"):
         if mode == "fl2v":
-            mode_label = "首尾帧 (fl2v)"
+            mode_label = "First/last frame (fl2v)"
         elif mode in ("prompt_batch", "image_batch"):
-            mode_label = f"批量生成 ({plan.global_task_key})"
+            mode_label = f"Batch generation ({plan.global_task_key})"
         else:
-            mode_label = "空白画布" if mode == "gen_blank" else "图片生成"
+            mode_label = "Blank canvas" if mode == "gen_blank" else "Image generation"
         lines = [
             f"MiniMax H3 Motion Director [{mode_label}] ({plan.edit_mode}): "
             f"{plan.segment_count} segment(s), {plan.total_frames} frames @ {plan.frame_rate:.2f} fps",
@@ -842,9 +843,9 @@ def plan_summary(plan: DirectorPlan) -> str:
         return "\n".join(lines)
 
     mode_label = (
-        f"视频编辑 ({plan.global_task_key})"
+        f"Video edit ({plan.global_task_key})"
         if plan.global_task_key in {"v2v", "rv2v"}
-        else "源视频时间轴"
+        else "Source video timeline"
     )
     lines = [
         f"MiniMax H3 Motion Director [{mode_label}] ({plan.edit_mode}): {plan.segment_count} segment(s), "
@@ -855,7 +856,7 @@ def plan_summary(plan: DirectorPlan) -> str:
             f"Export cap: {plan.total_frames}/{plan.source_total_frames} frames "
             f"(max {plan.export_max_frames})"
         )
-    export_label = "分段导出" if plan.export_mode == "segments" else "全部导出"
+    export_label = "Export by segment" if plan.export_mode == "segments" else "Export all"
     lines.append(f"Export mode: {export_label}")
     if plan.continuity_enabled:
         from .segment_continuity import resolve_continuity_lock_pixels

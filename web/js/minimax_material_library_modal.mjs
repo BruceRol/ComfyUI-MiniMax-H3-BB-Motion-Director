@@ -33,7 +33,7 @@ import {
     updateMaterial,
     uploadMediaMaterial,
 } from "./minimax_material_library_api.mjs";
-import { materialCategories, mlT, onMaterialLocaleChange } from "./minimax_material_library_i18n.mjs";
+import { materialCategories, mlT } from "./minimax_material_library_i18n.mjs?boot=material_i18n_en_v2";
 
 const STYLE_ID = "mmx-material-library-styles";
 const TYPE_ORDER = ["image", "audio", "video", "prompt"];
@@ -669,7 +669,7 @@ export function mountMaterialLibrary(editor, node = null) {
         }
         const meta = document.createElement("div"); meta.className = "mmx-ml-card-meta";
         const title = document.createElement("div"); title.className = "mmx-ml-card-title"; title.textContent = item.title || relativeName(item);
-        const sub = document.createElement("div"); sub.className = "mmx-ml-card-sub"; sub.textContent = `${item.category || "其他"} · ${mlT(item.type)}`;
+        const sub = document.createElement("div"); sub.className = "mmx-ml-card-sub"; sub.textContent = `${item.category || "Other"} · ${mlT(item.type)}`;
         meta.append(title, sub); card.appendChild(meta);
         card.title = mlT("leftRightHint");
         card.addEventListener("click", () => {
@@ -780,7 +780,7 @@ export function mountMaterialLibrary(editor, node = null) {
         const catLabel = document.createElement("label"); catLabel.textContent = mlT("category");
         const cat = document.createElement("select");
         for (const value of categoriesForType(type)) { const o = document.createElement("option"); o.value = value; o.textContent = value; cat.appendChild(o); }
-        cat.value = item?.category || state.activeCategory || "其他";
+        cat.value = item?.category || state.activeCategory || "Other";
         editorCard.append(title, titleLabel, titleInput, catLabel, cat);
         let content = null;
         if (type === "prompt") {
@@ -813,7 +813,7 @@ export function mountMaterialLibrary(editor, node = null) {
                     setStatus(mlT("uploading", { name: file.name }));
                     await uploadMediaMaterial(file, {
                         type: kind,
-                        category: state.activeCategory || "其他",
+                        category: state.activeCategory || "Other",
                         title: file.name.replace(/\.[^.]+$/, ""),
                         onProgress: (fraction) => setStatus(`${mlT("uploading", { name: file.name })} ${Math.round(fraction * 100)}%`),
                     });
@@ -1008,7 +1008,6 @@ export function mountMaterialLibrary(editor, node = null) {
         state.activeCategory = "";
         if (!layer.hidden) { renderAll(); void reloadItems(); }
     });
-    const localeUnsub = onMaterialLocaleChange(() => renderLocale());
     const keyHandler = (event) => {
         if (layer.hidden || event.key !== "Escape") return;
         if (!viewerOverlay.hidden) { event.preventDefault(); event.stopImmediatePropagation(); viewerOverlay.hidden = true; viewerBody.replaceChildren(); return; }
@@ -1021,7 +1020,7 @@ export function mountMaterialLibrary(editor, node = null) {
         button, layer, state,
         open, close,
         destroy() {
-            localeUnsub?.(); window.removeEventListener("keydown", keyHandler, true); button.remove(); layer.remove();
+            window.removeEventListener("keydown", keyHandler, true); button.remove(); layer.remove();
             if (editor._materialLibraryController === controller) delete editor._materialLibraryController;
         },
     };

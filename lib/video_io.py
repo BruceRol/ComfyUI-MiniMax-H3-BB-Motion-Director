@@ -395,7 +395,7 @@ def _resolve_load_dimensions(
         # Landscape-native with portrait storage (rotation metadata in container).
         if native_landscape and storage_portrait and _aspect_close(transposed_ar, storage_ar):
             log.info(
-                "Video %dx%d landscape native vs storage %dx%d portrait; applying 90掳 rotation",
+                "Video %dx%d landscape native vs storage %dx%d portrait; applying 90° rotation",
                 source_w,
                 source_h,
                 sw,
@@ -405,7 +405,7 @@ def _resolve_load_dimensions(
 
         if _aspect_close(transposed_ar, storage_ar):
             log.info(
-                "Video %dx%d decoded transposed vs storage %dx%d; applying 90掳 rotation before scale",
+                "Video %dx%d decoded transposed vs storage %dx%d; applying 90° rotation before scale",
                 source_w,
                 source_h,
                 sw,

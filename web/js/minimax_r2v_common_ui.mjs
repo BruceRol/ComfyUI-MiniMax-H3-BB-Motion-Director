@@ -26,7 +26,7 @@ export function mountR2vCommonToggle(outputBar, documentRef = globalThis.documen
     button.setAttribute("data-a", "r2v-common-toggle");
     button.setAttribute("data-i18n", "batch.r2v.commonReferences");
     button.setAttribute("aria-expanded", "false");
-    button.textContent = "公共素材";
+    button.textContent = "Common References";
     if (livePreview) {
         if (!livePreview.insertAdjacentElement("afterend", button)) {
             throw new Error("Unable to mount R2V Common toggle beside live preview.");

@@ -11,8 +11,8 @@ import {
     PostprocessConfigStore,
     globalRefineSummary,
     mountPostprocessUI,
-} from "./minimax_postprocess_ui.mjs?boot=postprocess_output_v10";
-import { mountOutputUI } from "./minimax_output_ui.mjs?boot=live_results_v2";
+} from "./minimax_postprocess_ui.mjs?boot=postprocess_output_v11";
+import { mountOutputUI } from "./minimax_output_ui.mjs?boot=live_results_v3";
 import {
     CUSTOM_ASPECT_RATIO,
     DEFAULT_ASPECT_RATIO,
@@ -130,12 +130,9 @@ import {
 import {
     applyI18nDom,
     aspectDisplayLabel,
-    getLocale,
-    onLocaleChange,
     t,
     taskDisplayLabel,
-    toggleLocale,
-} from "./minimax_i18n.js";
+} from "./minimax_i18n.js?boot=i18n_en_v2";
 import {
     getSamplingConnectionState,
     repairDirectorGroupWidgetWorkflow,
@@ -146,7 +143,7 @@ import {
     destroyDirectorModalForHost,
     DIRECTOR_LAUNCHER_HEIGHT,
     getDirectorModalForHost,
-} from "./minimax_director_modal.js?boot=live_results_v1";
+} from "./minimax_director_modal.js?boot=live_results_v2";
 import {
     contextLinkMode,
     ensureTimelineContextLinks,
@@ -159,7 +156,7 @@ import {
     createDefaultMixedTimeline,
     mountMixedUI,
     syncMixedGlobalsFromWidgets,
-} from "./minimax_mixed_ui.mjs?boot=mixed_issue16_v2";
+} from "./minimax_mixed_ui.mjs?boot=mixed_issue16_v3";
 import { normalizeMixedTimeline } from "./minimax_mixed_state.mjs?boot=mixed_native_v6";
 
 const RULER_H = 24;
@@ -352,7 +349,7 @@ function stripTimelineEphemeralFields(timeline) {
 const HIDDEN_WIDGETS = [
     "timeline_data", "total_frames", "width", "height", "ref_max_size",
     "task_type", "global_prompt", "frame_rate", "cfg", "postprocess_config",
-    // seed stays visible under 采样设置 (with control_after_generate)
+    // seed stays visible under the sampling group (with control_after_generate)
 ];
 
 const DIRECTOR_WIDGET_LABEL_KEYS = {
@@ -400,7 +397,7 @@ function applyDirectorWidgetLabels(node) {
     for (const w of node.widgets || []) {
         const name = String(w.name || "");
         const key = DIRECTOR_WIDGET_LABEL_KEYS[name]
-            || (/(control[_\s]?after[_\s]?generate|生成前后)/i.test(name) || /生成前后/.test(String(w.label || ""))
+            || (/control[_\s]?after[_\s]?generate/i.test(name)
                 ? "widget.controlAfterGenerate"
                 : null);
         if (key) {
@@ -443,7 +440,7 @@ function applyDirectorWidgetLabels(node) {
         // Linked seed → control_after_generate combo (ComfyUI core).
         for (const linked of w.linkedWidgets || []) {
             const ln = String(linked?.name || linked?.label || "");
-            if (/(control[_\s]?after[_\s]?generate|生成前后)/i.test(ln)) {
+            if (/control[_\s]?after[_\s]?generate/i.test(ln)) {
                 linked.label = t("widget.controlAfterGenerate");
                 if (linked.options) linked.options.label = linked.label;
             }
@@ -838,7 +835,6 @@ function postprocessProxyState(node, section) {
         config,
         Number(node.widgets?.find((w) => w.name === "width")?.value || 864),
         Number(node.widgets?.find((w) => w.name === "height")?.value || 480),
-        getLocale(),
     );
     return { enabled, label, summary };
 }
@@ -858,7 +854,7 @@ function drawPostprocessSummary(ctx, node, width, y, height = 18) {
     ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    let clipped = String(state.summary || (getLocale() === "en" ? "Disabled" : "已停用"));
+    let clipped = String(state.summary || "Disabled");
     while (clipped.length > 1 && ctx.measureText(clipped).width > maxWidth) clipped = `${clipped.slice(0, -2)}…`;
     ctx.fillText(clipped, 22, y + Math.max(16, Number(height) || 18) / 2);
     ctx.restore();
@@ -1474,7 +1470,7 @@ const STYLES = `
 .bd-v2v-layout .bd-prompt-col{min-height:200px}
 .bd-prompt-col .bd-label,.bd-refs-col .bd-label{color:#888;font-size:10px;line-height:1.2;flex-shrink:0}
 .bd-rv2v-layout .bd-prompt-col .bd-label,.bd-v2v-layout .bd-prompt-col .bd-label{color:#eaeaea;font-size:11px;font-weight:700;letter-spacing:.02em}
-.bd-wrap.locale-en .bd-rv2v-layout .bd-prompt-col .bd-label,.bd-wrap.locale-en .bd-v2v-layout .bd-prompt-col .bd-label{text-transform:uppercase;letter-spacing:.08em}
+.bd-wrap .bd-rv2v-layout .bd-prompt-col .bd-label,.bd-wrap .bd-v2v-layout .bd-prompt-col .bd-label{text-transform:uppercase;letter-spacing:.08em}
 .bd-prompt{width:100%;min-height:96px;background:#181818;border:1px solid #333;border-radius:6px;color:#eee;padding:8px;resize:vertical;font-size:12px;box-sizing:border-box;font-family:inherit;line-height:1.35;flex:1}
 .bd-rv2v-layout .bd-prompt,.bd-v2v-layout .bd-prompt{min-height:220px;background:#101010;border-color:#2e2e2e;border-radius:8px;padding:10px;font-size:12px;line-height:1.45}
 .bd-v2v-layout .bd-prompt{min-height:180px}
@@ -2207,7 +2203,6 @@ class MiniMaxH3MotionDirectorEditor {
         this._directorModalController = createDirectorModal({
             launcherHost: this.launcherContainer,
             translate: t,
-            toggleLanguage: toggleLocale,
             hasInternalDialog: () => (
                 !!this._modalEl
                 || !!this._r2vCommonPopover?.isOpen
@@ -2293,7 +2288,6 @@ class MiniMaxH3MotionDirectorEditor {
             {
                 fetchApi: (path) => api.fetchApi(path),
                 directorSize: () => [Number(this.widthWidget?.value || 864), Number(this.heightWidget?.value || 480)],
-                locale: getLocale,
             },
         ));
         this.outputUi = initPhase("Live Preview / Results pages", () => mountOutputUI(
@@ -2302,9 +2296,6 @@ class MiniMaxH3MotionDirectorEditor {
                 results: this._directorModalController.pages.results,
             },
             this.postprocessStore,
-            {
-                locale: getLocale,
-            },
         ));
 
         this.outputUi.setPageVisibility(
@@ -2318,8 +2309,7 @@ class MiniMaxH3MotionDirectorEditor {
         this.runSelectBar = this.outputUi.runSelectBar;
         this.runSelectSummary = this.outputUi.runSelectSummary;
         this.bindEvents();
-        this._unsubLocale = onLocaleChange(() => this.applyLocale());
-        this.applyLocale();
+        this.refreshStrings();
         this._directorMode = getDirectorMode(this.taskTypeWidget?.value);
         if (this._directorMode === "mixed") {
             // Mixed owns editor.mixedTimeline; legacy normalizers intentionally do nothing here.
@@ -2753,29 +2743,29 @@ class MiniMaxH3MotionDirectorEditor {
                     <select class="bd-select" data-r="global-task" title="task_type"></select>
                   </div>
                   <div class="bd-actions">
-                    <button type="button" class="bd-btn bd-btn-primary hidden" data-a="r2v-add-group" data-i18n="toolbar.addRefGroup" data-i18n-title="tooltip.addRefGroup">添加素材组</button>
-                    <button type="button" class="bd-btn bd-btn-primary" data-a="video" data-i18n="toolbar.uploadVideo">上传视频</button>
-                    <button type="button" class="bd-btn bd-btn-primary hidden" data-a="fl2v-add-shot" data-i18n="toolbar.addShot" data-i18n-title="tooltip.addShot">添加一组</button>
-                    <button type="button" class="bd-btn" data-a="video-append" data-i18n="toolbar.appendVideo" data-i18n-title="tooltip.appendVideo">追加视频</button>
-                    <button type="button" class="bd-btn" data-a="split" data-i18n="toolbar.split">+ 分割</button>
+                    <button type="button" class="bd-btn bd-btn-primary hidden" data-a="r2v-add-group" data-i18n="toolbar.addRefGroup" data-i18n-title="tooltip.addRefGroup">Add asset group</button>
+                    <button type="button" class="bd-btn bd-btn-primary" data-a="video" data-i18n="toolbar.uploadVideo">Upload video</button>
+                    <button type="button" class="bd-btn bd-btn-primary hidden" data-a="fl2v-add-shot" data-i18n="toolbar.addShot" data-i18n-title="tooltip.addShot">Add shot</button>
+                    <button type="button" class="bd-btn" data-a="video-append" data-i18n="toolbar.appendVideo" data-i18n-title="tooltip.appendVideo">Append video</button>
+                    <button type="button" class="bd-btn" data-a="split" data-i18n="toolbar.split">+ Split</button>
                     <input type="number" class="bd-num" data-r="equal-n" min="2" max="64" value="2" data-i18n-title="tooltip.equalSplitN">
-                    <button type="button" class="bd-btn" data-a="equal" data-i18n="toolbar.equalSplit">均分</button>
-                    <button type="button" class="bd-btn" data-a="smart-split" data-i18n="toolbar.smartSplit" data-i18n-title="tooltip.smartSplit">智能分割</button>
-                    <button type="button" class="bd-btn" data-a="run-select-toggle" data-i18n="toolbar.runSelect" data-i18n-title="tooltip.runSelect">选择运行</button>
+                    <button type="button" class="bd-btn" data-a="equal" data-i18n="toolbar.equalSplit">Equal split</button>
+                    <button type="button" class="bd-btn" data-a="smart-split" data-i18n="toolbar.smartSplit" data-i18n-title="tooltip.smartSplit">Smart split</button>
+                    <button type="button" class="bd-btn" data-a="run-select-toggle" data-i18n="toolbar.runSelect" data-i18n-title="tooltip.runSelect">Select to run</button>
                     <label class="bd-run-select-all-wrap hidden" data-r="run-select-all-wrap" data-i18n-title="tooltip.runSelectAll">
                         <input type="checkbox" data-r="run-select-all-cb">
-                        <span data-i18n="toolbar.selectAll">全选</span>
+                        <span data-i18n="toolbar.selectAll">Select all</span>
                     </label>
-                    <button type="button" class="bd-btn bd-btn-danger" data-a="del" data-i18n="toolbar.deleteSegment" data-i18n-title="tooltip.deleteSegment">删除片段</button>
+                    <button type="button" class="bd-btn bd-btn-danger" data-a="del" data-i18n="toolbar.deleteSegment" data-i18n-title="tooltip.deleteSegment">Delete segment</button>
                     <div class="bd-mode">
-                        <button type="button" data-a="mode-global" class="active" data-i18n="toolbar.modeGlobal">全局模式</button>
-                        <button type="button" data-a="mode-segment" data-i18n="toolbar.modeSegment">分段模式</button>
+                        <button type="button" data-a="mode-global" class="active" data-i18n="toolbar.modeGlobal">Global</button>
+                        <button type="button" data-a="mode-segment" data-i18n="toolbar.modeSegment">Segment</button>
                     </div>
-                    <span class="bd-video-tag" data-r="video-name" data-i18n="toolbar.noVideo">未上传视频</span>
+                    <span class="bd-video-tag" data-r="video-name" data-i18n="toolbar.noVideo">No video uploaded</span>
                   </div>
                 </div>
                 <div class="bd-right">
-                    <div class="bd-bounds" data-r="bounds">起点: 0.00 | 终点: -</div>
+                    <div class="bd-bounds" data-r="bounds">Start: 0.00 | End: -</div>
                     <div class="bd-timecode" data-r="timecode">0.00s</div>
                 </div>
             </div>
@@ -2793,7 +2783,7 @@ class MiniMaxH3MotionDirectorEditor {
         stage.innerHTML = `
             <video class="bd-stage-video hidden" data-r="stage-video" muted playsinline preload="auto"></video>
             <img class="bd-stage-img hidden" data-r="stage-img" alt="">
-            <div class="bd-stage-empty" data-r="stage-empty" data-i18n="stage.empty">上传视频后可在此预览播放</div>
+            <div class="bd-stage-empty" data-r="stage-empty" data-i18n="stage.empty">Upload a video to preview here</div>
             <div class="bd-stage-badge hidden" data-r="stage-badge"></div>`;
         this.mainBody.appendChild(stage);
 
@@ -2807,7 +2797,7 @@ class MiniMaxH3MotionDirectorEditor {
                 <button type="button" class="bd-icon-btn" data-a="frame-prev" data-i18n-title="player.framePrev">‹</button>
                 <button type="button" class="bd-icon-btn" data-a="frame-next" data-i18n-title="player.frameNext">›</button>
                 <span class="bd-frame-jump" data-i18n-title="player.frameJump">
-                    <span data-i18n="player.frame">帧</span>
+                    <span data-i18n="player.frame">Frame</span>
                     <input type="number" class="bd-frame-input" data-r="frame-input" min="1" step="1" value="1">
                     <span>/</span>
                     <span class="bd-frame-total" data-r="frame-total">0</span>
@@ -2827,8 +2817,8 @@ class MiniMaxH3MotionDirectorEditor {
         splitEditBar.className = "bd-split-edit-bar hidden";
         splitEditBar.setAttribute("data-r", "split-edit-bar");
         splitEditBar.innerHTML = `
-            <span class="bd-split-edit-hint" data-r="split-edit-hint" data-i18n="split.selectedHint">已选中分割点</span>
-            <button type="button" class="bd-btn bd-btn-del-split" data-a="del-split" data-i18n="toolbar.deleteSplitPoint" data-i18n-title="tooltip.deleteSplitPoint">删除分割点</button>`;
+            <span class="bd-split-edit-hint" data-r="split-edit-hint" data-i18n="split.selectedHint">Split point selected</span>
+            <button type="button" class="bd-btn bd-btn-del-split" data-a="del-split" data-i18n="toolbar.deleteSplitPoint" data-i18n-title="tooltip.deleteSplitPoint">Delete split point</button>`;
         this.mainBody.appendChild(splitEditBar);
         this.splitEditBarEl = splitEditBar;
         this.splitEditHintEl = splitEditBar.querySelector('[data-r="split-edit-hint"]');
@@ -2846,56 +2836,56 @@ class MiniMaxH3MotionDirectorEditor {
         outputBar.className = "bd-output";
         outputBar.innerHTML = `
             <span class="bd-fl2v-total-wrap hidden" data-r="fl2v-total-wrap" data-i18n-title="tooltip.fl2vTotalDuration">
-                <label data-i18n="output.totalDurationSec">总时长（秒）</label>
+                <label data-i18n="output.totalDurationSec">Total duration (sec)</label>
                 <input type="number" class="bd-num" data-r="fl2v-total" min="1" max="99999" step="0.1" value="5" style="width:64px" disabled data-i18n-title="tooltip.fl2vTotalInput">
             </span>
-            <label data-i18n="output.resolution">输出分辨率</label>
+            <label data-i18n="output.resolution">Output resolution</label>
             <select class="bd-select" data-r="out-aspect" data-i18n-title="tooltip.aspectRatio" style="max-width:200px">
                 ${RESOLUTION_ASPECTS.map(([label]) => `<option value="${label}"${label === DEFAULT_ASPECT_RATIO ? " selected" : ""}>${aspectDisplayLabel(label)}</option>`).join("")}
                 <option value="${CUSTOM_ASPECT_RATIO}">${aspectDisplayLabel(CUSTOM_ASPECT_RATIO)}</option>
             </select>
             <span class="bd-out-mp-wrap" data-r="out-mp-wrap" data-i18n-title="tooltip.megapixels">
-                <label data-i18n="output.megapixels">百万像素</label>
+                <label data-i18n="output.megapixels">Megapixels</label>
                 <input type="number" class="bd-num" data-r="out-mp" min="0.1" max="16" step="0.1" value="${DEFAULT_MEGAPIXELS}" style="width:56px">
             </span>
             <span class="bd-out-long hidden" data-r="out-long-wrap">
-                <label data-i18n="output.longEdge">最长边</label>
+                <label data-i18n="output.longEdge">Long edge</label>
                 <input type="number" class="bd-num" data-r="out-long" min="32" max="8192" step="1" value="864" style="width:56px" data-i18n-title="tooltip.longEdge">
             </span>
             <span class="bd-out-fixed hidden" data-r="out-fixed-wrap" data-i18n-title="tooltip.customWH">
-                <label data-i18n="output.width">宽</label>
+                <label data-i18n="output.width">W</label>
                 <input type="number" class="bd-num" data-r="out-w" min="32" max="8192" step="32" value="864" style="width:56px">
-                <label data-i18n="output.height">高</label>
+                <label data-i18n="output.height">H</label>
                 <input type="number" class="bd-num" data-r="out-h" min="32" max="8192" step="32" value="480" style="width:56px">
             </span>
             <select class="bd-select hidden" data-r="out-mode" data-i18n-title="tooltip.outputMode">
-                <option value="long_edge" data-i18n="output.mode.longEdge">最长边缩放</option>
-                <option value="fixed" data-i18n="output.mode.fixed">固定宽高</option>
+                <option value="long_edge" data-i18n="output.mode.longEdge">Scale by long edge</option>
+                <option value="fixed" data-i18n="output.mode.fixed">Fixed W×H</option>
             </select>
-            <label data-i18n="output.fpsLabel" data-i18n-title="tooltip.fps">帧率</label>
+            <label data-i18n="output.fpsLabel" data-i18n-title="tooltip.fps">FPS</label>
             <input type="number" class="bd-num" data-r="timeline-fps" min="1" max="240" step="0.01" value="24" style="width:64px" data-i18n-title="tooltip.timelineFps">
             <span class="bd-out-audio-wrap hidden" data-r="out-audio-wrap" data-i18n-title="tooltip.audioMode">
-                <label data-i18n="output.audio.label">声音</label>
+                <label data-i18n="output.audio.label">Audio</label>
                 <select class="bd-select" data-r="out-audio-mode" style="max-width:120px">
-                    <option value="generate" data-i18n="output.audio.generate">生成声音</option>
-                    <option value="source" data-i18n="output.audio.source">使用原声</option>
-                    <option value="mute" data-i18n="output.audio.mute">静音</option>
+                    <option value="generate" data-i18n="output.audio.generate">Generate audio</option>
+                    <option value="source" data-i18n="output.audio.source">Use source audio</option>
+                    <option value="mute" data-i18n="output.audio.mute">Mute</option>
                 </select>
             </span>
             <span class="bd-meta" data-r="out-preview">—</span>
             <span class="bd-meta hidden" data-r="out-hint"></span>
-            <label data-i18n="output.exportMode.label" data-i18n-title="tooltip.exportMode">导出方式</label>
+            <label data-i18n="output.exportMode.label" data-i18n-title="tooltip.exportMode">Export mode</label>
             <select class="bd-select" data-r="out-export-mode" data-i18n-title="tooltip.exportMode">
-                <option value="all" data-i18n="output.exportMode.all">全部导出</option>
-                <option value="segments" data-i18n="output.exportMode.segments">分段导出</option>
+                <option value="all" data-i18n="output.exportMode.all">Export all</option>
+                <option value="segments" data-i18n="output.exportMode.segments">Export by segment</option>
             </select>
             <span class="hidden" data-r="out-max-frames-wrap" hidden aria-hidden="true">
-                <label data-i18n="output.maxFrames">最大帧数</label>
+                <label data-i18n="output.maxFrames">Max frames</label>
                 <input type="number" class="bd-num" data-r="out-max-frames" min="0" max="999999" step="1" value="0" style="width:64px">
             </span>
             <span class="bd-continuous-ref hidden" data-r="segment-continuity-wrap" hidden aria-hidden="true" title="">
-                <label><input type="checkbox" data-r="segment-continuity-cb"><span data-i18n="output.segmentContinuity">段间引导</span></label>
-                <span class="bd-meta" data-i18n="output.continuityOverlap">参考帧数</span>
+                <label><input type="checkbox" data-r="segment-continuity-cb"><span data-i18n="output.segmentContinuity">Segment continuity</span></label>
+                <span class="bd-meta" data-i18n="output.continuityOverlap">Overlap frames</span>
                 <input type="number" class="bd-num" data-r="segment-continuity-overlap" min="1" max="81" step="4" value="9" style="width:48px">
             </span>`;
         this.r2vCommonToggle = mountR2vCommonToggle(outputBar);
@@ -2910,81 +2900,81 @@ class MiniMaxH3MotionDirectorEditor {
         bottom.className = "bd-split";
         bottom.innerHTML = `
             <div class="bd-panel" data-r="global-panel">
-                <b data-r="global-panel-title" data-i18n="panel.globalPromptAndRefs">全局提示词 & 参考图 (图片1–9)</b>
+                <b data-r="global-panel-title" data-i18n="panel.globalPromptAndRefs">Global prompt & refs (Picture 1–9)</b>
                 <div class="bd-prompt-layout" data-r="global-prompt-layout">
                     <div class="bd-refs-col" data-r="global-refs-col">
                         <div class="bd-refs-images-wrap" data-r="global-refs-images-wrap">
                             <div class="bd-r2v-section-head" data-r="global-refs-head">
-                                <span class="bd-label bd-r2v-section-title" data-r="global-refs-label" data-i18n="panel.refImages">参考图 (图片1–9)</span>
+                                <span class="bd-label bd-r2v-section-title" data-r="global-refs-label" data-i18n="panel.refImages">Reference images (Picture 1–9)</span>
                                 <span class="bd-r2v-section-count" data-r="global-refs-count"></span>
                             </div>
                             <div class="bd-refs" data-r="global-refs"></div>
                         </div>
                         <div class="bd-ref-audios-wrap hidden" data-r="global-ref-audios-wrap">
                             <div class="bd-r2v-section-head" data-r="global-audios-head">
-                                <span class="bd-label bd-r2v-section-title" data-i18n="batch.r2v.sectionAudios">参考音频</span>
+                                <span class="bd-label bd-r2v-section-title" data-i18n="batch.r2v.sectionAudios">Reference audio</span>
                                 <span class="bd-r2v-section-count" data-r="global-audios-count"></span>
                             </div>
                             <div class="bd-ref-audios" data-r="global-ref-audios"></div>
                         </div>
                         <div class="bd-ref-video-col hidden" data-r="global-ref-video-col">
-                            <span class="bd-label" data-i18n="panel.refVideo">参考视频（植入内容）</span>
-                            <div class="bd-gen-src" data-r="global-ref-video" data-i18n="panel.uploadRefVideo" data-i18n-title="tooltip.uploadRefVideo">点击上传参考视频</div>
+                            <span class="bd-label" data-i18n="panel.refVideo">Reference video (insert content)</span>
+                            <div class="bd-gen-src" data-r="global-ref-video" data-i18n="panel.uploadRefVideo" data-i18n-title="tooltip.uploadRefVideo">Click to upload reference video</div>
                             <span class="bd-meta bd-ref-video-name" data-r="global-ref-video-name"></span>
                             <label class="bd-continuous-ref hidden" data-r="continuous-ref-wrap" data-i18n-title="tooltip.continuousRef">
                                 <input type="checkbox" data-r="continuous-ref-cb">
-                                <span data-i18n="panel.continuousRef">连续参考</span>
+                                <span data-i18n="panel.continuousRef">Continuous reference</span>
                             </label>
                         </div>
-                        <div class="bd-gen-src hidden" data-r="gen-global-img" data-i18n="panel.uploadSourceImage" data-i18n-title="tooltip.uploadSourceImage">点击上传源图片</div>
+                        <div class="bd-gen-src hidden" data-r="gen-global-img" data-i18n="panel.uploadSourceImage" data-i18n-title="tooltip.uploadSourceImage">Click to upload source image</div>
                     </div>
                     <div class="bd-prompt-col">
-                        <span class="bd-label" data-i18n="panel.prompt">提示词</span>
+                        <span class="bd-label" data-i18n="panel.prompt">Prompt</span>
                         <textarea class="bd-prompt" data-r="global-prompt" data-i18n-placeholder="placeholder.globalPrompt" placeholder=""></textarea>
                         <textarea class="bd-prompt bd-prompt-negative hidden" data-r="global-negative" hidden aria-hidden="true"></textarea>
                     </div>
                 </div>
                 <div class="bd-gen-fc-row hidden" data-r="gen-global-fc-row">
-                    <span class="bd-label" data-i18n="panel.defaultSegmentFrames">默认片段帧数</span>
+                    <span class="bd-label" data-i18n="panel.defaultSegmentFrames">Default segment frames</span>
                     <input type="number" class="bd-num" data-r="gen-default-fc" min="1" max="${MAX_GEN_FRAMES}" value="124" style="width:72px">
                 </div>
             </div>
             <div class="bd-panel" data-r="segment-panel" style="display:none">
                 <div class="bd-seg-head">
-                    <b data-r="seg-label">片段 1</b>
+                    <b data-r="seg-label" data-i18n="panel.segmentN">Segment 1</b>
                     <div class="bd-meta" data-r="seg-info"></div>
                 </div>
                 <div class="bd-prompt-layout" data-r="seg-prompt-layout">
                     <div class="bd-refs-col" data-r="seg-refs-col">
                         <div class="bd-refs-images-wrap" data-r="seg-refs-images-wrap">
                             <div class="bd-r2v-section-head" data-r="seg-refs-head">
-                                <span class="bd-label bd-r2v-section-title" data-r="seg-refs-label" data-i18n="panel.segmentRefImages">片段参考图 (图片1–9)</span>
+                                <span class="bd-label bd-r2v-section-title" data-r="seg-refs-label" data-i18n="panel.segmentRefImages">Segment refs (Picture 1–9)</span>
                                 <span class="bd-r2v-section-count" data-r="seg-refs-count"></span>
                             </div>
                             <div class="bd-refs" data-r="seg-refs"></div>
                         </div>
                         <div class="bd-ref-audios-wrap hidden" data-r="seg-ref-audios-wrap">
                             <div class="bd-r2v-section-head" data-r="seg-audios-head">
-                                <span class="bd-label bd-r2v-section-title" data-i18n="batch.r2v.sectionAudios">参考音频</span>
+                                <span class="bd-label bd-r2v-section-title" data-i18n="batch.r2v.sectionAudios">Reference audio</span>
                                 <span class="bd-r2v-section-count" data-r="seg-audios-count"></span>
                             </div>
                             <div class="bd-ref-audios" data-r="seg-ref-audios"></div>
                         </div>
                         <div class="bd-ref-video-col hidden" data-r="seg-ref-video-col">
-                            <span class="bd-label" data-i18n="panel.segmentRefVideo">片段参考视频（植入内容）</span>
-                            <div class="bd-gen-src" data-r="seg-ref-video" data-i18n="panel.uploadRefVideo" data-i18n-title="tooltip.uploadRefVideo">点击上传参考视频</div>
+                            <span class="bd-label" data-i18n="panel.segmentRefVideo">Segment reference video (insert content)</span>
+                            <div class="bd-gen-src" data-r="seg-ref-video" data-i18n="panel.uploadRefVideo" data-i18n-title="tooltip.uploadRefVideo">Click to upload reference video</div>
                             <span class="bd-meta bd-ref-video-name" data-r="seg-ref-video-name"></span>
                         </div>
-                        <div class="bd-gen-src hidden" data-r="gen-seg-img" data-i18n="panel.uploadSegmentSourceImage" data-i18n-title="tooltip.uploadSourceImage">点击上传源图片</div>
+                        <div class="bd-gen-src hidden" data-r="gen-seg-img" data-i18n="panel.uploadSegmentSourceImage" data-i18n-title="tooltip.uploadSourceImage">Click to upload segment source image</div>
                     </div>
                     <div class="bd-prompt-col">
-                        <span class="bd-label" data-i18n="panel.prompt">提示词</span>
+                        <span class="bd-label" data-i18n="panel.prompt">Prompt</span>
                         <textarea class="bd-prompt" data-r="seg-prompt" data-i18n-placeholder="placeholder.segmentPrompt" placeholder=""></textarea>
                         <textarea class="bd-prompt bd-prompt-negative hidden" data-r="seg-negative" hidden aria-hidden="true"></textarea>
                     </div>
                 </div>
                 <div class="bd-gen-fc-row hidden" data-r="gen-seg-fc-row">
-                    <span class="bd-label" data-i18n="panel.segmentFrames">片段帧数</span>
+                    <span class="bd-label" data-i18n="panel.segmentFrames">Segment frames</span>
                     <input type="number" class="bd-num" data-r="gen-seg-fc" min="1" max="${MAX_GEN_FRAMES}" value="124" style="width:72px">
                 </div>
             </div>`;
@@ -3401,8 +3391,6 @@ class MiniMaxH3MotionDirectorEditor {
         cancelAnimationFrame(this._resizeRaf);
         cancelAnimationFrame(this._playRaf);
         this._resizeObserver?.disconnect();
-        this._unsubLocale?.();
-        this._unsubLocale = null;
         this._closeBdModal();
         for (const controller of this._promptMentionControllers || []) controller?.destroy?.();
         this._promptMentionControllers = [];
@@ -3772,7 +3760,7 @@ class MiniMaxH3MotionDirectorEditor {
     }
 
     _runSelectionPayload() {
-        // Never leak video-mode「选择运行」into i2v/batch (or vice versa).
+        // Never leak the video-mode "Select to run" state into i2v/batch (or vice versa).
         if (!this.supportsRunSelect() || !this.timeline.runSelectEnabled) {
             return { runSelectEnabled: false, runSelection: [] };
         }
@@ -4093,7 +4081,7 @@ class MiniMaxH3MotionDirectorEditor {
         const cards = this.batchList.querySelectorAll(".bd-batch-card");
         cards.forEach((el, i) => {
             const runOn = !runSelectOn || this.isSegmentRunEnabled(i);
-            // t2v/i2v: no focus "selected" border — only run-on/run-skipped when 选择运行.
+            // t2v/i2v: no focus "selected" border — only run-on/run-skipped when "Select to run" is on.
             el.classList.toggle("selected", focusSel && i === this.selectedIndex);
             el.classList.toggle("run-on", runSelectOn && runOn);
             el.classList.toggle("run-skipped", runSelectOn && !runOn);
@@ -4499,7 +4487,7 @@ class MiniMaxH3MotionDirectorEditor {
                 }
                 // Keep v2v/rv2v video + segments so switching back can restore them.
                 // Run-select is per workspace: stash video's, then clear live so i2v/batch
-                // does not inherit「选择运行」from rv2v.
+                // does not inherit "Select to run" from rv2v.
                 if (prev === "video") {
                     this._stashVideoWorkspace();
                     this._clearLiveRunSelection();
@@ -4584,7 +4572,7 @@ class MiniMaxH3MotionDirectorEditor {
         const hideTimeline = (isBatch && !isR2v) || isGen;
         const hideVideoUpload = hideTimeline || NO_VIDEO_UPLOAD_TASKS.has(taskKey) || isR2v;
         const showBatchExport = (isBatch && isVideoBatchTask(taskKey)) || isFl2v;
-        // t2v / i2v / r2v: never show source-video upload (fl2v keeps "上传图片").
+        // t2v / i2v / r2v: never show source-video upload (fl2v keeps the source-image upload button).
         this.btnVideo?.classList.toggle("hidden", (hideVideoUpload && !isFl2v) || isR2v);
         this.btnVideoAppend?.classList.toggle("hidden", hideVideoUpload || isFl2v || isR2v);
         this.controlsBar?.classList.toggle("hidden", !isFl2v && !isR2v && (hideTimeline || isBatch));
@@ -4966,9 +4954,7 @@ class MiniMaxH3MotionDirectorEditor {
         if (this.isMixedMode()) {
             const n = this._ensureMixedTimeline().segments?.length || 0;
             const frames = this._mixedTotalFrames();
-            this.videoNameEl.textContent = getLocale() === "en"
-                ? `Mixed · ${n} segment${n === 1 ? "" : "s"} · ${frames}f`
-                : `混合 · ${n}段 · ${frames}帧`;
+            this.videoNameEl.textContent = `Mixed · ${n} segment${n === 1 ? "" : "s"} · ${frames}f`;
             return;
         }
         if (this.isFl2vMode()) {
@@ -5606,13 +5592,9 @@ class MiniMaxH3MotionDirectorEditor {
         if (cur) this.outAspect.value = cur;
     }
 
-    applyLocale() {
-        this._directorModalController?.updateLocale();
-        this.postprocessUi?.updateLocale?.(getLocale());
-        this.outputUi?.updateLocale?.(getLocale());
+    refreshStrings() {
+        this._directorModalController?.refreshStrings?.();
         this.node?.setDirtyCanvas?.(true, true);
-        this.root?.classList.toggle("locale-en", getLocale() === "en");
-        this.root?.classList.toggle("locale-zh", getLocale() !== "en");
         applyI18nDom(this.root);
         applyDirectorWidgetLabels(this.node);
         refreshDirectorContinuityUi(this.node, this);
@@ -6179,7 +6161,7 @@ class MiniMaxH3MotionDirectorEditor {
         if (this.continuousRefCb) {
             this.timeline.global.continuousReference = !!this.continuousRefCb.checked;
         }
-        // fl2v: totalFrames stores the sampling window (总时长), not visual overflow length.
+        // fl2v: totalFrames stores the sampling window (total duration), not visual overflow length.
         this.timeline.totalFrames = this.isFl2vMode()
             ? getFl2vSampleFrames(this)
             : this.getTotalFrames();
@@ -8575,7 +8557,7 @@ class MiniMaxH3MotionDirectorEditor {
         this.ctx.fillStyle = "#888";
         this.ctx.font = "10px sans-serif";
         const fl2vSampleN = this.isFl2vMode() ? getFl2vSampleFrames(this) : total;
-        // fl2v: ruler labels follow 总时长 (sampling window); overflow past it is dashed.
+        // fl2v: ruler labels follow the total duration (sampling window); overflow past it is dashed.
         const durationSec = this.isFl2vMode()
             ? getFl2vTotalDurationSec(this)
             : total / Math.max(fps, 0.001);
@@ -8743,7 +8725,7 @@ class MiniMaxH3MotionDirectorEditor {
                 }
             }
             if (this.isFl2vMode()) {
-                // Hatch the portion past the sampling window (不计入采样).
+                // Hatch the portion past the sampling window (not counted for sampling).
                 const sampleN = getFl2vSampleFrames(this);
                 const segEnd = seg.start + seg.length;
                 if (segEnd > sampleN && seg.start < segEnd) {
@@ -9749,7 +9731,7 @@ class MiniMaxH3MotionDirectorEditor {
         }
 
         this.runStatusEl.className = "bd-run-status active";
-        // Hide the pre-run "将运行 N 段" chip while progress is live — it sits
+        // Hide the pre-run "Will run N segments" chip while progress is live — it sits
         // under the title in the same green accent and reads as a layout glitch.
         this.runSelectBar?.classList.add("hidden");
         this._runHighlightSeg = timelineSeg - 1;
@@ -9783,8 +9765,8 @@ class MiniMaxH3MotionDirectorEditor {
             const remainSeconds = Math.floor(seconds % 60);
             return `${String(minutes).padStart(2, "0")}:${String(remainSeconds).padStart(2, "0")}`;
         };
-        if (elapsedSeconds > 0) parts.push(`已用 ${fmtElapsed(elapsedSeconds)}`);
-        if (phaseElapsedSeconds > 0) parts.push(`当前阶段 ${fmtElapsed(phaseElapsedSeconds)}`);
+        if (elapsedSeconds > 0) parts.push(`Elapsed ${fmtElapsed(elapsedSeconds)}`);
+        if (phaseElapsedSeconds > 0) parts.push(`Phase ${fmtElapsed(phaseElapsedSeconds)}`);
         parts.push(t("run.detailOverall", { pct: overallPct }));
         if (runTotal > 1) {
             parts.push(this.isImageBatch()

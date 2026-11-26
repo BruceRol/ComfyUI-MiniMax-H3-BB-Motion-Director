@@ -21,62 +21,51 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 const inChoice = (value, choices, fallback) => choices.includes(String(value || "").toLowerCase()) ? String(value || "").toLowerCase() : fallback;
 
 const POST_TEXT = {
-    en: {
-        global_title: "Global Refine", sampling: "Second Sampling",
-        upscale: "Upscale", output_resolution: "Output Resolution",
-        advanced: "Advanced Settings", enabled: "ON / OFF", disabled: "Disabled",
-        runtime_detected: "Runtime detected (validated when generation starts)",
-        missing_no_downgrade: "Not installed (stage will fail without downgrade)",
-        lbh_note: "Director scans compatible MiniMax H3 learned-latent checkpoints from models/latent_upscale_models automatically. Select a checkpoint below; its 2D/3D architecture is detected from the weights. No separate LBH custom node is required.",
-    },
-    zh: {
-        global_title: "全局精修", sampling: "二次采样",
-        upscale: "放大", output_resolution: "输出分辨率",
-        advanced: "高级设置", enabled: "开 / 关", disabled: "已停用",
-        runtime_detected: "已检测到运行库（生成时验证）",
-        missing_no_downgrade: "未安装（此阶段会失败，不会自动降级）",
-        lbh_note: "Director 会自动扫描 models/latent_upscale_models 中兼容的 MiniMax H3 Learned Latent checkpoint。只需选择模型，2D/3D 架构会直接从权重自动识别；无需另装 LBH 自定义节点。",
-    },
+    global_title: "Global Refine", sampling: "Second Sampling",
+    upscale: "Upscale", output_resolution: "Output Resolution",
+    advanced: "Advanced Settings", enabled: "ON / OFF", disabled: "Disabled",
+    runtime_detected: "Runtime detected (validated when generation starts)",
+    missing_no_downgrade: "Not installed (stage will fail without downgrade)",
+    lbh_note: "Director scans compatible MiniMax H3 learned-latent checkpoints from models/latent_upscale_models automatically. Select a checkpoint below; its 2D/3D architecture is detected from the weights. No separate LBH custom node is required.",
 };
 
 const POST_LABELS = {
-    "global_refine.denoise": ["Denoise", "降噪强度"],
-    "global_refine.steps": ["Steps (0=Auto)", "步数（0=自动）"],
-    "global_refine.seed_mode": ["Refine Randomness", "精修随机性"],
-    "global_refine.seed_offset": ["Seed Offset", "Seed 偏移"],
-    "global_refine.result_previews_enabled": ["Pass Result Previews (extra VAE decode)", "阶段结果预览（额外 VAE 解码）"],
-    "global_refine.skip_fl2v": ["Skip FL2V", "跳过 FL2V"],
-    "global_refine.upscale_method": ["Method", "放大方法"],
-    "global_refine.upscale_model": ["Model", "模型"],
-    "global_refine.latent_upscale_model": ["H3 Latent Model", "H3 Latent 模型"],
-    "global_refine.latent_upscale_precision": ["Precision", "精度"],
-    "global_refine.latent_upscale_device": ["Device", "设备"],
-    "global_refine.vsr_quality": ["VSR Quality", "VSR 质量"],
-    "global_refine.resolution_mode": ["Resolution", "分辨率模式"],
-    "global_refine.aspect": ["Aspect", "画幅比"],
-    "global_refine.megapixels": ["Megapixels", "百万像素"],
-    "global_refine.width": ["Width", "宽度"],
-    "global_refine.height": ["Height", "高度"],
+    "global_refine.denoise": "Denoise",
+    "global_refine.steps": "Steps (0=Auto)",
+    "global_refine.seed_mode": "Refine Randomness",
+    "global_refine.seed_offset": "Seed Offset",
+    "global_refine.result_previews_enabled": "Pass Result Previews (extra VAE decode)",
+    "global_refine.skip_fl2v": "Skip FL2V",
+    "global_refine.upscale_method": "Method",
+    "global_refine.upscale_model": "Model",
+    "global_refine.latent_upscale_model": "H3 Latent Model",
+    "global_refine.latent_upscale_precision": "Precision",
+    "global_refine.latent_upscale_device": "Device",
+    "global_refine.vsr_quality": "VSR Quality",
+    "global_refine.resolution_mode": "Resolution",
+    "global_refine.aspect": "Aspect",
+    "global_refine.megapixels": "Megapixels",
+    "global_refine.width": "Width",
+    "global_refine.height": "Height",
+    resolved_target: "Final Size",
 };
 
 const POST_OPTION_LABELS = {
     "global_refine.seed_mode": {
-        inherit: ["Keep original Seed (recommended)", "保持原 Seed（推荐）"],
-        offset: ["Use Seed offset", "使用 Seed 偏移"],
+        inherit: "Keep original Seed (recommended)",
+        offset: "Use Seed offset",
     },
     "global_refine.upscale_method": {
-        lanczos: ["Lanczos", "Lanczos"], upscale_model: ["Upscale Model", "放大模型"],
-        nvidia_rtx_vsr: ["NVIDIA RTX VSR", "NVIDIA RTX VSR"],
-        h3_learned_latent: ["H3 Learned Latent", "H3 Learned Latent"],
+        lanczos: "Lanczos", upscale_model: "Upscale Model",
+        nvidia_rtx_vsr: "NVIDIA RTX VSR",
+        h3_learned_latent: "H3 Learned Latent",
     },
-    "global_refine.latent_upscale_precision": { fp16: ["FP16", "FP16"], bf16: ["BF16", "BF16"], fp32: ["FP32", "FP32"] },
-    "global_refine.latent_upscale_device": { cuda: ["CUDA", "CUDA"], cpu: ["CPU", "CPU"] },
-    "global_refine.vsr_quality": {
-        low: ["Low", "Low"], medium: ["Medium", "Medium"], high: ["High", "High"], ultra: ["Ultra", "Ultra"],
-    },
+    "global_refine.latent_upscale_precision": { fp16: "FP16", bf16: "BF16", fp32: "FP32" },
+    "global_refine.latent_upscale_device": { cuda: "CUDA", cpu: "CPU" },
+    "global_refine.vsr_quality": { low: "Low", medium: "Medium", high: "High", ultra: "Ultra" },
     "global_refine.resolution_mode": {
-        follow_director: ["Follow Director", "跟随 Director"],
-        aspect_megapixels: ["Aspect + Megapixels", "画幅比 + 百万像素"], custom: ["Custom", "自定义"],
+        follow_director: "Follow Director",
+        aspect_megapixels: "Aspect + Megapixels", custom: "Custom",
     },
 };
 
@@ -160,24 +149,23 @@ export function globalRefineVisibility(config) {
     };
 }
 
-export function globalRefineSummary(config, width = 864, height = 480, locale = "en") {
+export function globalRefineSummary(config, width = 864, height = 480) {
     const global = normalizePostprocessConfig(config).global_refine;
-    const zh = locale === "zh";
-    if (!global.enabled) return POST_TEXT[zh ? "zh" : "en"].disabled;
+    if (!global.enabled) return POST_TEXT.disabled;
     const parts = [];
     if (global.second_sampling_enabled) {
-        const steps = Number(global.steps) > 0 ? `${global.steps} ${zh ? "步" : "Steps"}` : (zh ? "自动步数" : "Auto Steps");
+        const steps = Number(global.steps) > 0 ? `${global.steps} Steps` : "Auto Steps";
         const seed = global.seed_mode === "offset"
-            ? `${zh ? "Seed 偏移" : "Seed Offset"} ${Number(global.seed_offset) >= 0 ? "+" : ""}${Number(global.seed_offset)}`
-            : (zh ? "保持原 Seed" : "Keep original Seed");
-        parts.push(zh ? "二次采样 ON" : "Second Sampling ON", `D${Number(global.denoise).toFixed(2)}`, steps, seed);
-        if (global.result_previews_enabled) parts.push(zh ? "阶段预览 ON" : "Pass Previews ON");
+            ? `Seed Offset ${Number(global.seed_offset) >= 0 ? "+" : ""}${Number(global.seed_offset)}`
+            : "Keep original Seed";
+        parts.push("Second Sampling ON", `D${Number(global.denoise).toFixed(2)}`, steps, seed);
+        if (global.result_previews_enabled) parts.push("Pass Previews ON");
     } else {
-        parts.push(zh ? "二次采样 OFF" : "Second Sampling OFF");
+        parts.push("Second Sampling OFF");
     }
     if (global.mode === "upscale") {
         const [targetW, targetH] = resolveGlobalTarget(config, width, height);
-        let method = global.upscale_method === "upscale_model" ? (global.upscale_model || (zh ? "放大模型" : "Upscale Model")) : "Lanczos";
+        let method = global.upscale_method === "upscale_model" ? (global.upscale_model || "Upscale Model") : "Lanczos";
         if (global.upscale_method === "nvidia_rtx_vsr") {
             const quality = String(global.vsr_quality || "high");
             method = `RTX VSR ${quality.charAt(0).toUpperCase()}${quality.slice(1)}`;
@@ -266,16 +254,16 @@ function field(label, path, type = "number", extra = "") {
 }
 function conditional(name, content) { return `<div class="mmx-post-conditional" data-conditional="${name}">${content}</div>`; }
 
-export function mountPostprocessUI(container, store, { fetchApi, directorSize = () => [864, 480], locale = () => "zh" } = {}) {
+export function mountPostprocessUI(container, store, { fetchApi, directorSize = () => [864, 480] } = {}) {
     ensureStyles();
     const root = document.createElement("div");
     root.className = "mmx-postprocess";
     root.innerHTML = `
       <section class="mmx-post-column" data-section="global_refine">
-        <div class="mmx-post-head"><h3 data-post-text="global_title">全局精修</h3><label class="mmx-post-enable"><input type="checkbox" data-path="global_refine.enabled"> <span data-post-text="enabled">ON / OFF</span></label></div>
+        <div class="mmx-post-head"><h3 data-post-text="global_title">Global Refine</h3><label class="mmx-post-enable"><input type="checkbox" data-path="global_refine.enabled"> <span data-post-text="enabled">ON / OFF</span></label></div>
         <p class="mmx-post-summary" data-summary="global_refine"></p>
         <div class="mmx-post-section" data-second-sampling-section>
-          <div class="mmx-post-section-head"><h4 data-post-text="sampling">二次采样</h4><label class="mmx-post-subenable"><input type="checkbox" data-path="global_refine.second_sampling_enabled"> <span data-post-text="enabled">ON / OFF</span></label></div>
+          <div class="mmx-post-section-head"><h4 data-post-text="sampling">Second Sampling</h4><label class="mmx-post-subenable"><input type="checkbox" data-path="global_refine.second_sampling_enabled"> <span data-post-text="enabled">ON / OFF</span></label></div>
           <div class="mmx-post-section-body" data-second-sampling-body><div class="mmx-post-grid">
             ${field("Denoise", "global_refine.denoise", "number", 'min="0.01" max="1" step="0.01"')}
             ${field("Steps (0=Auto)", "global_refine.steps", "number", 'min="0" max="200" step="1"')}
@@ -330,27 +318,26 @@ export function mountPostprocessUI(container, store, { fetchApi, directorSize = 
     const setConditional = (name, hidden) => {
         root.querySelectorAll(`[data-conditional="${name}"]`).forEach((element) => { element.hidden = hidden; });
     };
-    const updateLocale = (language = locale()) => {
-        const lang = language === "en" ? "en" : "zh";
+    const refreshLabels = () => {
         root.querySelectorAll("[data-post-text]").forEach((element) => {
-            element.textContent = POST_TEXT[lang][element.dataset.postText] || element.textContent;
+            element.textContent = POST_TEXT[element.dataset.postText] || element.textContent;
         });
         root.querySelectorAll("[data-field-label]").forEach((element) => {
-            const pair = element.dataset.fieldLabel === "resolved_target" ? ["Final Size", "最终尺寸"] : POST_LABELS[element.dataset.fieldLabel];
-            if (pair) element.textContent = pair[lang === "zh" ? 1 : 0];
+            const label = POST_LABELS[element.dataset.fieldLabel];
+            if (label) element.textContent = label;
         });
         root.querySelectorAll("select[data-path]").forEach((select) => {
             const labels = POST_OPTION_LABELS[select.dataset.path];
             if (!labels) return;
             for (const option of select.options) {
-                const pair = labels[option.value];
-                if (pair) option.textContent = pair[lang === "zh" ? 1 : 0];
+                const label = labels[option.value];
+                if (label) option.textContent = label;
             }
         });
         const vsr = root.querySelector('[data-capability="nvidia_rtx_vsr"]');
         if (vsr && capabilities) {
             const ready = !!capabilities.dependencies?.nvidia_rtx_vsr;
-            vsr.textContent = `RTX VSR: ${POST_TEXT[lang][ready ? "runtime_detected" : "missing_no_downgrade"]}`;
+            vsr.textContent = `RTX VSR: ${POST_TEXT[ready ? "runtime_detected" : "missing_no_downgrade"]}`;
         }
         render(store.get());
     };
@@ -375,14 +362,14 @@ export function mountPostprocessUI(container, store, { fetchApi, directorSize = 
         setConditional("width", !visible.customSize);
         setConditional("height", !visible.customSize);
         const [w, h] = directorSize();
-        root.querySelector('[data-summary="global_refine"]').textContent = globalRefineSummary(config, w, h, locale());
+        root.querySelector('[data-summary="global_refine"]').textContent = globalRefineSummary(config, w, h);
         const [tw, th] = resolveGlobalTarget(config, w, h);
         root.querySelector("[data-resolved-target]").textContent = `${tw}×${th}`;
         root.querySelector('[data-section="global_refine"]').classList.toggle("mmx-post-disabled", !config.global_refine.enabled);
     };
     const unsubscribe = store.subscribe(render);
     render(store.get());
-    updateLocale(locale());
+    refreshLabels();
 
     if (fetchApi) fetchApi("/minimax/bb/motion-director/postprocess_capabilities").then((response) => response.json()).then((caps) => {
         const fill = (path, rows) => {
@@ -402,9 +389,9 @@ export function mountPostprocessUI(container, store, { fetchApi, directorSize = 
         const vsr = root.querySelector('[data-capability="nvidia_rtx_vsr"]');
         const ready = !!caps.dependencies?.nvidia_rtx_vsr;
         vsr.classList.toggle("bad", !ready);
-        updateLocale(locale());
+        refreshLabels();
     }).catch(() => {});
-    return { root, render, updateLocale, destroy: unsubscribe };
+    return { root, render, destroy: unsubscribe };
 }
 
 export { DEFAULT_CONFIG };

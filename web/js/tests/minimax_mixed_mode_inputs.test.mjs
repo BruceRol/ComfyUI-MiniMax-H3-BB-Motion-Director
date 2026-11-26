@@ -16,9 +16,8 @@ Object.assign(globalThis, {
 Object.defineProperty(globalThis, "localStorage", { value: dom.window.localStorage, configurable: true });
 window.confirm = () => true;
 
-const { setLocale } = await import("../minimax_i18n.js");
+const { t } = await import("../minimax_i18n.js?boot=i18n_en_v2");
 const { mountMixedUI } = await import("../minimax_mixed_ui.mjs");
-setLocale("zh");
 
 const editor = {
     node: { id: 4, widgets: [

@@ -67,20 +67,10 @@ function ensureReportStyles() {
     document.head.appendChild(style);
 }
 
-function reportIsEnglish(heading) {
-    return String(heading?.textContent || "").trim().toLowerCase() === "report";
-}
-
-function postprocessIsEnglish(root) {
-    const text = String(root?.querySelector('[data-post-text="sampling"]')?.textContent || "").toLowerCase();
-    return text.includes("second sampling");
-}
-
-function syncCopyButton(button, report, heading) {
-    const english = reportIsEnglish(heading);
+function syncCopyButton(button, report) {
     const copied = button.dataset.copyState === "copied";
-    const label = copied ? (english ? "Copied" : "已复制") : (english ? "Copy" : "复制");
-    const title = english ? "Copy report" : "复制报告";
+    const label = copied ? "Copied" : "Copy";
+    const title = "Copy report";
     button.disabled = !report.dataset.hasReport;
     setText(button, label);
     if (button.title !== title) button.title = title;
@@ -169,7 +159,7 @@ function enhanceReport(report) {
 
     let feedbackTimer = null;
     const refresh = () => refreshReportMaxHeight(report);
-    const sync = () => syncCopyButton(copyButton, report, heading);
+    const sync = () => syncCopyButton(copyButton, report);
     const handleCopy = async (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -229,8 +219,7 @@ function requestPostprocessRender(root) {
 }
 
 function syncMultiPassLabels(root) {
-    const english = postprocessIsEnglish(root);
-    setText(root.querySelector("[data-mmx-refine-passes-label]"), english ? "Passes" : "采样轮数");
+    setText(root.querySelector("[data-mmx-refine-passes-label]"), "Passes");
 }
 
 function injectMultiPassControls(root) {
@@ -244,7 +233,7 @@ function injectMultiPassControls(root) {
         passesField.className = "mmx-post-field";
         passesField.dataset.mmxRefinePassesField = "";
         passesField.innerHTML = `
-          <span data-mmx-refine-passes-label>采样轮数</span>
+          <span data-mmx-refine-passes-label>Passes</span>
           <input type="number" min="1" max="9999" step="1" value="1" data-path="global_refine.passes">`;
 
         grid.prepend(passesField);
@@ -366,10 +355,7 @@ function syncResultSelector(root, { replay = false } = {}) {
     }
     if (state.select.value !== record.selected) state.select.value = record.selected;
 
-    // Locale is read from the report heading in the same results root: the Final
-    // Result tab no longer exists, so it cannot be used as the language probe.
-    const english = reportIsEnglish(root.querySelector("h4"));
-    setText(state.label, english ? "Result" : "结果");
+    setText(state.label, "Result");
 
     if (replay) {
         const stored = record.variants.get(record.selected);
@@ -390,7 +376,7 @@ function enhanceResultsRoot(root) {
     ensureReportStyles();
     const label = document.createElement("span");
     label.className = "mmx-refine-result-label";
-    label.textContent = "结果";
+    label.textContent = "Result";
     label.hidden = true;
     const select = document.createElement("select");
     select.className = "mmx-refine-result-select";

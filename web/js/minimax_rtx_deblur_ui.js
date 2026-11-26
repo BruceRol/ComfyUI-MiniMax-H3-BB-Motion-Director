@@ -1,29 +1,19 @@
 import { app } from "../../scripts/app.js";
-import { getLocale, onLocaleChange } from "./minimax_i18n.js";
 
 const ROOT_SELECTOR = ".mmx-postprocess";
 const SECTION_SELECTOR = "[data-rtx-deblur-section]";
 const boundRoots = new WeakSet();
 let scanScheduled = false;
-let stopLocaleSync = null;
-
-function currentLanguage(root) {
-    const locale = getLocale?.();
-    if (locale === "en" || locale === "zh") return locale;
-    const label = root.querySelector('[data-post-text="upscale"]')?.textContent || "";
-    return label.includes("放大") ? "zh" : "en";
-}
 
 function setText(element, text) {
     if (element && element.textContent !== text) element.textContent = text;
 }
 
 function normalizeScheduleText(value) {
-    return String(value || "").trim().replaceAll("，", ",");
+    return String(value || "").trim();
 }
 
 function syncRefineScheduleInputs(root) {
-    const zh = currentLanguage(root) === "zh";
     const denoise = root.querySelector('[data-path="global_refine.denoise"]');
     const steps = root.querySelector('[data-path="global_refine.steps"]');
 
@@ -34,9 +24,7 @@ function syncRefineScheduleInputs(root) {
         denoise.removeAttribute("step");
         denoise.inputMode = "decimal";
         denoise.autocomplete = "off";
-        denoise.placeholder = zh
-            ? "例：0.25,0.15,0.1；单一数值应用全部 Pass"
-            : "e.g. 0.25,0.15,0.1; one value applies to all passes";
+        denoise.placeholder = "e.g. 0.25,0.15,0.1; one value applies to all passes";
     }
 
     if (steps) {
@@ -46,9 +34,7 @@ function syncRefineScheduleInputs(root) {
         steps.removeAttribute("step");
         steps.inputMode = "numeric";
         steps.autocomplete = "off";
-        steps.placeholder = zh
-            ? "例：8,4,2；单一数值应用全部 Pass"
-            : "e.g. 8,4,2; one value applies to all passes";
+        steps.placeholder = "e.g. 8,4,2; one value applies to all passes";
     }
 }
 
@@ -66,18 +52,15 @@ function syncRefineScheduleSummary(root) {
         text = text.replace("DNaN", `D${denoise}`);
     }
     if (steps.includes(",")) {
-        text = text
-            .replace("Auto Steps", `${steps} Steps`)
-            .replace("自动步数", `${steps} 步`);
+        text = text.replace("Auto Steps", `${steps} Steps`);
     }
     if (summary.textContent !== text) summary.textContent = text;
 }
 
 function syncText(root, section) {
-    const zh = currentLanguage(root) === "zh";
-    setText(section.querySelector("[data-rtx-deblur-enabled-label]"), zh ? "开 / 关" : "ON / OFF");
-    setText(section.querySelector("[data-rtx-deblur-quality-label]"), zh ? "质量" : "Quality");
-    setText(section.querySelector("[data-rtx-deblur-strength-label]"), zh ? "强度" : "Strength");
+    setText(section.querySelector("[data-rtx-deblur-enabled-label]"), "ON / OFF");
+    setText(section.querySelector("[data-rtx-deblur-quality-label]"), "Quality");
+    setText(section.querySelector("[data-rtx-deblur-strength-label]"), "Strength");
     syncRefineScheduleInputs(root);
     syncRefineScheduleSummary(root);
 }
@@ -207,8 +190,7 @@ function refreshAll() {
 app.registerExtension({
     name: "BB_MiniMaxH3.MotionDirector.RTXDeblurUI",
     setup() {
-        if (!stopLocaleSync) stopLocaleSync = onLocaleChange(() => queueMicrotask(refreshAll));
-        scheduleScan();
+        refreshAll();
     },
     nodeCreated() {
         scheduleScan();

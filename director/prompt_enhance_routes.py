@@ -14,10 +14,9 @@ import logging
 from aiohttp import web
 
 from ..lib.prompt_enhance_templates import (
-    DETAILED_MIN_TOTAL_HAN,
-    OUTPUT_LANGUAGE_EN,
+    DETAILED_MIN_TOTAL_CHARS,
     build_character_detail_directive,
-    count_han_chars,
+    count_chars,
     get_enhance_template,
     is_character_feature_enhance_enabled,
 )
@@ -65,9 +64,8 @@ async def director_get_template(request):
     except Exception:
         data = {}
     task = resolve_task_key(data.get("task_type") or "default")
-    output_language = data.get("output_language") or data.get("llm_output_language") or OUTPUT_LANGUAGE_EN
     return web.json_response({
-        "template": get_enhance_template(task, output_language=output_language),
+        "template": get_enhance_template(task),
         "task_type": task,
     })
 
@@ -105,7 +103,6 @@ async def director_enhance_prompt(request):
         source_count = int(source_count)
     ref_video_count = int(data.get("ref_video_count") or data.get("vision_ref_video_count") or 0)
     custom_template = (data.get("custom_template") or "").strip()
-    output_language = data.get("output_language") or data.get("llm_output_language") or OUTPUT_LANGUAGE_EN
     character_feature_enhance = data.get("character_feature_enhance")
     if character_feature_enhance is None:
         character_feature_enhance = data.get("llm_character_feature_enhance")
@@ -125,7 +122,6 @@ async def director_enhance_prompt(request):
             images_b64=images if images else None,
             image_num=image_num,
             custom_template=custom_template,
-            output_language=output_language,
             character_feature_enhance=character_feature_enhance,
             vision_source_count=source_count,
             ref_slots=ref_slots or None,
@@ -143,17 +139,16 @@ async def director_enhance_prompt(request):
     feature_enhance = is_character_feature_enhance_enabled(character_feature_enhance)
     detail_directive = build_character_detail_directive(
         feature_enhance,
-        output_language=output_language,
         task_key=task_key,
     )
     detailed_mode = feature_enhance and bool(detail_directive)
-    han_count = count_han_chars(text)
+    char_count = count_chars(text)
     return web.json_response({
         "response": text,
-        "han_count": han_count,
+        "char_count": char_count,
         "detailed_mode": detailed_mode,
         "character_feature_enhance": feature_enhance,
-        "detail_target_han": DETAILED_MIN_TOTAL_HAN if detailed_mode else None,
+        "detail_target_chars": DETAILED_MIN_TOTAL_CHARS if detailed_mode else None,
     })
 
 

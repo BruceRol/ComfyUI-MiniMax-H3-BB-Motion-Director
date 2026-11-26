@@ -3,8 +3,7 @@ import {
     mountMixedUI as mountMixedUIV2,
     parseOrCreateMixedTimeline as parseOrCreateMixedTimelineV2,
     syncMixedGlobalsFromWidgets,
-} from "./minimax_mixed_ui_v2.mjs?boot=mixed_native_v7";
-import { getLocale } from "./minimax_i18n.js";
+} from "./minimax_mixed_ui_v2.mjs?boot=mixed_native_v8";
 import {
     autoScrollDelta,
     moveSegmentById,
@@ -76,7 +75,7 @@ function cloneState(value) {
 }
 
 function dragLabel() {
-    return getLocale() === "en" ? "Drag to reorder" : "拖动排序";
+    return "Drag to reorder";
 }
 
 function ensureInteractionStyles() {

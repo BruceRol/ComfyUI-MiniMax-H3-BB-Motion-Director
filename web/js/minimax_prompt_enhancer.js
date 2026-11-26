@@ -21,14 +21,13 @@ const DEFAULT_ZHIPU_MODEL = "glm-4.6v-flash";
 const DEFAULT_OPENAI_COMPAT_URL = "http://127.0.0.1:8080/v1";
 const DEFAULT_API_FORMAT = "Ollama";
 const API_OLLAMA = "Ollama";
-const API_ZHIPU = "智谱 GLM";
+const API_ZHIPU = "Zhipu GLM";
 const API_OPENAI_COMPAT = "OpenAI Compatible";
-const OPENAI_COMPAT_STANDARD = "标准";
+const OPENAI_COMPAT_STANDARD = "Standard";
 const OPENAI_COMPAT_LLAMA_SWAP = "llama-swap";
-const DEFAULT_OUTPUT_LANGUAGE = "中文";
-const OUTPUT_LANGUAGE_ZH = "中文";
-const CHARACTER_DETAIL_NORMAL = "一般";
-const CHARACTER_DETAIL_DETAILED = "详尽";
+const CHARACTER_DETAIL_NORMAL = "Normal";
+const CHARACTER_DETAIL_DETAILED = "Detailed";
+const DEFAULT_DETAIL_TARGET_CHARS = 300;
 const LEGACY_OPENAI_FORMAT = "OpenAI / vLLM";
 
 const STATUS_COLORS = {
@@ -128,22 +127,12 @@ async function fetchImageB64(imageFile) {
     return data.image;
 }
 
-function resolveOutputLanguage(pe) {
-    const widgetLang = pe.widget?.("llm_output_language")?.value;
-    if (widgetLang) {
-        if (pe.langSelect) pe.langSelect.value = widgetLang;
-        return widgetLang;
-    }
-    return pe.langSelect?.value || DEFAULT_OUTPUT_LANGUAGE;
-}
-
 function coerceFeatureEnhanceValue(value) {
     if (value === true || value === 1) return true;
     if (value === false || value === 0 || value == null || value === "") return false;
     const v = String(value).trim().toLowerCase();
     if (v === "true" || v === "yes" || v === "on") return true;
-    // 旧下拉迁移到 BOOLEAN 时可能残留「一般」「详尽」字符串，仅「详尽」视为开启
-    if (v.includes("详尽") || v === "detailed" || v === "verbose" || v === "full") return true;
+    if (v === CHARACTER_DETAIL_DETAILED.toLowerCase() || v === "detailed" || v === "verbose" || v === "full") return true;
     return false;
 }
 
@@ -160,20 +149,20 @@ function resolveCharacterFeatureEnhance(pe, { preferWidget = false } = {}) {
 }
 
 function formatEnhanceSuccessStatus(taskKey, result) {
-    let msg = `扩写成功 (${taskKey})，${result.text?.length ?? 0} 字符`;
+    let msg = `Enhanced (${taskKey}), ${result.text?.length ?? 0} characters`;
     if (result.detailedMode) {
-        const han = result.hanCount ?? 0;
-        const target = result.detailTargetHan ?? 300;
-        msg += `，${han} 汉字（角色特征增强目标≥${target}）`;
-        if (han < target) {
-            msg += "；仍偏短请换更强 Vision 模型或确认参考图已上传";
+        const chars = result.charCount ?? 0;
+        const target = result.detailTargetChars ?? DEFAULT_DETAIL_TARGET_CHARS;
+        msg += `, ${chars} characters (character feature enhance target >= ${target})`;
+        if (chars < target) {
+            msg += "; still short — try a stronger vision model or check that the reference image was uploaded";
         }
     }
     return msg;
 }
 
 function resolveCharacterDetailLevel(pe, opts) {
-    return resolveCharacterFeatureEnhance(pe, opts) ? CHARACTER_DETAIL_DETAILED : "一般";
+    return resolveCharacterFeatureEnhance(pe, opts) ? CHARACTER_DETAIL_DETAILED : CHARACTER_DETAIL_NORMAL;
 }
 
 export function mountPromptEnhancerPanel(editor, parentEl) {
@@ -188,7 +177,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         pe.statusEl.style.lineHeight = "1.35";
     };
 
-    pe.setEnhanceLoading = (loading, activeBtn = null, label = "扩写中…") => {
+    pe.setEnhanceLoading = (loading, activeBtn = null, label = "Enhancing…") => {
         pe._busy = loading;
         pe.enhanceCurrentBtn.disabled = loading;
         pe.enhanceAllBtn.disabled = loading;
@@ -200,8 +189,8 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
             activeBtn.style.cursor = "wait";
             activeBtn.classList.add("minimax-pe-loading");
         } else {
-            pe.enhanceCurrentBtn.textContent = "扩写当前提示词";
-            pe.enhanceAllBtn.textContent = "扩写全部提示词";
+            pe.enhanceCurrentBtn.textContent = "Enhance current prompt";
+            pe.enhanceAllBtn.textContent = "Enhance all prompts";
             pe.enhanceCurrentBtn.style.background = "#3b82f6";
             pe.enhanceAllBtn.style.background = "#6366f1";
             pe.enhanceCurrentBtn.style.cursor = "pointer";
@@ -216,7 +205,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         background: "#1a1d24", border: "1px solid #2a3140", borderRadius: "4px",
         padding: "6px 8px", cursor: "pointer", userSelect: "none", marginTop: "6px",
     });
-    header.appendChild(el({ fontWeight: "600", fontSize: "10px", color: "#9aa3b5", textTransform: "uppercase" }, "LLM 提示词增强 Prompt Enhancer"));
+    header.appendChild(el({ fontWeight: "600", fontSize: "10px", color: "#9aa3b5", textTransform: "uppercase" }, "LLM Prompt Enhancer"));
     pe.arrow = el({ fontSize: "10px", color: "#9aa3b5" }, "\u25B6");
     header.appendChild(pe.arrow);
 
@@ -226,7 +215,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         flexDirection: "column", gap: "6px", marginTop: "-5px",
     });
     pe.body.appendChild(el({ fontSize: "9px", color: "#7d8698", lineHeight: "1.4" },
-        "按 MiniMax H3 官方 task 模板扩写短提示词。「当前」仅扩写选中片段/全局；「全部」在分段模式下依次扩写各片段。"));
+        "Rewrites short prompts with the official MiniMax H3 task templates. 'Current' enhances only the selected segment or the global prompt; 'All' walks through every segment in order."));
 
     const fmtRow = el({});
     fmtRow.className = "minimax-pe-api-row";
@@ -235,7 +224,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     pe.apiSelect.className = "minimax-pe-select";
     for (const [val, label] of [
         [API_OLLAMA, "Ollama (/api/chat)"],
-        [API_ZHIPU, "智谱 GLM (/paas/v4/chat)"],
+        [API_ZHIPU, "Zhipu GLM (/paas/v4/chat)"],
         [API_OPENAI_COMPAT, "OpenAI Compatible (/v1/chat/completions)"],
     ]) {
         const o = document.createElement("option");
@@ -265,7 +254,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     };
     fmtRow.appendChild(pe.apiSelect);
     fmtRow.appendChild(pe.urlInput);
-    pe.refreshBtn = el({}, "刷新模型", "button");
+    pe.refreshBtn = el({}, "Refresh models", "button");
     pe.refreshBtn.className = "minimax-pe-btn-sm";
     pe.refreshBtn.onclick = () => pe.fetchModels();
     fmtRow.appendChild(pe.refreshBtn);
@@ -274,19 +263,19 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     pe.body.appendChild(fmtRow);
 
     const compatRow = el({ display: "none", gap: "6px", alignItems: "center" });
-    compatRow.appendChild(el({}, "OpenAI 特性:", "span")).className = "minimax-pe-label";
+    compatRow.appendChild(el({}, "OpenAI flavour:", "span")).className = "minimax-pe-label";
     pe.compatSelect = document.createElement("select");
     pe.compatSelect.className = "minimax-pe-select";
     Object.assign(pe.compatSelect.style, { flex: "1" });
     for (const [val, label] of [
-        [OPENAI_COMPAT_STANDARD, "标准"],
+        [OPENAI_COMPAT_STANDARD, "Standard"],
         [OPENAI_COMPAT_LLAMA_SWAP, "llama-swap"],
     ]) {
         const o = document.createElement("option");
         o.value = val; o.textContent = label;
         pe.compatSelect.appendChild(o);
     }
-    pe.compatSelect.title = "仅 OpenAI Compatible 生效。选择 llama-swap 后启用 /api/models/unload/{model_id} 卸载接口。";
+    pe.compatSelect.title = "Only applies to OpenAI Compatible. Choosing llama-swap enables the /api/models/unload/{model_id} unload endpoint.";
     pe.compatSelect.onchange = () => {
         pe.updateApiFormatUI();
         pe.syncToWidgets();
@@ -300,7 +289,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     keyRow.appendChild(el({}, "API Key:", "span")).className = "minimax-pe-label";
     pe.apiKeyInput = document.createElement("input");
     pe.apiKeyInput.type = "password";
-    pe.apiKeyInput.placeholder = "智谱 API Key";
+    pe.apiKeyInput.placeholder = "Zhipu API key";
     pe.apiKeyInput.autocomplete = "off";
     pe.apiKeyInput.className = "minimax-pe-input";
     Object.assign(pe.apiKeyInput.style, { flex: "1" });
@@ -311,7 +300,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     pe.body.appendChild(keyRow);
 
     const modelRow = el({ display: "flex", gap: "6px", alignItems: "center" });
-    modelRow.appendChild(el({}, "模型:", "span")).className = "minimax-pe-label";
+    modelRow.appendChild(el({}, "Model:", "span")).className = "minimax-pe-label";
     pe.modelInput = document.createElement("input");
     pe.modelInput.type = "text";
     pe.modelInput.placeholder = DEFAULT_LLM_MODEL;
@@ -326,34 +315,11 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     modelRow.appendChild(pe.modelList);
     pe.body.appendChild(modelRow);
 
-    const langRow = el({ display: "flex", gap: "6px", alignItems: "center" });
-    langRow.appendChild(el({}, "扩写语言:", "span")).className = "minimax-pe-label";
-    pe.langSelect = document.createElement("select");
-    pe.langSelect.className = "minimax-pe-select";
-    Object.assign(pe.langSelect.style, { flex: "1" });
-    for (const [val, label] of [
-        [OUTPUT_LANGUAGE_ZH, "中文（简体中文）"],
-        ["English", "English（官方推荐）"],
-    ]) {
-        const o = document.createElement("option");
-        o.value = val; o.textContent = label;
-        pe.langSelect.appendChild(o);
-    }
-    pe.langSelect.title =
-        "LLM 扩写输出语言。MiniMax H3 官方示例与 T5 系统提示词为英文；"
-        + "选中文时扩写结果为简体中文。";
-    pe.langSelect.onchange = () => {
-        pe._lastOutputLanguage = pe.langSelect.value || DEFAULT_OUTPUT_LANGUAGE;
-        pe.syncToWidgets();
-        pe.fetchTemplate(true);
-    };
-    langRow.appendChild(pe.langSelect);
-    pe.body.appendChild(langRow);
-
     const AUTO_ENHANCE_TIP =
-        "Queue 时在服务端自动用 LLM 扩写每段正向提示词（MiniMax H3 官方 task 模板；"
-        + "可附带源视频帧与参考图）。扩写失败则使用原文，不中断生成。"
-        + "多段任务会每段各调用一次 LLM，耗时会增加。";
+        "On Queue the server automatically rewrites each positive prompt with the LLM "
+        + "(official MiniMax H3 task templates, optionally with source video frames and reference images). "
+        + "If enhancement fails the original text is kept and generation is not interrupted. "
+        + "Multi-segment tasks call the LLM once per segment, so the time increases.";
 
     const optionsRow = el({});
     optionsRow.className = "minimax-pe-options-row";
@@ -363,11 +329,11 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     pe.detailCheck.type = "checkbox";
     pe.detailCheck.checked = false;
     pe.detailCheck.title =
-        "rv2v/r2v/r2i 等含参考图任务：未勾选时按 MiniMax H3 官方模板扩写；"
-        + "勾选后启用角色特征增强（≥300汉字详尽外观描述）。";
+        "Tasks with reference images (rv2v/r2v/r2i): uncheck to enhance with the official MiniMax H3 template; "
+        + `check to enable character feature enhance (a detailed appearance of at least ${DEFAULT_DETAIL_TARGET_CHARS} characters).`;
     pe.detailCheck.onchange = () => pe.syncToWidgets();
     detailItem.appendChild(pe.detailCheck);
-    const detailLabel = el({ cursor: "help" }, "角色特征增强", "span");
+    const detailLabel = el({ cursor: "help" }, "Character feature enhance", "span");
     detailLabel.title = pe.detailCheck.title;
     detailItem.appendChild(detailLabel);
     optionsRow.appendChild(detailItem);
@@ -381,7 +347,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     pe.autoCheck.title = AUTO_ENHANCE_TIP;
     pe.autoCheck.onchange = () => pe.syncToWidgets();
     autoItem.appendChild(pe.autoCheck);
-    const autoLabel = el({ cursor: "help" }, "自动扩写", "span");
+    const autoLabel = el({ cursor: "help" }, "Auto enhance", "span");
     autoLabel.title = AUTO_ENHANCE_TIP;
     autoItem.appendChild(autoLabel);
     optionsRow.appendChild(autoItem);
@@ -392,7 +358,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     pe.unloadCheck.type = "checkbox";
     pe.unloadCheck.onchange = () => pe.syncToWidgets();
     pe.unloadWrap.appendChild(pe.unloadCheck);
-    pe.unloadCheckLabel = el({}, "用后卸载 Ollama", "span");
+    pe.unloadCheckLabel = el({}, "Unload Ollama after use", "span");
     pe.unloadWrap.appendChild(pe.unloadCheckLabel);
     optionsRow.appendChild(pe.unloadWrap);
     pe.body.appendChild(optionsRow);
@@ -402,18 +368,18 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     pe.enhanceCurrentBtn = el({
         flex: "1", background: "#3b82f6", color: "#fff", border: "none", borderRadius: "4px",
         padding: "6px", fontWeight: "600", fontSize: "10px", cursor: "pointer",
-    }, "扩写当前提示词", "button");
+    }, "Enhance current prompt", "button");
     pe.enhanceCurrentBtn.onclick = () => pe.enhancePrompt("current");
     enhanceRow.appendChild(pe.enhanceCurrentBtn);
     pe.enhanceAllBtn = el({
         flex: "1", background: "#6366f1", color: "#fff", border: "none", borderRadius: "4px",
         padding: "6px", fontWeight: "600", fontSize: "10px", cursor: "pointer",
-    }, "扩写全部提示词", "button");
+    }, "Enhance all prompts", "button");
     pe.enhanceAllBtn.onclick = () => pe.enhancePrompt("all");
     enhanceRow.appendChild(pe.enhanceAllBtn);
     btnRow.appendChild(enhanceRow);
     const utilRow = el({ display: "flex", gap: "6px" });
-    pe.unloadBtn = el({ background: "#252a34", color: "#e8ecf4", border: "1px solid #2a3140", borderRadius: "4px", padding: "6px 10px", fontSize: "10px", cursor: "pointer" }, "卸载 Ollama", "button");
+    pe.unloadBtn = el({ background: "#252a34", color: "#e8ecf4", border: "1px solid #2a3140", borderRadius: "4px", padding: "6px 10px", fontSize: "10px", cursor: "pointer" }, "Unload Ollama", "button");
     pe.unloadBtn.onclick = () => pe.unloadOllama();
     utilRow.appendChild(pe.unloadBtn);
     pe.unloadBtnRow = utilRow;
@@ -457,13 +423,13 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         if (pe.compatRow) pe.compatRow.style.display = isOpenAi ? "flex" : "none";
         if (pe.keyRow) pe.keyRow.style.display = showKey ? "flex" : "none";
         if (pe.apiKeyInput) {
-            pe.apiKeyInput.placeholder = fmt === API_ZHIPU ? "智谱 API Key" : "OpenAI / llama-swap API Key（可选）";
+            pe.apiKeyInput.placeholder = fmt === API_ZHIPU ? "Zhipu API key" : "OpenAI / llama-swap API key (optional)";
         }
         if (pe.unloadWrap) pe.unloadWrap.style.display = supportsUnload ? "flex" : "none";
         if (pe.unloadBtnRow) pe.unloadBtnRow.style.display = supportsUnload ? "flex" : "none";
-        const unloadText = fmt === API_OLLAMA ? "用后卸载 Ollama" : "用后卸载模型 (llama-swap)";
+        const unloadText = fmt === API_OLLAMA ? "Unload Ollama after use" : "Unload model after use (llama-swap)";
         if (pe.unloadCheckLabel) pe.unloadCheckLabel.textContent = unloadText;
-        if (pe.unloadBtn) pe.unloadBtn.textContent = fmt === API_OLLAMA ? "卸载 Ollama" : "卸载模型 (llama-swap)";
+        if (pe.unloadBtn) pe.unloadBtn.textContent = fmt === API_OLLAMA ? "Unload Ollama" : "Unload model (llama-swap)";
         pe.urlInput.placeholder = defaultsForApiFormat(fmt).url;
         pe.modelInput.placeholder = defaultsForApiFormat(fmt).model;
     };
@@ -484,15 +450,11 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         if (w("llm_auto_enhance")) pe.autoCheck.checked = !!w("llm_auto_enhance").value;
         else pe.autoCheck.checked = false;
         if (w("llm_unload_after")) pe.unloadCheck.checked = !!w("llm_unload_after").value;
-        const lang = resolveOutputLanguage(pe);
-        const prevLang = pe._lastOutputLanguage;
-        pe._lastOutputLanguage = lang;
         if (pe.detailCheck) {
             pe.detailCheck.checked = resolveCharacterFeatureEnhance(pe, { preferWidget: true });
         }
         if (w("llm_custom_template")) pe.templateArea.value = w("llm_custom_template").value || "";
         pe.updateApiFormatUI();
-        if (prevLang !== null && lang !== prevLang) pe.fetchTemplate(true);
     };
 
     pe.syncToWidgets = () => {
@@ -503,7 +465,6 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         set("llm_url", url);
         set("llm_api_key", pe.apiKeyInput.value || "");
         set("llm_model", coerceLlmModel(pe.modelInput.value));
-        set("llm_output_language", pe.langSelect.value || DEFAULT_OUTPUT_LANGUAGE);
         set("llm_character_feature_enhance", !!pe.detailCheck?.checked);
         set("llm_auto_enhance", !!pe.autoCheck.checked);
         set("llm_unload_after", pe.supportsUnload() && !!pe.unloadCheck.checked);
@@ -519,7 +480,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
             pe.urlInput.value = llmUrl;
             pe.apiSelect.value = inferApiFormat(llmUrl, pe.apiSelect.value);
             pe.updateApiFormatUI();
-            if (!silent) pe.setStatus("正在获取模型列表…", "loading");
+            if (!silent) pe.setStatus("Fetching the model list…", "loading");
             const resp = await api.fetchApi("/minimax/bb/motion-director/enhance_models", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -531,7 +492,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
             });
             const data = await resp.json();
             if (!resp.ok) {
-                if (!silent) pe.setStatus(data.error || "获取模型失败", "error");
+                if (!silent) pe.setStatus(data.error || "Could not fetch models", "error");
                 return;
             }
             pe.modelList.innerHTML = "";
@@ -542,20 +503,19 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
             }
             if (!pe.modelInput.value.trim()) pe.modelInput.value = defaultsForApiFormat(pe.apiSelect.value).model;
             pe.syncToWidgets();
-            if (!silent) pe.setStatus(`${(data.models || []).length} 个模型（可手动输入名称）`, "success");
+            if (!silent) pe.setStatus(`${(data.models || []).length} models (you can also type a name)`, "success");
         } catch (e) {
-            if (!silent) pe.setStatus(`连接失败: ${e.message}`, "error");
+            if (!silent) pe.setStatus(`Connection failed: ${e.message}`, "error");
         }
     };
 
     pe.fetchTemplate = async (resetIfDefault = false) => {
         const task = resolveTaskKey(editor.getTaskKey?.() || "rv2v");
-        const outputLanguage = resolveOutputLanguage(pe);
         try {
             const resp = await api.fetchApi("/minimax/bb/motion-director/get_template", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ task_type: task, output_language: outputLanguage }),
+                body: JSON.stringify({ task_type: task }),
             });
             const data = await resp.json();
             if (data.template) {
@@ -622,14 +582,12 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         pe.updateApiFormatUI();
         const model = coerceLlmModel(pe.modelInput.value);
         pe.modelInput.value = model;
-        const outputLanguage = resolveOutputLanguage(pe);
         const characterFeatureEnhance = resolveCharacterFeatureEnhance(pe, { preferWidget: true });
         const customTemplate = pe.templateArea.value.trim() !== pe._currentDefaultTemplate ? pe.templateArea.value.trim() : "";
         return {
             llmUrl, model, apiFormat: pe.apiSelect.value,
             openaiCompatMode: normalizeOpenAiCompatMode(pe.compatSelect?.value),
             apiKey: pe.apiKeyInput.value || "",
-            outputLanguage,
             characterFeatureEnhance,
             customTemplate,
         };
@@ -711,25 +669,26 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         const resp = await api.fetchApi("/minimax/bb/motion-director/enhance", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    llm_url: cfg.llmUrl, model: cfg.model, prompt, task_type: taskKey,
-                    image_num: Math.max(1, refCount), images, api_format: cfg.apiFormat,
-                    openai_compat_mode: cfg.openaiCompatMode,
-                    api_key: cfg.apiKey, output_language: cfg.outputLanguage,
-                    character_feature_enhance: cfg.characterFeatureEnhance,
-                    source_count: sourceCount, ref_slots: refSlots, ref_video_count: refVideoCount,
-                    llm_unload_after: pe.supportsUnload() && !!pe.unloadCheck.checked, custom_template: cfg.customTemplate,
-                }),
+            body: JSON.stringify({
+                llm_url: cfg.llmUrl, model: cfg.model, prompt, task_type: taskKey,
+                image_num: Math.max(1, refCount), images, api_format: cfg.apiFormat,
+                openai_compat_mode: cfg.openaiCompatMode,
+                api_key: cfg.apiKey,
+                character_feature_enhance: cfg.characterFeatureEnhance,
+                source_count: sourceCount, ref_slots: refSlots, ref_video_count: refVideoCount,
+                llm_unload_after: pe.supportsUnload() && !!pe.unloadCheck.checked,
+                custom_template: cfg.customTemplate,
+            }),
         });
         let data = {};
         try { data = await resp.json(); } catch { data = {}; }
         return {
             ok: resp.ok && !!data.response,
             text: data.response || "",
-            error: data.error || (resp.ok ? "扩写返回为空" : `HTTP ${resp.status}`),
-            hanCount: data.han_count,
+            error: data.error || (resp.ok ? "The enhancement returned nothing" : `HTTP ${resp.status}`),
+            charCount: data.char_count,
             detailedMode: !!data.detailed_mode,
-            detailTargetHan: data.detail_target_han,
+            detailTargetChars: data.detail_target_chars,
             vision: { images, sourceCount, refCount },
         };
     };
@@ -739,7 +698,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         const prompt = pe.getPromptTextForBlock(segmentIndex);
         if (!prompt) return { ok: false, skipped: true, reason: "empty" };
         pe.setEnhanceLoading(true, activeBtn, label);
-        pe.setStatus(`正在扩写: ${label}…`, "loading");
+        pe.setStatus(`Enhancing: ${label}…`, "loading");
         const result = await pe.callEnhanceApi(prompt, taskKey, block, cfg);
         if (result.ok) {
             const text = taskKey === "fl2v" ? stripFl2vPromptBody(result.text) : result.text;
@@ -752,9 +711,9 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
     pe.enhancePrompt = async (scope = "current") => {
         if (pe._busy) return;
         const cfg = pe.getLlmConfig();
-        if (!cfg.model) { pe.setStatus("请输入模型名称", "error"); return; }
+        if (!cfg.model) { pe.setStatus("Enter a model name", "error"); return; }
         if ((cfg.apiFormat === API_ZHIPU) && !cfg.apiKey) {
-            pe.setStatus("请填写 API Key（或设置环境变量）", "error");
+            pe.setStatus("Fill in the API key (or set the environment variable)", "error");
             return;
         }
 
@@ -762,15 +721,15 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
 
         if (scope === "current") {
             const prompt = pe.getActivePromptText();
-            if (!prompt) { pe.setStatus("请先输入提示词", "error"); return; }
-            pe.setEnhanceLoading(true, activeBtn, "准备中…");
+            if (!prompt) { pe.setStatus("Enter a prompt first", "error"); return; }
+            pe.setEnhanceLoading(true, activeBtn, "Preparing…");
             try {
                 const { block, taskKey } = pe.getPromptBlock();
-                pe.setEnhanceLoading(true, activeBtn, "收集素材…");
+                pe.setEnhanceLoading(true, activeBtn, "Collecting assets…");
                 const result = await pe.callEnhanceApi(prompt, taskKey, block, cfg);
                 const v = result.vision || {};
                 if (v.images?.length) {
-                    pe.visionBadge.textContent = `${v.sourceCount ? v.sourceCount + " 视频帧" : ""}${v.sourceCount && v.refCount ? " + " : ""}${v.refCount ? v.refCount + " 参考图" : ""}`;
+                    pe.visionBadge.textContent = `${v.sourceCount ? v.sourceCount + " frames" : ""}${v.sourceCount && v.refCount ? " + " : ""}${v.refCount ? v.refCount + " references" : ""}`;
                     pe.visionBadge.style.display = "inline";
                 } else {
                     pe.visionBadge.style.display = "none";
@@ -783,7 +742,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
                     pe.setStatus(result.error, "error");
                 }
             } catch (e) {
-                pe.setStatus(`请求失败: ${e.message}`, "error");
+                pe.setStatus(`Request failed: ${e.message}`, "error");
             } finally {
                 pe.setEnhanceLoading(false);
             }
@@ -793,17 +752,17 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         // scope === "all"
         if (editor.isGlobalMode?.()) {
             const prompt = pe.getActivePromptText();
-            if (!prompt) { pe.setStatus("请先输入全局提示词", "error"); return; }
+            if (!prompt) { pe.setStatus("Enter the global prompt first", "error"); return; }
             try {
-                const r = await pe.enhanceOneTarget(null, cfg, activeBtn, "全局提示词");
+                const r = await pe.enhanceOneTarget(null, cfg, activeBtn, "global prompt");
                 if (r.ok) {
                     editor.commit?.(false, { syncTimeline: true });
                     pe.setStatus(formatEnhanceSuccessStatus(r.taskKey, r.result || {}), "success");
                 } else if (!r.skipped) {
-                    pe.setStatus(r.error || "扩写失败", "error");
+                    pe.setStatus(r.error || "Enhancement failed", "error");
                 }
             } catch (e) {
-                pe.setStatus(`请求失败: ${e.message}`, "error");
+                pe.setStatus(`Request failed: ${e.message}`, "error");
             } finally {
                 pe.setEnhanceLoading(false);
             }
@@ -813,7 +772,7 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         const segments = editor.timeline.segments || [];
         const targets = segments.map((_, i) => i).filter((i) => pe.getPromptTextForBlock(i));
         if (!targets.length) {
-            pe.setStatus("没有可扩写的分段提示词（请先填写各片段或全局提示词）", "error");
+            pe.setStatus("No segment prompts to enhance (fill in the segments or the global prompt first)", "error");
             return;
         }
 
@@ -822,26 +781,26 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         try {
             for (let n = 0; n < targets.length; n++) {
                 const idx = targets[n];
-                const label = `片段 ${idx + 1}/${segments.length}`;
+                const label = `segment ${idx + 1}/${segments.length}`;
                 const r = await pe.enhanceOneTarget(idx, cfg, activeBtn, label);
                 if (r.ok) {
                     okCount += 1;
-                    pe.setStatus(`${label} 扩写成功 (${okCount}/${targets.length})`, "loading");
+                    pe.setStatus(`${label} enhanced (${okCount}/${targets.length})`, "loading");
                 } else if (!r.skipped) {
-                    lastError = r.error || "未知错误";
-                    pe.setStatus(`${label} 失败: ${lastError}`, "error");
+                    lastError = r.error || "unknown error";
+                    pe.setStatus(`${label} failed: ${lastError}`, "error");
                     break;
                 }
             }
             editor.commit?.(false, { syncTimeline: true });
             editor.updateSelectionUI?.();
             if (okCount === targets.length) {
-                pe.setStatus(`全部扩写完成：${okCount} 个分段`, "success");
+                pe.setStatus(`All enhanced: ${okCount} segments`, "success");
             } else if (okCount > 0 && lastError) {
-                pe.setStatus(`部分完成：${okCount}/${targets.length} 成功；失败: ${lastError}`, "error");
+                pe.setStatus(`Partially done: ${okCount}/${targets.length} succeeded; failed: ${lastError}`, "error");
             }
         } catch (e) {
-            pe.setStatus(`请求失败: ${e.message}`, "error");
+            pe.setStatus(`Request failed: ${e.message}`, "error");
         } finally {
             pe.setEnhanceLoading(false);
         }
@@ -852,12 +811,12 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
         const apiFormat = pe.apiSelect.value;
         const openaiCompatMode = normalizeOpenAiCompatMode(pe.compatSelect?.value);
         const model = coerceLlmModel(pe.modelInput.value);
-        if (!model) { pe.setStatus("请输入模型名称", "error"); return; }
+        if (!model) { pe.setStatus("Enter a model name", "error"); return; }
         if (!pe.supportsUnload()) {
-            pe.setStatus("当前 API 格式不支持手动卸载模型", "error");
+            pe.setStatus("The current API format does not support manual model unload", "error");
             return;
         }
-        pe.setStatus("正在卸载模型…", "loading");
+        pe.setStatus("Unloading the model…", "loading");
         try {
             const resp = await api.fetchApi("/minimax/bb/motion-director/unload_model", {
                 method: "POST",
@@ -872,12 +831,12 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
             });
             const data = await resp.json();
             if (resp.ok && data.status === "unloaded") {
-                pe.setStatus(`${data.provider || "LLM"} 模型已卸载`, "success");
+                pe.setStatus(`${data.provider || "LLM"} model unloaded`, "success");
             } else {
-                pe.setStatus(data.error || "卸载失败", "error");
+                pe.setStatus(data.error || "Unload failed", "error");
             }
         } catch (e) {
-            pe.setStatus(`卸载失败: ${e.message}`, "error");
+            pe.setStatus(`Unload failed: ${e.message}`, "error");
         }
     };
     pe.unloadOllama = pe.unloadModel;
@@ -890,10 +849,9 @@ export function mountPromptEnhancerPanel(editor, parentEl) {
             text = stripFl2vPromptBody(text);
         }
         pe.setActivePromptText(text);
-        pe.setStatus(`自动扩写已应用（${text.length} 字符）`, "success");
+        pe.setStatus(`Auto-enhanced (${text.length} characters)`, "success");
     };
 
-    pe._lastOutputLanguage = null;
     pe.syncFromWidgets();
     editor._promptEnhancer = pe;
     pe.fetchTemplate(true);
@@ -918,7 +876,7 @@ export function registerDirectorPromptEnhancerEvents(findDirectorNode) {
 setTimeout(async () => {
     if (globalThis.__MMX_BB_MOTION_DIRECTOR_EXTENSION_REGISTERED__) return;
     try {
-        await import("./minimax_timeline.js?boot=director_ui_recovery_v8");
+        await import("./minimax_timeline.js?boot=director_ui_recovery_v9");
         if (!globalThis.__MMX_BB_MOTION_DIRECTOR_EXTENSION_REGISTERED__) {
             throw new Error("Director extension did not register after recovery import.");
         }

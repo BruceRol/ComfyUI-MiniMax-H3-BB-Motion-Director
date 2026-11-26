@@ -24,7 +24,7 @@ import {
     resolveTaskKey,
     roundDurationSec,
 } from "./minimax_gen_timeline.js";
-import { t } from "./minimax_i18n.js";
+import { t } from "./minimax_i18n.js?boot=i18n_en_v2";
 import { resolveFl2vEndpointState } from "./minimax_fl2v_state.mjs";
 
 export const FL2V_STYLES = `
@@ -699,14 +699,14 @@ export function mountFl2vPanel(parent) {
     wrap.className = "bd-fl2v-detail-wrap";
     wrap.innerHTML = `
         <div class="bd-fl2v-hint" data-r="fl2v-hint">
-            <b data-i18n="panel.fl2v.howToTitle">怎么用</b>：
+            <b data-i18n="panel.fl2v.howToTitle">How to use</b>：
             <span data-i18n-html="panel.fl2v.hint"></span>
         </div>
         <div class="bd-fl2v-workbench" data-r="fl2v-workbench">
             <div class="bd-fl2v-shots" data-r="fl2v-shots"></div>
         </div>
         <div class="bd-fl2v-detail hidden" data-r="fl2v-detail">
-            <span class="bd-label" data-i18n="panel.fl2v.shotPrompt">本镜提示词</span>
+            <span class="bd-label" data-i18n="panel.fl2v.shotPrompt">Shot prompt</span>
             <textarea data-r="fl2v-prompt" data-i18n-placeholder="placeholder.fl2vShot" placeholder=""></textarea>
             <textarea data-r="fl2v-negative" class="hidden" hidden aria-hidden="true"></textarea>
         </div>
@@ -732,24 +732,18 @@ export function stripFl2vPromptBody(text) {
     let out = String(text || "").trim();
     if (!out) return "";
     const wraps = [
-        "完全保持首尾帧。",
-        "完全保持首帧。",
-        "完全保持尾帧。",
-        "视频开始完全按照image0的画面，不修改，视频结束完全保持image1的画面。",
-        "视频开始完全按照image0的画面，不修改，视频结束完全保持image1。",
-        "视频开始完全按照image0的构图，不修改，视频结束完全保持image1。",
-        "视频开始完全按照image0的画面，不修改。",
-        "视频开始完全按照image0的构图，不修改。",
-        "视频结束完全保持image1的画面。",
-        "视频结束完全保持image1。",
-        "完全保持首尾帧：开头必须是image0，结尾必须是image1。",
-        "完全保持首帧：开头必须是image0。",
-        "完全保持尾帧：结尾锁定尾帧。",
-        "完全保持首尾帧：开头锁定首帧，结尾锁定尾帧。",
-        "再次强调：开头锁定image0，结尾锁定image1。",
-        "再次强调：开头锁定image0。",
-        "再次强调：结尾锁定尾帧。",
-        "中间过程：",
+        "Keep the first and last frames exactly. ",
+        "Keep the first frame exactly. ",
+        "Keep the last frame exactly. ",
+        "The video starts exactly as image0, unchanged, and ends exactly as image1.",
+        "The video starts exactly as image0, unchanged.",
+        "The video ends exactly as image1.",
+        "Keep the first and last frames: the opening is locked to the first frame, the ending to the last frame.",
+        "Keep the first frame: the opening is locked to the first frame.",
+        "Keep the last frame: the ending is locked to the last frame.",
+        "Reminder: the opening is locked to image0, the ending to image1.",
+        "Reminder: the opening is locked to image0.",
+        "Middle part: ",
     ];
     let changed = true;
     while (changed && out) {
@@ -765,10 +759,7 @@ export function stripFl2vPromptBody(text) {
             }
         }
     }
-    return out
-        .replace(/image0的构图/g, "image0的画面")
-        .replace(/image1的构图/g, "image1的画面")
-        .trim();
+    return out.trim();
 }
 
 export function flushFl2vPromptDraft(editor) {
@@ -783,7 +774,7 @@ export function flushFl2vPromptDraft(editor) {
     if (ui.negative) shot.negativePrompt = ui.negative.value || "";
 }
 
-/** Output canvas W/H for shot-slot aspect-ratio (matches 输出分辨率). */
+/** Output canvas W/H for shot-slot aspect-ratio (matches the Output resolution controls). */
 export function getFl2vOutputSize(editor) {
     const out = editor?.timeline?.output || {};
     let w = parseInt(out.width, 10) || 0;
@@ -940,12 +931,12 @@ export function transferFl2vSlotImage(editor, fromShot, fromSlot, toShot, toSlot
     if (!srcImg?.imageFile) return false;
 
     if (fromShot === toShot) {
-        // 组内：互换（目标空则等于移动）
+        // Within a group: swap (if the target is empty this is just a move)
         const dstImg = getFl2vSlotImage(dst, toSlot);
         setFl2vSlotImage(src, fromSlot, cloneFl2vImageRef(dstImg));
         setFl2vSlotImage(dst, toSlot, cloneFl2vImageRef(srcImg));
     } else {
-        // 组间：复制到目标（源保留）
+        // Between groups: copy to the target (source keeps its image)
         setFl2vSlotImage(dst, toSlot, cloneFl2vImageRef(srcImg));
     }
     syncFl2vFromShots(editor);
@@ -1488,7 +1479,7 @@ export function setFl2vToolbar(editor, enabled) {
         editor.equalCountInput.disabled = enabled;
         editor.equalCountInput.classList.toggle("hidden", enabled);
     }
-    // Hide legacy "upload video" — use 添加一组 instead.
+    // Hide legacy "upload video" — use "Add shot" instead.
     if (editor.btnVideo) {
         editor.btnVideo.classList.toggle("hidden", enabled);
         editor.btnVideo.disabled = enabled;
