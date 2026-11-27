@@ -33,17 +33,6 @@ def serialize_postprocess_config(raw: Any) -> str:
     )
 
 
-def postprocess_cache_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
-    """Return the pixel/latent-producing postprocess identity.
-
-    Result previews remain UI-only and are deliberately excluded.
-    """
-    normalized = normalize_postprocess_config(config)
-    global_refine = dict(normalized["global_refine"])
-    global_refine.pop("result_previews_enabled", None)
-    return {"global_refine": global_refine if global_refine["enabled"] else False}
-
-
 def __getattr__(name: str):
     return getattr(_legacy, name)
 
@@ -54,7 +43,7 @@ for _name in (
     "POSTPROCESS_CONFIG_VERSION",
     "normalize_postprocess_config",
     "serialize_postprocess_config",
-    "postprocess_cache_fingerprint",
+    "postprocess_config_identity",
 ):
     if _name not in __all__:
         __all__.append(_name)

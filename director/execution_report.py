@@ -15,7 +15,7 @@ SECTION_ORDER = (
     "Latent Scale Lock",
     "Color",
     "Audio Context",
-    "Cache",
+    "Segments",
     "References",
     "Generation",
     "Seam Diagnostics",
@@ -123,7 +123,7 @@ def _parse_refine_pass(value: str) -> dict[str, str]:
     return result
 
 
-def _cache_segment_states(entries: list[str] | None) -> dict[str, str]:
+def _segment_states(entries: list[str] | None) -> dict[str, str]:
     states: dict[str, str] = {}
     pattern = re.compile(r"^(S\d+):\s*(.+)$")
     for entry in entries or []:
@@ -134,12 +134,9 @@ def _cache_segment_states(entries: list[str] | None) -> dict[str, str]:
     return states
 
 
-def _not_run_reason(cache_state: str | None) -> str:
-    state = str(cache_state or "").strip()
-    lower = state.lower()
-    if "cache hit" in lower:
-        return "NOT RUN (cache hit)"
-    if "selection skipped" in lower:
+def _not_run_reason(segment_state: str | None) -> str:
+    state = str(segment_state or "").strip()
+    if "selection skipped" in state.lower():
         return "NOT RUN (selection skipped)"
     if state:
         return f"NOT RUN ({state})"
@@ -148,7 +145,7 @@ def _not_run_reason(cache_state: str | None) -> str:
 
 def _split_global_refine_sections(
     entries: list[str] | None,
-    cache_entries: list[str] | None,
+    segment_entries: list[str] | None,
 ) -> dict[str, list[str]]:
     """Turn the old mixed Global Refine block into stage-specific report blocks."""
     flat: list[str] = []
@@ -210,9 +207,9 @@ def _split_global_refine_sections(
         segment["passes_detail"].sort(key=lambda pair: pair[0])
 
     enabled = config.get("Enabled", "OFF").upper() == "ON"
-    cache_states = _cache_segment_states(cache_entries)
+    segment_states = _segment_states(segment_entries)
     known_ids = {segment["segment"] for segment in segments}
-    all_ids = set(known_ids) | set(cache_states)
+    all_ids = set(known_ids) | set(segment_states)
 
     def segment_number(segment_id: str) -> int:
         try:
@@ -277,7 +274,7 @@ def _split_global_refine_sections(
         segment = by_id.get(segment_id)
         if segment is None:
             second_lines.append(
-                f"{segment_id}: {_not_run_reason(cache_states.get(segment_id))}"
+                f"{segment_id}: {_not_run_reason(segment_states.get(segment_id))}"
             )
             continue
         if str(segment.get("Second Sampling") or "OFF").upper() != "ON":
@@ -321,7 +318,7 @@ def _split_global_refine_sections(
         segment = by_id.get(segment_id)
         if segment is None:
             upscale_lines.append(
-                f"{segment_id}: {_not_run_reason(cache_states.get(segment_id))}"
+                f"{segment_id}: {_not_run_reason(segment_states.get(segment_id))}"
             )
             continue
         if not upscale_enabled:
@@ -364,7 +361,7 @@ def _split_global_refine_sections(
         segment = by_id.get(segment_id)
         if segment is None:
             deblur_lines.append(
-                f"{segment_id}: {_not_run_reason(cache_states.get(segment_id))}"
+                f"{segment_id}: {_not_run_reason(segment_states.get(segment_id))}"
             )
             continue
         state = str(segment.get("RTX Deblur") or "OFF").upper()
@@ -444,7 +441,7 @@ class DirectorExecutionReport:
         }
         split = _split_global_refine_sections(
             sections.get("Global Refine"),
-            sections.get("Cache"),
+            sections.get("Segments"),
         )
         for name, lines in split.items():
             sections[name] = lines

@@ -82,7 +82,13 @@ def window_sizes(
     requested_context: int = 22,
     context_pipeline_active: bool = False,
 ) -> tuple[int, int]:
-    """Head and tail window sizes for one chunk (never larger than the chunk)."""
+    """Head and tail window sizes for one chunk (never larger than the chunk).
+
+    The tail is not clamped to ``chunk - head``: when the context region reaches into
+    the head region, ``ClipWindow`` keeps the whole chunk, so the two views may overlap.
+    Clamping here would shrink the Motion Context region below the configured
+    ``context_length`` and make Low RAM ON disagree with Low RAM OFF.
+    """
     n = int(chunk_frames)
     head = min(HEAD_WINDOW_FRAMES, n)
     tail = min(
@@ -90,7 +96,7 @@ def window_sizes(
             requested_context=requested_context,
             context_pipeline_active=context_pipeline_active,
         ),
-        max(0, n - head),
+        n,
     )
     return head, tail
 

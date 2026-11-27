@@ -16,13 +16,13 @@ from typing import Any, Optional
 import torch
 
 from ..lib.image_prep import (
-    H3_SPATIAL_PIPELINE,
     fit_canvas,
     fit_video_long_edge,
     resolve_h3_canvas,
     resolve_h3_spatial_stride,
 )
 from ..lib.task_modes import SUPPORTED_TASK_KEYS
+from ..lib.tensor_fingerprint import tensor_fingerprint
 from ..nodes.conditioning import (
     append_minimax_keyframe_anchors,
     run_minimax_conditioning,
@@ -38,26 +38,24 @@ from .clip_merge import merge_clips
 from .clip_stream import ClipStreamState
 from .clip_window import ClipWindow
 from .clip_writer import ClipWriterManager
-from .low_ram import resolve_low_ram
-from .postprocess_config import normalize_postprocess_config, postprocess_cache_fingerprint
+from .low_ram import context_tail_frames, resolve_low_ram
+from .postprocess_config import normalize_postprocess_config
 from .refine_sampling import apply_global_refine
 from .seam_report import build_seam_report_lines
 from .preview_manager import DirectorPreviewManager
 from .frame_align import (
-    H3_REFERENCE_VIDEO_PIPELINE,
-    H3_SOURCE_BRIDGE_PIPELINE,
     minimax_align_frame_count,
     pad_or_trim_frames,
     prepare_h3_reference_video_clip,
 )
 from .audio_trim import audio_has_samples, trim_segment_av
-from .context_cache import (
-    CachedMotionContext,
-    load_motion_context_cache,
-    save_motion_context_cache,
-    tensor_fingerprint,
-)
 from .context_links import resolve_context_link
+from .context_store import (
+    LATENT_HANDOFF_PIPELINE,
+    RetainedMotionContext,
+    latent_context_canvas,
+    prepare_latent_context_tail,
+)
 from .execution_report import (
     context_shortfall_warning,
     DirectorExecutionReport,
@@ -70,16 +68,8 @@ from .execution_report import (
     short_fingerprint,
 )
 from .motion_context import (
-    PIN_RENORM_PIPELINE,
     apply_exported_motion_context,
     select_context_span,
-)
-from .latent_context_cache import (
-    LATENT_HANDOFF_PIPELINE,
-    latent_context_canvas,
-    load_latent_context_cache,
-    prepare_latent_context_tail,
-    save_latent_context_cache,
 )
 from .mixed_runtime import capture_mixed_reference_frames
 from .audio_export import (
@@ -100,7 +90,6 @@ from .segment_runtime import (
 )
 from .color_reanchor import (
     apply_seam_color_match,
-    color_reanchor_cache_settings,
     establish_color_chain_baseline,
     validate_color_anchor_statistics,
 )
@@ -139,29 +128,6 @@ from .segment_continuity import (
 from .vram_cleanup import cleanup_segment_vram
 
 log = logging.getLogger("ComfyUI-MiniMax-H3-Motion-Director.director.core")
-
-
-def _stable_cache_value(value, depth: int = 0):
-    """Describe MODEL patch options without memory-address-based repr strings."""
-    if depth > 6:
-        return {"type": f"{type(value).__module__}.{type(value).__qualname__}"}
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, torch.Tensor):
-        return tensor_fingerprint(value)
-    if isinstance(value, dict):
-        return {
-            str(key): _stable_cache_value(item, depth + 1)
-            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-        }
-    if isinstance(value, (list, tuple)):
-        return [_stable_cache_value(item, depth + 1) for item in value]
-    if callable(value):
-        return {
-            "callable": f"{getattr(value, '__module__', type(value).__module__)}."
-            f"{getattr(value, '__qualname__', type(value).__qualname__)}"
-        }
-    return {"type": f"{type(value).__module__}.{type(value).__qualname__}"}
 
 
 def _unpack_node_output(out):
@@ -361,6 +327,9 @@ def execute_director_plan_core(
         _, external_steps = validate_external_sampling(model, external_sampler, external_sigmas)
     motion_enabled = bool(motion_context_enabled)
     requested_context = max(1, int(context_length))
+    # The region the next segment can read is the retention window, sized from the widget
+    # and never from a fixed constant, so Low RAM ON and OFF hand off the same context.
+    retained_context_span = context_tail_frames(requested_context)
     requested_source_bridge = validate_source_bridge_frames(source_overlap_frames)
     plan.source_overlap_frames = requested_source_bridge
     plan.color_reanchor_enabled = bool(color_reanchor_enabled)
@@ -401,43 +370,11 @@ def execute_director_plan_core(
                 "H3 compatibility self-test failed: %s" % patch_reason
             )
 
-    cache_settings: dict[str, Any] = {
-        "pipeline": "exported_motion_context_tail_v4_master_boundary_policy",
-        "seed": int(seed),
-        "cfg": float(cfg),
-        "sampling_mode": sampling_mode,
-        "motion_context_enabled": motion_enabled,
-        "audio_context_enabled": audio_context_master_active,
-        "audio_mode": audio_mode,
-        "context_length": requested_context,
-        "context_link_pipeline": "previous_context_link_v2_master_gated",
-        "pin_renorm_enabled": bool(pin_renorm_enabled),
-        "pin_renorm_pipeline": PIN_RENORM_PIPELINE,
-        "model_class": type(getattr(model, "model", None)).__name__,
-        "model_options": _stable_cache_value(getattr(model, "model_options", {}) or {}),
-    }
-    cache_settings.update(color_reanchor_cache_settings(color_reanchor_requested))
-    cache_settings.update(postprocess_cache_fingerprint(postprocess))
-    cache_settings.update({"spatial_stride": int(plan_spatial_stride), "spatial_pipeline": H3_SPATIAL_PIPELINE})
-    if any(seg.task_key in {"v2v", "rv2v"} for seg in plan.segments):
-        cache_settings["reference_video_pipeline"] = H3_REFERENCE_VIDEO_PIPELINE
-        cache_settings["source_bridge_pipeline"] = H3_SOURCE_BRIDGE_PIPELINE
-        cache_settings["source_overlap_frames"] = requested_source_bridge
-    if sampling_mode == "internal":
-        cache_settings.update({
-            "steps": int(steps), "sampler": str(sampler), "scheduler": str(scheduler),
-            "shift_video": float(shift_video), "shift_audio": float(shift_audio),
-        })
-    else:
+    # Motion Context is an in-run handoff, so there is no persisted settings identity to
+    # validate a run against.  The only run identity the report needs is the sampling one.
+    model_sampling = None
+    if sampling_mode != "internal":
         model_sampling = model.get_model_object("model_sampling")
-        cache_settings.update({
-            "external_sampler": describe_external_sampler(external_sampler),
-            "external_sigmas": tensor_fingerprint(external_sigmas),
-            "external_steps": int(external_steps),
-            "model_shift_video": float(getattr(model_sampling, "shift", 0.0)),
-            "model_shift_audio": float(getattr(model_sampling, "audio_shift", 0.0)),
-        })
-    plan.cache_settings = cache_settings
     live_tae_preview = bool(preview_config["enabled"])
 
     all_segments = plan.segments
@@ -481,7 +418,7 @@ def execute_director_plan_core(
         "Previous Context links: per-boundary Visual/Audio policy "
         f"({'explicit' if has_explicit_context_links else 'legacy fallback'})"
     )
-    reports.append(f"Motion Context handoff: {LATENT_HANDOFF_PIPELINE} (canvas-aware latent-first)")
+    reports.append(f"Motion Context handoff: {LATENT_HANDOFF_PIPELINE} (in-run, window-sized)")
     reports.append(f"Context frames: {requested_context}")
     reports.append(f"Source Bridge frames: {requested_source_bridge} (V2V/RV2V only)")
     if source_bridge_pairs:
@@ -546,12 +483,11 @@ def execute_director_plan_core(
         reports.append("Segment continuity: OFF — per-segment generation only.")
 
     completed_outputs: dict[int, torch.Tensor] = {}
-    completed_contexts: dict[int, CachedMotionContext] = {}
+    completed_contexts: dict[int, RetainedMotionContext] = {}
     context_available_frames: dict[int, int] = {}
     completed_refine_contexts: dict[int, tuple[dict[str, Any], dict[str, Any]]] = {}
     execution_report = DirectorExecutionReport()
     generated_indices: set[int] = set()
-    context_cache_hits: set[int] = set()
     boundary_diagnostics: dict[int, dict[str, Any]] = {}
     pin_diagnostics: dict[int, str] = {}
     color_diagnostics: dict[int, str] = {}
@@ -690,52 +626,19 @@ def execute_director_plan_core(
                 f"nominal visible output = {target_len} frames"
             )
 
-        context_entry: CachedMotionContext | None = None
-        context_loaded_from_cache = False
+        context_entry: RetainedMotionContext | None = None
         context_span = 0
         color_anchor = None
         if apply_visual_context or apply_audio_context:
             previous_index = timeline_slot - 1
             context_entry = completed_contexts.get(previous_index)
             if context_entry is None:
-                previous_seg = next(
-                    (candidate for candidate in all_segments if int(candidate.timeline_index) == previous_index),
-                    None,
+                raise ValueError(
+                    "Segment %d requires Segment %d to have been generated in this run for "
+                    "Motion Context.  The handoff is in-run only: run the complete sequence, or "
+                    "select Segment %d together with Segment %d."
+                    % (timeline_slot + 1, previous_index + 1, timeline_slot + 1, previous_index + 1)
                 )
-                if previous_seg is None:
-                    raise ValueError(
-                        "Segment %d requires Segment %d for Motion Context, but the previous segment is absent "
-                        "from this compact execution plan. Run the complete sequence once to create a validated context cache."
-                        % (timeline_slot + 1, previous_index + 1)
-                    )
-                pixel_context = load_motion_context_cache(
-                    node_id, previous_seg, plan, settings=cache_settings, strict=False,
-                )
-                latent_context = load_latent_context_cache(
-                    node_id, previous_seg, plan, settings=cache_settings,
-                )
-                refine_latent_context = load_latent_context_cache(
-                    node_id, previous_seg, plan, settings=cache_settings, variant="refine",
-                )
-                if refine_latent_context is not None:
-                    completed_refine_contexts[previous_index] = (
-                        refine_latent_context.latent, refine_latent_context.handoff
-                    )
-                if pixel_context is None and latent_context is None and refine_latent_context is None:
-                    load_motion_context_cache(
-                        node_id, previous_seg, plan, settings=cache_settings, strict=True,
-                    )
-                    raise ValueError("Previous Context cache is unavailable.")
-                fallback_latent = latent_context or refine_latent_context
-                context_entry = CachedMotionContext(
-                    frames=pixel_context.frames if pixel_context is not None else None,
-                    audio=pixel_context.audio if pixel_context is not None else None,
-                    metadata=(pixel_context.metadata if pixel_context is not None else fallback_latent.metadata),
-                    latent=latent_context.latent if latent_context is not None else None,
-                    handoff=fallback_latent.handoff if fallback_latent is not None else None,
-                )
-                context_loaded_from_cache = True
-                context_cache_hits.add(previous_index)
             available_context_frames = int(
                 (context_entry.handoff or {}).get("export_frames")
                 or context_available_frames.get(previous_index)
@@ -754,8 +657,8 @@ def execute_director_plan_core(
                 color_anchor = validate_color_anchor_statistics((context_entry.handoff or {}).get("color_anchor_stats"))
                 if color_anchor is None:
                     raise ValueError(
-                        f"Segment {timeline_slot + 1}: Color Re-anchor requires a valid visual-chain baseline cache. "
-                        "Run the chain root or full sequence once to rebuild the v6 context cache."
+                        f"Segment {timeline_slot + 1}: Color Re-anchor requires a valid visual-chain baseline "
+                        f"handoff from Segment {previous_index + 1}, which was generated in this run."
                     )
 
         generation_request = target_len + context_span
@@ -859,7 +762,7 @@ def execute_director_plan_core(
                 task_key=seg.task_key,
                 pin_renorm_enabled=bool(pin_renorm_enabled and apply_visual_context),
                 pin_renorm_baseline_std=(context_entry.handoff or {}).get("pin_renorm_baseline_std"),
-                pin_renorm_baseline_source=("cache" if context_loaded_from_cache else "inherited"),
+                pin_renorm_baseline_source="inherited",
             )
 
         report_director_progress(
@@ -1022,9 +925,9 @@ def execute_director_plan_core(
             handoff["pin_renorm_baseline_std"] = float(motion_info.pin_renorm_baseline_std)
 
         sampled_context_latent = None
-        cached_handoff = None
+        retained_handoff = None
         refine_context_latent = None
-        refine_cached_handoff = None
+        refine_retained_handoff = None
         if context_pipeline_active:
             refined_canvas_changed = bool(
                 global_outcome.succeeded
@@ -1032,12 +935,16 @@ def execute_director_plan_core(
                 and (global_outcome.target_width, global_outcome.target_height) != (ctx_w, ctx_h)
             )
             if refined_canvas_changed:
-                refine_context_latent, refine_cached_handoff = prepare_latent_context_tail(samples, handoff)
-                completed_refine_contexts[timeline_slot] = (refine_context_latent, refine_cached_handoff)
-                cached_handoff = dict(handoff)
-                cached_handoff["latent_status"] = "RGB_FALLBACK_BASE_CANVAS_WITH_REFINE_LATENT"
+                refine_context_latent, refine_retained_handoff = prepare_latent_context_tail(
+                    samples, handoff, span=retained_context_span
+                )
+                completed_refine_contexts[timeline_slot] = (refine_context_latent, refine_retained_handoff)
+                retained_handoff = dict(handoff)
+                retained_handoff["latent_status"] = "RGB_FALLBACK_BASE_CANVAS_WITH_REFINE_LATENT"
             else:
-                sampled_context_latent, cached_handoff = prepare_latent_context_tail(samples, handoff)
+                sampled_context_latent, retained_handoff = prepare_latent_context_tail(
+                    samples, handoff, span=retained_context_span
+                )
 
         if audio_has_samples(audio_dict):
             audio_dict = {
@@ -1055,58 +962,20 @@ def execute_director_plan_core(
         context_available_frames[timeline_slot] = window.available_context_frames()
         retained = window.retained_view()
 
-        if context_pipeline_active:
-            if not save_motion_context_cache(
-                node_id, seg, plan, frames=retained,
-                audio=audio_dict if audio_mode == AUDIO_MODE_GENERATE else None,
-                settings=cache_settings,
-            ):
-                reports.append(
-                    f"Segment {ui_idx + 1}: Motion Context cache write failed; "
-                    "selection-run continuation from this segment will be unavailable."
-                )
-                warning_messages.append(f"S{ui_idx + 1}: Motion Context cache write failed")
-            if sampled_context_latent is None:
-                reports.append(
-                    f"Segment {ui_idx + 1}: next first pass uses validated RGB/audio fallback at the Base Canvas; "
-                    "matching Refine Canvas keeps the final AV latent handoff without VAE re-encode."
-                )
-            elif not save_latent_context_cache(
-                node_id, seg, plan, latent=sampled_context_latent, handoff=cached_handoff,
-                settings=cache_settings,
-            ):
-                reports.append(
-                    f"Segment {ui_idx + 1}: AV latent handoff cache write failed; "
-                    "selection-run will use exported RGB/audio fallback if available."
-                )
-                warning_messages.append(
-                    f"S{ui_idx + 1}: AV latent handoff cache write failed; future selection runs may use RGB/audio fallback"
-                )
-            if refine_context_latent is not None and not save_latent_context_cache(
-                node_id, seg, plan, latent=refine_context_latent, handoff=refine_cached_handoff,
-                settings=cache_settings, variant="refine",
-            ):
-                reports.append(
-                    f"Segment {ui_idx + 1}: Refine Canvas AV latent cache write failed; "
-                    "future refine repin will fall back to RGB/VAE encoding."
-                )
-                warning_messages.append(
-                    f"S{ui_idx + 1}: Refine Canvas AV latent cache write failed"
-                )
+        # The handoff is in-memory only: the retained window and the retained latent tail
+        # are what the next segment reads.  Nothing is written to disk.
+        if context_pipeline_active and sampled_context_latent is None:
+            reports.append(
+                f"Segment {ui_idx + 1}: next first pass uses validated RGB/audio fallback at the Base Canvas; "
+                "matching Refine Canvas keeps the final AV latent handoff without VAE re-encode."
+            )
 
         completed_outputs[seg.index] = retained
-        completed_contexts[timeline_slot] = CachedMotionContext(
+        completed_contexts[timeline_slot] = RetainedMotionContext(
             frames=retained,
             audio=audio_dict if audio_has_samples(audio_dict) else None,
-            metadata={
-                "fps": float(plan.frame_rate or 24.0),
-                "frame_count": int(window.available_context_frames()),
-                "width": int(chunk.shape[2]),
-                "height": int(chunk.shape[1]),
-                "segment_index": int(seg.index),
-            },
             latent=sampled_context_latent,
-            handoff=cached_handoff,
+            handoff=retained_handoff,
         )
 
         # Previews are sent from the full chunk while it is still in memory.  In Low RAM
@@ -1501,8 +1370,8 @@ def execute_director_plan_core(
             f"Effective steps: {int(external_steps)}",
             f"Sampler: {describe_external_sampler(external_sampler)}",
             "Scheduler: external SIGMAS",
-            f"Video shift: {float(cache_settings['model_shift_video']):g}",
-            f"Audio shift: {float(cache_settings['model_shift_audio']):g}",
+            f"Video shift: {float(getattr(model_sampling, 'shift', 0.0)):g}",
+            f"Audio shift: {float(getattr(model_sampling, 'audio_shift', 0.0)):g}",
             f"SIGMAS: {int(external_steps)} steps / hash {short_fingerprint(sigma_identity)}",
         )
 
@@ -1554,10 +1423,8 @@ def execute_director_plan_core(
     for slot in sorted(color_diagnostics):
         execution_report.add("Color", color_diagnostics[slot])
     for index in range(len(all_segments)):
-        state = "generated" if index in generated_indices else "not part of this run"
-        execution_report.add("Cache", f"S{index + 1}: {state}")
-    for index in sorted(context_cache_hits):
-        execution_report.add("Cache", f"Previous context: S{index + 1} cache valid")
+        state = "generated in this run" if index in generated_indices else "not part of this run"
+        execution_report.add("Segments", f"S{index + 1}: {state}")
     for slot, line in sorted(reference_diagnostics.items()):
         execution_report.add("References", line)
 

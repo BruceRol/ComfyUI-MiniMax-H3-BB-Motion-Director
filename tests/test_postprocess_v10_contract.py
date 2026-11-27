@@ -1,7 +1,7 @@
 from director.postprocess_config import (
     POSTPROCESS_CONFIG_VERSION,
     normalize_postprocess_config,
-    postprocess_cache_fingerprint,
+    postprocess_config_identity,
 )
 
 
@@ -19,7 +19,7 @@ def test_postprocess_config_version_is_v10_and_face_refine_is_gone():
     assert normalized["global_refine"]["result_previews_enabled"] is True
 
 
-def test_result_preview_does_not_change_cache_identity():
+def test_result_preview_does_not_change_config_identity():
     base = {
         "version": 9,
         "global_refine": {"enabled": True, "result_previews_enabled": False},
@@ -32,5 +32,5 @@ def test_result_preview_does_not_change_cache_identity():
         **base,
         "global_refine": {"enabled": True, "result_previews_enabled": False, "denoise": 0.55},
     }
-    assert postprocess_cache_fingerprint(base) == postprocess_cache_fingerprint(preview)
-    assert postprocess_cache_fingerprint(base) != postprocess_cache_fingerprint(changed_refine)
+    assert postprocess_config_identity(base) == postprocess_config_identity(preview)
+    assert postprocess_config_identity(base) != postprocess_config_identity(changed_refine)

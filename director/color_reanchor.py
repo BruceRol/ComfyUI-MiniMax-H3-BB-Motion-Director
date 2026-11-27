@@ -298,14 +298,6 @@ def establish_color_chain_baseline(
     return color_anchor_statistics(generated_frames, source=f"{task_key.upper()} chain-root generated result")
 
 
-def color_reanchor_cache_settings(enabled: bool) -> dict[str, Any]:
-    return {
-        "color_reanchor_enabled": bool(enabled),
-        "color_reanchor_pipeline": COLOR_REANCHOR_PIPELINE,
-        "color_anchor_policy": COLOR_ANCHOR_POLICY,
-    }
-
-
 __all__ = [
     "COLOR_REANCHOR_PIPELINE",
     "COLOR_ANCHOR_POLICY",
@@ -316,7 +308,6 @@ __all__ = [
     "apply_color_reanchor",
     "apply_seam_color_match",
     "color_anchor_statistics",
-    "color_reanchor_cache_settings",
     "establish_color_chain_baseline",
     "resolve_color_anchor",
     "validate_color_anchor_statistics",

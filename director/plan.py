@@ -141,15 +141,13 @@ class DirectorPlan:
     run_select_enabled: bool = False
     continuity_enabled: bool = False
     continuity_overlap_frames: int = 0
-    # Runtime executor setting. Stored on the plan so segment/context cache
-    # fingerprints cannot reuse outputs from a different Source Bridge policy.
+    # Source Bridge policy: the plan keeps it so the report and the frontend show the
+    # effective value, and outputs are never reused across a different policy.
     source_overlap_frames: int = 0
     # Runtime-only setting appended to the node schema for old workflow safety.
     color_reanchor_enabled: bool = False
     spatial_stride: int = 32
     global_ref_audios: list[SegmentRefAudio] = field(default_factory=list)
-    # Populated by the executor before any persistent cache access.
-    cache_settings: dict | None = None
 
     @property
     def segment_count(self) -> int:

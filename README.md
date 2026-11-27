@@ -152,7 +152,7 @@ A Segment Result is a static frame reference; it is separate from Motion Context
 
 ### Selective Run
 
-Long projects rarely need every shot regenerated. Enable **Selective Run**, mark only the segments that need another pass, and keep the rest of the sequence intact when cached/source results are available.
+Long projects rarely need every shot regenerated. Enable **Selective Run** and mark only the segments that need another pass. Only the marked segments are executed, and a marked segment that references an earlier one forces that producer to run in the same pass: nothing is reused from a previous run, so a rerun is never built on stale results.
 
 This is one of the main reasons the Director exists: fixing Shot 3 should not automatically mean paying for Shots 1, 2, 4, and 5 again.
 

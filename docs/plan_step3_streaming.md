@@ -123,8 +123,15 @@ it may be rebuilt later as a separate system. Consequences:
   a referenced segment was not produced in this run.
 - Previews are sent during generation from the full chunk while it is in memory, so the
   Source Bridge preview no longer needs a disk reload.
-- The motion context cache (`MAX_PERSISTED_CONTEXT_FRAMES = 39`) is a separate subsystem and
-  stays; `plan.cache_settings` is still needed by `context_cache.py` / `latent_context_cache.py`.
+- The Motion Context disk cache is removed as well.  `director/context_cache.py`,
+  `director/latent_context_cache.py`, `director/cache_path.py` and `director/context_identity.py`
+  are deleted and `plan.cache_settings` is gone: Motion Context is an in-run handoff only
+  (`director/context_store.py`).  A selected segment whose predecessor was not generated in this
+  run raises an explicit error instead of reading a stale file.
+- The retained context is sized from the `context_length` widget through
+  `low_ram.context_tail_frames`, never from the fixed `MAX_PERSISTED_CONTEXT_FRAMES = 39`, so
+  Low RAM ON and OFF hand off exactly the same window.  The report section `Cache` becomes
+  `Segments` (`generated in this run` / `not part of this run`).
 
 ## Implementation checklist
 
@@ -154,6 +161,12 @@ it may be rebuilt later as a separate system. Consequences:
       `web/js/minimax_postprocess_ui.mjs`, `run_face` / `_aggregate_face_outcome` /
       `assembled_face_noop` in `director/executor_core.py`. No no-op hook is needed: the rewritten
       loop never calls `apply_face_refine`, and the report section is now "Clip Output".
+- [x] `director/context_store.py`: `RetainedMotionContext` and `prepare_latent_context_tail(latent,
+      handoff, span=...)`; `executor_core_legacy.py` reads Motion Context only from the in-memory
+      retained windows, the latent tail is sized with `low_ram.context_tail_frames(requested_context)`,
+      `tests/test_visual_latent_validity.py` is retargeted to the store, the dead cache helpers
+      (`color_reanchor_cache_settings`, `postprocess_cache_fingerprint`) are removed, and
+      `minimax_motion_context_cache/` is dropped from `.gitignore`.
 - [ ] Manual verification in ComfyUI (full restart, hard browser refresh, recreate the Director
       node, workflow run). Then commit/push Step 3, excluding `AGENTS.md` and the personal
       `start_projet_*` / `stop-opencode.*` scripts.

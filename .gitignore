@@ -14,5 +14,3 @@ build/
 input/
 output/
 temp/
-minimax_seg_cache/
-minimax_motion_context_cache/

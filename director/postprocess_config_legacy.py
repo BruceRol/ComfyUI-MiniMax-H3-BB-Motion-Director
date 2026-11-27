@@ -362,12 +362,15 @@ def resolve_upscale_target(config: dict[str, Any], director_width: int, director
     return _snap(round(aw * scale)), _snap(round(ah * scale))
 
 
-def postprocess_cache_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
-    """Return the effective per-segment Global Refine cache identity."""
-    g = dict(normalize_postprocess_config(config)["global_refine"])
-    # Result previews only affect UI decoding cost; they do not change generated pixels/latents.
-    g.pop("result_previews_enabled", None)
-    return {"global_refine": g if g["enabled"] else False}
+def postprocess_config_identity(config: dict[str, Any]) -> dict[str, Any]:
+    """Return the pixel/latent-producing postprocess identity.
+
+    Result previews remain UI-only and are deliberately excluded.
+    """
+    normalized = normalize_postprocess_config(config)
+    global_refine = dict(normalized["global_refine"])
+    global_refine.pop("result_previews_enabled", None)
+    return {"global_refine": global_refine if global_refine["enabled"] else False}
 
 
 __all__ = [
@@ -375,5 +378,5 @@ __all__ = [
     "normalize_postprocess_config", "serialize_postprocess_config",
     "refine_executed_steps_for", "refine_passes_for", "refine_pass_settings_for",
     "refine_seed_for", "resolve_vsr_quality_name",
-    "resolve_upscale_target", "postprocess_cache_fingerprint",
+    "resolve_upscale_target", "postprocess_config_identity",
 ]
